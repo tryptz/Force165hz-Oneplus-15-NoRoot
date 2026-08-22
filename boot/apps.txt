@@ -5,3 +5,4 @@ tf.monotrypt.android
 tf.monotrypt.android.linein
 tf.monotrypt.android.audittest
 com.roblox.client
+com.discord
