@@ -51,6 +51,20 @@ case "${1:-}" in
     pick_device
     $ADB shell logcat -s RefreshRate | grep --line-buffered -iE 'rateId=|requestRefreshRate|changing from'
     exit 0 ;;
+  --all)
+    pick_device
+    ensure_dex
+    ok=0; fail=0
+    for pkg in $($ADB shell pm list packages | tr -d '\r' | sed 's/package://' | grep -v '^android$'); do
+      if arm "$pkg" 7 2>/dev/null | grep -q "result=1"; then
+        ok=$((ok+1))
+      else
+        fail=$((fail+1)); echo "  [skip] $pkg"
+      fi
+    done </dev/null
+    echo "[done] armed=$ok skipped=$fail"
+    $ADB shell dumpsys oplusscreenmode | grep OifaceRequested | head -c 400; echo
+    exit 0 ;;
 esac
 
 PKG="$1"
