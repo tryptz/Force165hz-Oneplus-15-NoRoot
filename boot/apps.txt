@@ -1,0 +1,7 @@
+# one package per line — locked to 165 Hz after every reboot
+tf.tryptify.dj
+tf.monochrome.app
+tf.monotrypt.android
+tf.monotrypt.android.linein
+tf.monotrypt.android.audittest
+com.roblox.client
