@@ -12,6 +12,10 @@ OxygenOS 16 / Android 16). No root, no Magisk, no bootloader unlock.
 - **Clear all** disarms everything
 - Armed apps are persisted and automatically re-applied after reboot
   (`BOOT_COMPLETED` receiver)
+- **Watchdog foreground service** re-issues the 165 Hz vote for all armed apps
+  every 5 s while the screen is on — this beats games (Unity/Unreal etc.) that
+  pin their own frame rate on focus and would otherwise override a one-shot vote.
+  Pauses when the screen is off.
 
 Under the hood it calls the unguarded vendor IPC:
 
@@ -47,14 +51,16 @@ cp app/build/outputs/apk/debug/app-debug.apk ~/storage/downloads/arm165-debug.ap
 
 Open **Files → Downloads → arm165-debug.apk** and allow "install unknown apps"
 when prompted. If an older copy was signed with a different key, uninstall it
-first.
+first. On first launch, grant the notification permission — the watchdog's
+silent notification keeps the re-arming service alive in the background.
 
 ## Notes
 
 - Overrides are runtime state — cleared on reboot (the boot receiver re-applies).
 - The armed app must be foregrounded to receive the vote.
-- Apps that pin their own frame rate (`preferredRefreshRate`, `setFrameRate ≤ 120`)
-  override this lock; apps requesting nothing get fully locked at 165.
+- Apps that pin their own frame rate are handled by the watchdog, which keeps
+  re-voting every 5 s so our vote lands after theirs; a stubborn game may still
+  need a few seconds after gaining focus before it locks at 165.
 - Video/streaming apps may judder under a hard 165 pin — disarm those.
 - Battery and heat increase with the number of armed apps.
 - A future OxygenOS update may add a permission check; a `SecurityException`

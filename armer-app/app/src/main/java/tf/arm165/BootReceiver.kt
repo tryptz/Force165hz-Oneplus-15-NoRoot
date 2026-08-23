@@ -9,5 +9,8 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val prefs = context.getSharedPreferences("arm165", 0)
         prefs.getStringSet("armed", emptySet())?.forEach { RateLock.arm(it) }
+        if (prefs.getStringSet("armed", emptySet())!!.isNotEmpty()) {
+            ArmWatchService.start(context) // keep re-arming after games re-pin their rate
+        }
     }
 }

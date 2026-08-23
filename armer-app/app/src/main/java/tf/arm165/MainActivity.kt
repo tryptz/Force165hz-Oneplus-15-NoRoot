@@ -143,6 +143,7 @@ class MainActivity : Activity() {
 
         refreshStatus()
         reArmSaved(quiet = true) // covers reboot-without-boot-receiver
+        ArmWatchService.start(this) // watchdog: beat games that pin their own frame rate
     }
 
     private fun labelOf(pkg: String): String = try {
