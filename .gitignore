@@ -1,2 +1,6 @@
 *.class
 classes.dex
+.gradle/
+build/
+app/build/
+*.apk
