@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Material You palette, dark mode. The framework's system tokens do NOT
+    invert tone direction at night (verified on-device: _0 is white and
+    _900 near-black in both modes; only the hue follows the wallpaper), so
+    dark roles map to high _N and light content to low _N.
+-->
+<resources>
+    <!-- surfaces -->
+    <color name="bg">@android:color/system_neutral1_900</color>
+    <color name="surface">@android:color/system_neutral1_800</color>
+    <color name="surface_variant">@android:color/system_neutral1_800</color>
+    <color name="bar">@android:color/system_neutral1_800</color>
+
+    <!-- hero card gradient -->
+    <color name="hero_start">@android:color/system_neutral1_800</color>
+    <color name="hero_end">@android:color/system_accent1_800</color>
+
+    <!-- text -->
+    <color name="text_primary">@android:color/system_neutral1_50</color>
+    <color name="text_secondary">@android:color/system_neutral2_400</color>
+    <color name="text_disabled">@android:color/system_neutral2_600</color>
+
+    <!-- brand -->
+    <color name="accent">@android:color/system_accent1_200</color>
+    <color name="on_accent">@android:color/system_accent1_800</color>
+    <color name="accent_container">@android:color/system_accent1_700</color>
+    <color name="on_accent_container">@android:color/system_accent1_100</color>
+    <color name="accent_outline">@android:color/system_accent1_700</color>
+
+    <!-- list rows / controls -->
+    <color name="row_armed">@android:color/system_accent1_900</color>
+    <color name="switch_track_off">@android:color/system_neutral1_800</color>
+    <color name="switch_thumb_off">@android:color/system_neutral1_400</color>
+
+    <!-- snackbar -->
+    <color name="snack_bg">@android:color/system_neutral1_800</color>
+    <color name="snack_text">@android:color/system_neutral1_50</color>
+</resources>

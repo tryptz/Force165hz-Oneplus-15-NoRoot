@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="24" android:viewportHeight="24">
+    <!-- three-quarter ring, gap in the upper right -->
+    <path
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M12,4 A8,8 0 1,0 20,12" />
+    <!-- arrow head closing the gap -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.6,0.9 L11.6,7.1 L16.4,4 Z" />
+</vector>
