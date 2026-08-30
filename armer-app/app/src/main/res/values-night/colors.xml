@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark palette. Keep the token names in sync with values/colors.xml -->
+<resources>
+    <!-- surfaces -->
+    <color name="bg">#FF0C0C0F</color>
+    <color name="bg_fade">#00000000</color>
+    <color name="surface">#FF16161B</color>
+    <color name="surface_variant">#FF20202A</color>
+    <color name="bar">#FF1A1A21</color>
+
+    <!-- hero card gradient -->
+    <color name="hero_start">#FF191920</color>
+    <color name="hero_end">#FF2A1119</color>
+
+    <!-- lines / feedback -->
+    <color name="outline">#1FFFFFFF</color>
+    <color name="outline_strong">#4DFFFFFF</color>
+    <color name="ripple">#22FFFFFF</color>
+    <color name="ripple_light">#33FFFFFF</color>
+
+    <!-- text -->
+    <color name="text_primary">#FFF2F2F6</color>
+    <color name="text_secondary">#FF9B9BAA</color>
+    <color name="text_disabled">#FF6B6B7A</color>
+
+    <!-- brand -->
+    <color name="accent">#FFE02545</color>
+    <color name="on_accent">#FFFFFFFF</color>
+    <color name="accent_container">#FF3A0C15</color>
+    <color name="on_accent_container">#FFFF8E9E</color>
+    <color name="accent_outline">#4DE02545</color>
+
+    <!-- list rows / controls -->
+    <color name="row_armed">#1FE02545</color>
+    <color name="track">#1FFFFFFF</color>
+    <color name="switch_track_off">#FF2B2B36</color>
+    <color name="switch_thumb_off">#FF7C7C8C</color>
+
+    <!-- snackbar -->
+    <color name="snack_bg">#FF2A2A34</color>
+    <color name="snack_text">#FFF4F4F8</color>
+
+    <color name="icon_bg">#FEEB0026</color>
+</resources>

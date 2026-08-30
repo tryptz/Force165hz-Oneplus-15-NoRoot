@@ -1,1 +1,51 @@
-<resources><string name="app_name">165 Armer</string></resources>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">165 Armer</string>
+    <string name="tagline">Per-app refresh-rate override</string>
+
+    <string name="watchdog_live">Watchdog live</string>
+    <string name="watchdog_idle">Idle</string>
+
+    <string name="hero_unit">armed at 165 Hz</string>
+    <string name="hero_of">of %1$d installed</string>
+    <string name="hero_loading">Reading installed apps…</string>
+    <string name="badge_rate">165 Hz</string>
+
+    <string name="search_hint">Search apps or packages</string>
+    <string name="search_clear">Clear search</string>
+
+    <string name="filter_all">All</string>
+    <string name="filter_armed">Armed</string>
+    <string name="filter_user">User</string>
+    <string name="filter_system">System</string>
+
+    <string name="action_rearm">Re-arm</string>
+    <string name="action_arm_all">Arm all</string>
+    <string name="action_clear">Clear</string>
+
+    <string name="empty_title">Nothing here</string>
+    <string name="empty_body">No app matches this search or filter.</string>
+    <string name="empty_armed_body">Flip a switch on any app to arm it at 165 Hz.</string>
+    <string name="loading">Loading apps…</string>
+
+    <string name="system_prefix">system</string>
+    <string name="toggle_desc">Arm %1$s at 165 Hz</string>
+
+    <string name="risk_title">Pin 165 Hz?</string>
+    <string name="risk_body">This drives the display through an undocumented vendor interface. Expect higher battery drain and more heat, and some video apps may judder.</string>
+    <string name="risk_yes">Turn on</string>
+    <string name="risk_no">Cancel</string>
+
+    <string name="busy">Still working…</string>
+    <string name="rearming">Re-arming saved apps…</string>
+    <string name="rearmed">Re-armed %1$d of %2$d</string>
+    <string name="arming_all">Arming %1$d apps…</string>
+    <string name="armed_all">Armed %1$d of %2$d</string>
+    <string name="clearing">Disarming…</string>
+    <plurals name="cleared">
+        <item quantity="one">Disarmed %1$d app</item>
+        <item quantity="other">Disarmed %1$d apps</item>
+    </plurals>
+    <string name="arm_failed">Couldn\'t arm %1$s</string>
+    <string name="nothing_saved">Nothing armed yet</string>
+</resources>

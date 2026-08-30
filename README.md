@@ -5,11 +5,15 @@ OxygenOS 16 / Android 16). No root, no Magisk, no bootloader unlock.
 
 ## What the APK does
 
-- Lists every installed package with a toggle — arm/disarm **165 Hz** per app
-- Search bar to filter by name/package
-- **Arm EVERYTHING** button (system-wide sweep)
-- **Re-arm saved** re-applies your selection on every launch
-- **Clear all** disarms everything
+- Lists every installed app with its icon and a toggle — arm/disarm **165 Hz**
+  per app
+- Search by app name or package, plus **All / Armed / User / System** filters
+- A status card up top: how many apps are armed, coverage across everything
+  installed, and whether the watchdog is live
+- **Arm all** (system-wide sweep), **Re-arm** (re-applies your saved selection)
+  and **Clear** (disarms everything) in a floating action bar
+- Follows the system light/dark theme, draws edge to edge under the status and
+  navigation bars
 - Armed apps are persisted and automatically re-applied after reboot
   (`BOOT_COMPLETED` receiver)
 - **Watchdog foreground service** re-issues the 165 Hz vote for all armed apps
@@ -39,7 +43,7 @@ proot-distro login ubuntu -- bash -lc '
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
-(~2.4 MB, debug-signed, package `tf.arm165`, versionCode 3).
+(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 4).
 
 ## Install
 
@@ -51,8 +55,9 @@ cp app/build/outputs/apk/debug/app-debug.apk ~/storage/downloads/arm165-debug.ap
 
 Open **Files → Downloads → arm165-debug.apk** and allow "install unknown apps"
 when prompted. If an older copy was signed with a different key, uninstall it
-first. On first launch, grant the notification permission — the watchdog's
-silent notification keeps the re-arming service alive in the background.
+first. The app asks for the notification permission on first launch — grant it,
+the watchdog's silent notification is what keeps the re-arming service alive in
+the background.
 
 ## Notes
 

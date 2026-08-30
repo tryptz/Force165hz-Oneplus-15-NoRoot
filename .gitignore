@@ -4,3 +4,4 @@ classes.dex
 build/
 app/build/
 *.apk
+local.properties

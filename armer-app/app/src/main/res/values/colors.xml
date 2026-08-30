@@ -1,8 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Light palette. The dark counterpart lives in values-night/colors.xml -->
 <resources>
-    <color name="text_primary">#FF202124</color>
-    <color name="text_secondary">#FF5F6368</color>
-    <color name="text_disabled">#FF9AA0A6</color>
-    <color name="accent">#FF1A73E8</color>
+    <!-- surfaces -->
+    <color name="bg">#FFF5F5F8</color>
+    <color name="bg_fade">#00FFFFFF</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="surface_variant">#FFEAEAF0</color>
+    <color name="bar">#FFFFFFFF</color>
+
+    <!-- hero card gradient -->
+    <color name="hero_start">#FFFFFFFF</color>
+    <color name="hero_end">#FFFFEEF0</color>
+
+    <!-- lines / feedback -->
+    <color name="outline">#14000000</color>
+    <color name="outline_strong">#38000000</color>
+    <color name="ripple">#1A000000</color>
+    <color name="ripple_light">#33FFFFFF</color>
+
+    <!-- text -->
+    <color name="text_primary">#FF14141A</color>
+    <color name="text_secondary">#FF6A6A78</color>
+    <color name="text_disabled">#FF9C9CAA</color>
+
+    <!-- brand -->
+    <color name="accent">#FFD5001F</color>
+    <color name="on_accent">#FFFFFFFF</color>
+    <color name="accent_container">#FFFFE0E4</color>
+    <color name="on_accent_container">#FF8E0016</color>
+    <color name="accent_outline">#33D5001F</color>
+
+    <!-- list rows / controls -->
+    <color name="row_armed">#0FD5001F</color>
+    <color name="track">#1F000000</color>
+    <color name="switch_track_off">#FFE2E2EA</color>
+    <color name="switch_thumb_off">#FF8B8B99</color>
+
+    <!-- snackbar -->
+    <color name="snack_bg">#FF1E1E26</color>
+    <color name="snack_text">#FFF4F4F8</color>
+
+    <!-- launcher icon background (referenced by mipmap-anydpi-v26/ic_launcher.xml) -->
     <color name="icon_bg">#FEEB0026</color>
 </resources>

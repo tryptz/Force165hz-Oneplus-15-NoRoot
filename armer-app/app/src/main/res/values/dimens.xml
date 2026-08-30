@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="screen_pad">18dp</dimen>
+    <dimen name="card_radius">26dp</dimen>
+    <dimen name="field_height">48dp</dimen>
+    <dimen name="chip_height">34dp</dimen>
+    <dimen name="action_bar_height">62dp</dimen>
+    <dimen name="action_bar_margin">12dp</dimen>
+</resources>
