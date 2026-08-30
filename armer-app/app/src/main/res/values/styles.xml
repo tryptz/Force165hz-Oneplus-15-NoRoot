@@ -32,7 +32,7 @@
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/bg_segment</item>
         <item name="android:textColor">@color/segment_text</item>
-        <item name="android:textSize">12.5sp</item>
+        <item name="android:textSize">11.5sp</item>
         <item name="android:textStyle">bold</item>
         <item name="android:clickable">true</item>
         <item name="android:focusable">true</item>
