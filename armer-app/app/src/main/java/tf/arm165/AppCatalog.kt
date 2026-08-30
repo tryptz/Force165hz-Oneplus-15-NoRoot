@@ -10,7 +10,7 @@ import java.util.Collections
 import java.util.concurrent.Executors
 
 /** One installed package, resolved once so the list can filter without touching PackageManager. */
-class AppEntry(val pkg: String, val label: String, val system: Boolean) {
+class AppEntry(val pkg: String, val label: String, val system: Boolean, val game: Boolean) {
     /** Lower-cased label + package, so search is a single substring test per row. */
     val key: String = "$label $pkg".lowercase()
 }
@@ -34,9 +34,20 @@ object AppCatalog {
     private val icons = LruCache<String, Drawable>(120)
     private val pending = Collections.synchronizedSet(HashSet<String>())
 
-    fun loadAsync(pm: PackageManager, self: String, onReady: (List<AppEntry>) -> Unit) {
+    /**
+     * [userGames] are packages the user marked as games by hand; they are
+     * unioned with apps that declare the game category and with the system's
+     * own recognized-game list.
+     */
+    fun loadAsync(
+        pm: PackageManager,
+        self: String,
+        userGames: Set<String> = emptySet(),
+        onReady: (List<AppEntry>) -> Unit,
+    ) {
         pool.execute {
             val entries = try {
+                val systemGames = RateLock.systemGameList()
                 @Suppress("DEPRECATION")
                 pm.getInstalledApplications(0)
                     .asSequence()
@@ -47,6 +58,7 @@ object AppCatalog {
                             label = pm.getApplicationLabel(it).toString(),
                             system = it.flags and
                                 (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
+                            game = isGame(it) || it.packageName in userGames || it.packageName in systemGames,
                         )
                     }
                     .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.label })
@@ -56,6 +68,12 @@ object AppCatalog {
             }
             main.post { onReady(entries) }
         }
+    }
+
+    private fun isGame(info: ApplicationInfo): Boolean {
+        if (info.category == ApplicationInfo.CATEGORY_GAME) return true
+        @Suppress("DEPRECATION") // FLAG_IS_GAME still set by older game APKs
+        return info.flags and ApplicationInfo.FLAG_IS_GAME != 0
     }
 
     fun cachedIcon(pkg: String): Drawable? = icons.get(pkg)

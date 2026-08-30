@@ -41,5 +41,5 @@
     <color name="snack_text">#FFF4F4F8</color>
 
     <!-- launcher icon background (referenced by mipmap-anydpi-v26/ic_launcher.xml) -->
-    <color name="icon_bg">#FEEB0026</color>
+    <color name="icon_bg">#FFFF3131</color>
 </resources>

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Edge-to-edge shell. Top padding on @id/header and the bottom offsets of the
-    action bar / scrim / snackbar are applied from MainActivity's inset listener.
+    3D Games page. Same edge-to-edge shell as activity_main: top padding on
+    @id/header and the bottom offsets of the action bar / scrim / snackbar are
+    applied from GamesActivity's inset listener.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
@@ -24,14 +25,25 @@
             android:paddingEnd="@dimen/screen_pad"
             android:paddingBottom="14dp">
 
-            <!-- title + watchdog state -->
+            <!-- back + title -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:paddingTop="6dp"
-                android:paddingBottom="12dp">
+                android:paddingBottom="14dp">
+
+                <ImageView
+                    android:id="@+id/btn_back"
+                    android:layout_width="42dp"
+                    android:layout_height="42dp"
+                    android:layout_marginEnd="12dp"
+                    android:padding="10dp"
+                    android:background="@drawable/bg_icon_btn"
+                    android:src="@drawable/ic_back"
+                    android:tint="@color/text_primary"
+                    android:contentDescription="@string/back" />
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -42,7 +54,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/app_name"
+                        android:text="@string/games_title"
                         android:textColor="@color/text_primary"
                         android:textSize="26sp"
                         android:textStyle="bold"
@@ -53,63 +65,13 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:text="@string/tagline"
+                        android:text="@string/games_tagline"
                         android:textColor="@color/text_secondary"
                         android:textSize="12.5sp" />
                 </LinearLayout>
-
-                <ImageView
-                    android:id="@+id/btn_coffee"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:layout_marginEnd="9dp"
-                    android:padding="11dp"
-                    android:background="@drawable/bg_icon_btn"
-                    android:src="@drawable/ic_coffee"
-                    android:tint="@color/text_primary"
-                    android:contentDescription="@string/coffee" />
-
-                <ImageView
-                    android:id="@+id/btn_games"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:padding="10dp"
-                    android:background="@drawable/bg_icon_btn"
-                    android:src="@drawable/ic_games"
-                    android:tint="@color/on_accent"
-                    android:backgroundTint="@color/accent"
-                    android:contentDescription="@string/open_games" />
             </LinearLayout>
 
-            <!-- watchdog state pill -->
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="30dp"
-                android:layout_marginBottom="14dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="@drawable/bg_pill"
-                android:paddingStart="11dp"
-                android:paddingEnd="13dp">
-
-                <View
-                    android:id="@+id/watchdog_dot"
-                    android:layout_width="7dp"
-                    android:layout_height="7dp"
-                    android:background="@drawable/bg_dot" />
-
-                <TextView
-                    android:id="@+id/watchdog_label"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="7dp"
-                    android:text="@string/watchdog_idle"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11.5sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- hero: armed count + coverage -->
+            <!-- hero: boosted count + oiface state -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -118,7 +80,7 @@
                 android:paddingStart="18dp"
                 android:paddingEnd="18dp"
                 android:paddingTop="16dp"
-                android:paddingBottom="18dp">
+                android:paddingBottom="16dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -127,7 +89,7 @@
                     android:gravity="bottom">
 
                     <TextView
-                        android:id="@+id/armed_count"
+                        android:id="@+id/boost_count"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="0"
@@ -142,73 +104,167 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="12dp"
-                        android:layout_marginBottom="2dp"
+                        android:layout_marginBottom="4dp"
                         android:orientation="vertical">
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="@string/hero_unit"
+                            android:text="@string/games_hero_unit"
                             android:textColor="@color/text_primary"
                             android:textSize="13sp"
                             android:textStyle="bold" />
 
                         <TextView
-                            android:id="@+id/armed_sub"
+                            android:id="@+id/boost_sub"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="1dp"
                             android:maxLines="1"
                             android:ellipsize="end"
-                            android:text="@string/hero_loading"
+                            android:text="@string/games_hero_loading"
                             android:textColor="@color/text_secondary"
                             android:textSize="11.5sp" />
                     </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_marginBottom="4dp"
+                        android:src="@drawable/ic_games"
+                        android:tint="@color/accent"
+                        android:contentDescription="@null" />
                 </LinearLayout>
 
-                <ProgressBar
-                    android:id="@+id/armed_bar"
-                    style="?android:attr/progressBarStyleHorizontal"
-                    android:layout_width="match_parent"
-                    android:layout_height="6dp"
-                    android:layout_marginTop="16dp"
-                    android:minHeight="6dp"
-                    android:maxHeight="6dp"
-                    android:max="100"
-                    android:progress="0"
-                    android:progressDrawable="@drawable/progress_armed" />
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="15dp"
-                    android:background="@color/outline" />
-
-                <!-- Rate selector. Segments are built from RateLock.RATES. -->
+                <!-- oiface (game engine) status -->
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="40dp"
-                    android:layout_marginTop="13dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
                     android:orientation="horizontal"
                     android:gravity="center_vertical">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="12dp"
-                        android:text="@string/rate_label"
-                        android:textColor="@color/text_secondary"
-                        android:textSize="12sp"
-                        android:textStyle="bold" />
+                    <View
+                        android:id="@+id/oiface_dot"
+                        android:layout_width="8dp"
+                        android:layout_height="8dp"
+                        android:layout_marginEnd="9dp"
+                        android:background="@drawable/bg_dot" />
 
                     <LinearLayout
-                        android:id="@+id/rate_segments"
                         android:layout_width="0dp"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:orientation="horizontal"
-                        android:background="@drawable/bg_segment_track"
-                        android:padding="4dp" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/oiface_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/oiface_unsupported"
+                            android:textColor="@color/text_primary"
+                            android:textSize="12.5sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/oiface_sub"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="1dp"
+                            android:text="@string/oiface_unsupported_sub"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:lineSpacingExtra="1dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- game boost switch card -->
+            <LinearLayout
+                android:id="@+id/boost_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                android:background="@drawable/bg_card"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_marginEnd="12dp"
+                        android:src="@drawable/ic_boost"
+                        android:tint="@color/accent"
+                        android:contentDescription="@null" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/boost_title"
+                            android:textColor="@color/text_primary"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/boost_state"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="@string/boost_off"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11.5sp" />
+                    </LinearLayout>
+
+                    <tf.arm165.RateSwitch
+                        android:id="@+id/boost_toggle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+                </LinearLayout>
+
+                <!-- shown only when WRITE_SECURE_SETTINGS is missing -->
+                <LinearLayout
+                    android:id="@+id/grant_box"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/boost_grant_intro"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="11.5sp"
+                        android:lineSpacingExtra="1dp" />
+
+                    <TextView
+                        android:id="@+id/grant_cmd"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:background="@drawable/bg_code"
+                        android:padding="12dp"
+                        android:text="@string/boost_grant_cmd"
+                        android:textColor="@color/text_primary"
+                        android:textSize="11sp"
+                        android:fontFamily="monospace"
+                        android:textIsSelectable="true" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -216,7 +272,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/field_height"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="14dp"
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:background="@drawable/bg_search"
@@ -274,10 +330,9 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal">
 
-                    <TextView android:id="@+id/chip_all" style="@style/Chip" android:text="@string/filter_all" />
-                    <TextView android:id="@+id/chip_armed" style="@style/Chip" android:text="@string/filter_armed" />
-                    <TextView android:id="@+id/chip_user" style="@style/Chip" android:text="@string/filter_user" />
-                    <TextView android:id="@+id/chip_system" style="@style/Chip" android:text="@string/filter_system" />
+                    <TextView android:id="@+id/chip_games" style="@style/Chip" android:text="@string/gfilter_games" />
+                    <TextView android:id="@+id/chip_boosted" style="@style/Chip" android:text="@string/gfilter_boosted" />
+                    <TextView android:id="@+id/chip_all" style="@style/Chip" android:text="@string/gfilter_all" />
                 </LinearLayout>
             </HorizontalScrollView>
         </LinearLayout>
@@ -330,7 +385,7 @@
                     android:id="@+id/state_icon"
                     android:layout_width="46dp"
                     android:layout_height="46dp"
-                    android:src="@drawable/ic_empty"
+                    android:src="@drawable/ic_games"
                     android:tint="@color/text_disabled"
                     android:contentDescription="@null"
                     android:visibility="gone" />
@@ -357,7 +412,6 @@
         </FrameLayout>
     </LinearLayout>
 
-    <!-- content fades out behind the floating bar -->
     <View
         android:id="@+id/scrim"
         android:layout_width="match_parent"
@@ -398,47 +452,27 @@
         android:elevation="10dp">
 
         <LinearLayout
-            android:id="@+id/btn_rearm"
+            android:id="@+id/btn_boost_all"
             style="@style/ActionButton"
             android:layout_marginEnd="6dp"
-            android:background="@drawable/bg_btn_tonal">
-
-            <ImageView
-                android:layout_width="17dp"
-                android:layout_height="17dp"
-                android:src="@drawable/ic_refresh"
-                android:tint="@color/text_primary"
-                android:contentDescription="@null" />
-
-            <TextView
-                style="@style/ActionLabel"
-                android:text="@string/action_rearm"
-                android:textColor="@color/text_primary" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/btn_arm_all"
-            style="@style/ActionButton"
-            android:layout_weight="1.25"
             android:background="@drawable/bg_btn_primary">
 
             <ImageView
                 android:layout_width="18dp"
                 android:layout_height="18dp"
-                android:src="@drawable/ic_bolt"
+                android:src="@drawable/ic_boost"
                 android:tint="@color/on_accent"
                 android:contentDescription="@null" />
 
             <TextView
                 style="@style/ActionLabel"
-                android:text="@string/action_arm_all"
+                android:text="@string/boost_all"
                 android:textColor="@color/on_accent" />
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/btn_clear"
             style="@style/ActionButton"
-            android:layout_marginStart="6dp"
             android:background="@drawable/bg_btn_tonal">
 
             <ImageView

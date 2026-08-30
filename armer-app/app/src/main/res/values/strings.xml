@@ -53,4 +53,52 @@
     <string name="rate_picker_disarm">Disarm</string>
     <string name="rate_set">%1$s at %2$d Hz</string>
     <string name="rate_badge_desc">%1$s is armed at %2$d Hz — tap to change</string>
+
+    <!-- navigation / support -->
+    <string name="open_games">Open 3D games</string>
+    <string name="back">Back</string>
+    <string name="coffee">Buy me a coffee</string>
+    <string name="coffee_url">https://ko-fi.com/tryptz</string>
+    <string name="no_browser">No browser to open the link</string>
+
+    <!-- games page -->
+    <string name="games_title">3D Games</string>
+    <string name="games_tagline">Force 165 Hz rendering per game</string>
+    <string name="games_hero_unit">games boosted</string>
+    <string name="games_hero_of">of %1$d detected</string>
+    <string name="games_hero_loading">Scanning for games…</string>
+    <string name="games_empty_title">No games yet</string>
+    <string name="games_empty_body">No installed app declares itself a game. Switch to All and long-press an app to mark it as a game.</string>
+    <string name="games_empty_armed_body">Flip a switch on any game to force 165 Hz rendering.</string>
+
+    <string name="gfilter_games">Games</string>
+    <string name="gfilter_boosted">Boosted</string>
+    <string name="gfilter_all">All apps</string>
+
+    <string name="mark_game">Mark as game</string>
+    <string name="unmark_game">Remove from games</string>
+    <string name="marked_game">Marked %1$s as a game</string>
+    <string name="unmarked_game">Removed %1$s from games</string>
+
+    <string name="oiface_active">Game engine: active</string>
+    <string name="oiface_unsupported">Game engine: unavailable on this build</string>
+    <string name="oiface_active_sub">Boosted games are registered with OxygenOS so HyperRendering applies.</string>
+    <string name="oiface_unsupported_sub">The vendor game service refused access, so boosting only pins the display rate.</string>
+
+    <!-- game boost / secure-settings card -->
+    <string name="boost_title">Game boost switch</string>
+    <string name="boost_on">On — OxygenOS high-refresh feature enabled</string>
+    <string name="boost_off">Off — tap to enable the high-refresh feature</string>
+    <string name="boost_locked">Needs a one-time permission — see below</string>
+    <string name="boost_grant_intro">Run this once over adb, then reopen. It survives reboots.</string>
+    <string name="boost_grant_cmd">adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="copied">Command copied</string>
+
+    <string name="boost_hold">Boosting %1$d games at 165 Hz…</string>
+    <string name="boosted_one">%1$s boosted to 165 Hz</string>
+    <string name="unboosted_one">%1$s back to normal</string>
+    <string name="boost_all">Boost all</string>
+    <string name="boosted_all">Boosted %1$d of %2$d games</string>
+    <string name="games_toggle_desc">Boost %1$s to 165 Hz</string>
+    <string name="nothing_boosted">No games boosted yet</string>
 </resources>

@@ -16,6 +16,10 @@ OxygenOS 16 / Android 16). No root, no Magisk, no bootloader unlock.
 - **Arm all** (system-wide sweep at the selected rate), **Re-arm** (re-applies
   every saved app at its own rate) and **Clear** (disarms everything) in a
   floating action bar
+- **3D Games page** — a second screen that boosts detected games with the full
+  treatment: the persistent per-app override, the watchdog vote, and (when the
+  vendor game service allows it) registration in OxygenOS's own game list so
+  HyperRendering/GPA applies. Games are auto-detected and can be marked by hand
 - Follows the system light/dark theme, draws edge to edge under the status and
   navigation bars
 - Armed apps are persisted and automatically re-applied after reboot
@@ -43,6 +47,39 @@ disarming replays that app's own rate and changing an app's rate drops the old
 pin before setting the new one. The armed set is stored as `pkg|rateId`
 entries; anything saved by an older build reads back as 165 Hz.
 
+Transaction numbers and signatures were recovered from `oplus-framework.jar`
+(`jadx`, then the `TRANSACTION_*` constants in each `Stub`); the long-standing
+`0x0c` shows up there as `requestGameRefreshRate = 12`, which is how the rest
+were trusted. Beyond the transient vote, the games page also uses:
+
+```
+oplusscreenmode  com.oplus.screenmode.IOplusScreenMode      (no permission check)
+  25  setAppOverrideRefreshRate(String pkg, int mode, int rate) -> boolean
+  26  getAppOverrideRefreshRate(String pkg, int mode) -> int
+  27  getAppOverrideRefreshRateList() -> Bundle
+  14  getGameList(Bundle) -> boolean
+
+oplusoiface      com.oplus.oiface.IOIfaceService            (guard lives in the
+  1010 setInstalledGameList(String[])                        native daemon, so
+  1011 getInstalledGameList() -> String[]                    reachability is
+  1007 setGameModeStatus(int status, String pkg)             probed at runtime)
+   863 getGpuLoad() -> float          <- read-only probe
+```
+
+The oiface calls are gated: the app first issues the read-only `getGpuLoad`
+probe, and only registers games if the daemon answers. If it refuses, the page
+says so and boosting falls back to pinning the display rate. No transaction is
+ever issued blind. Run `tool/probe-vendor.sh` for a read-only report of what
+this device actually exposes.
+
+The **Game boost switch** writes the OPlus global
+`app_extreme_high_refresh_switch` (the same one `boot/165hz.sh` sets). That
+needs a one-time grant, which is not root:
+
+```bash
+adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS
+```
+
 ## Build (inside proot-distro Ubuntu)
 
 ```bash
@@ -53,7 +90,7 @@ proot-distro login ubuntu -- bash -lc '
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
-(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 5).
+(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 6).
 
 ## Install
 
@@ -78,6 +115,10 @@ the background.
   need a few seconds after gaining focus before it locks at 165.
 - Video/streaming apps may judder under a hard pin — disarm those, or drop
   them to 60 Hz.
+- Pinning the panel at 165 Hz does not by itself make a game *render* 165 fps.
+  That is what the games page's oiface registration is for, and it only works
+  if the vendor daemon accepts the call. Check with
+  `adb shell dumpsys SurfaceFlinger --latency "<layer>"`, not the panel rate.
 - Battery and heat increase with the number of armed apps.
 - A future OxygenOS update may add a permission check; a `SecurityException`
   after an OTA means the trick was patched.

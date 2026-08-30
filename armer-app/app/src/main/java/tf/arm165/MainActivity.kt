@@ -3,8 +3,11 @@ package tf.arm165
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.content.res.ColorStateList
 import android.os.Build
 import android.os.Bundle
@@ -17,10 +20,8 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import android.widget.AbsListView
-import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ProgressBar
@@ -76,7 +77,7 @@ class MainActivity : Activity() {
     private lateinit var actions: List<View>
     private lateinit var chips: List<Pair<TextView, Filter>>
     private var segments: List<Pair<TextView, Int>> = emptyList()
-    private lateinit var adapter: AppAdapter
+    private lateinit var adapter: AppRowAdapter
 
     // ------------------------------------------------------------------ setup
 
@@ -96,7 +97,14 @@ class MainActivity : Activity() {
         wireRates()
         wireActions()
 
-        adapter = AppAdapter()
+        adapter = AppRowAdapter(
+            activity = this,
+            items = { shown },
+            armedRate = { armed[it] },
+            fallbackRate = { activeRate },
+            onTap = ::onRowTapped,
+            onDetails = ::showRatePicker,
+        )
         list.adapter = adapter
         list.setOnScrollListener(scrollListener)
 
@@ -286,6 +294,21 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
+        findViewById<View>(R.id.btn_games).setOnClickListener {
+            startActivity(Intent(this, GamesActivity::class.java))
+        }
+        findViewById<View>(R.id.btn_coffee).setOnClickListener { openCoffee() }
+    }
+
+    private fun openCoffee() {
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url)))
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (t: ActivityNotFoundException) {
+            snack(getString(R.string.no_browser))
+        }
     }
 
     private val scrollListener = object : AbsListView.OnScrollListener {
@@ -596,82 +619,6 @@ class MainActivity : Activity() {
     /** Posts to the main thread, dropping the work if the screen is already gone. */
     private fun ui(block: () -> Unit) {
         main.post { if (!isFinishing && !isDestroyed) block() }
-    }
-
-    // ---------------------------------------------------------------- adapter
-
-    private class Holder(view: View) {
-        val icon: ImageView = view.findViewById(R.id.icon)
-        val label: TextView = view.findViewById(R.id.label)
-        val sub: TextView = view.findViewById(R.id.pkg)
-        val badge: TextView = view.findViewById(R.id.rate_badge)
-        val toggle: RateSwitch = view.findViewById(R.id.toggle)
-        var pkg: String? = null
-        var background = 0
-    }
-
-    private inner class AppAdapter : BaseAdapter() {
-        override fun getCount() = shown.size
-        override fun getItem(position: Int) = shown[position]
-        override fun getItemId(position: Int) = position.toLong()
-
-        override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
-            val view = convertView ?: layoutInflater.inflate(R.layout.item_app, parent, false)
-                .also { it.tag = Holder(it) }
-            val holder = view.tag as Holder
-            val entry = shown[position]
-            val recycled = holder.pkg != entry.pkg
-            holder.pkg = entry.pkg
-
-            holder.label.text = entry.label
-            holder.sub.text =
-                if (entry.system) getString(R.string.system_prefix) + "  ·  " + entry.pkg
-                else entry.pkg
-
-            val rateId = armed[entry.pkg]
-            val isArmed = rateId != null
-            val background = if (isArmed) R.drawable.bg_row_armed else R.drawable.bg_row
-            if (holder.background != background) {
-                holder.background = background
-                view.setBackgroundResource(background)
-            }
-
-            if (rateId != null) {
-                val hz = RateLock.hz(rateId)
-                holder.badge.visibility = View.VISIBLE
-                holder.badge.text = hz.toString()
-                holder.badge.contentDescription =
-                    getString(R.string.rate_badge_desc, entry.label, hz)
-            } else {
-                holder.badge.visibility = View.GONE
-            }
-            holder.badge.setOnClickListener { showRatePicker(entry) }
-
-            val cached = AppCatalog.cachedIcon(entry.pkg)
-            if (cached != null) {
-                holder.icon.setImageDrawable(cached)
-            } else {
-                holder.icon.setImageDrawable(null)
-                AppCatalog.loadIcon(packageManager, entry.pkg) { pkg, icon ->
-                    if (holder.pkg == pkg) holder.icon.setImageDrawable(icon)
-                }
-            }
-
-            // Skipping this while the state already matches keeps a running
-            // toggle animation from being snapped by notifyDataSetChanged().
-            if (recycled || holder.toggle.isChecked != isArmed) {
-                holder.toggle.setChecked(isArmed, animate = false)
-            }
-            holder.toggle.contentDescription =
-                getString(R.string.toggle_desc, entry.label, RateLock.hz(rateId ?: activeRate))
-
-            view.setOnClickListener { onRowTapped(entry, holder.toggle) }
-            view.setOnLongClickListener {
-                showRatePicker(entry)
-                true
-            }
-            return view
-        }
     }
 
     private companion object {
