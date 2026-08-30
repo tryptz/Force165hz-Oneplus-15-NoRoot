@@ -4,6 +4,10 @@ Rootless per-app refresh-rate unlock (60 / 90 / 120 / 144 / 165 Hz) for the
 OnePlus 15 (CPH2747/CPH2749, OxygenOS 16). No root, no Magisk, no bootloader
 unlock.
 
+<p align="center">
+  <img src="screenshot.png" width="320" alt="165 Armer screenshot">
+</p>
+
 ## Features
 
 - Per-app rate pinning with a searchable app list (All / Armed / Games /
