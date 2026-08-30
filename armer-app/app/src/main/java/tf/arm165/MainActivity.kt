@@ -1,38 +1,26 @@
 package tf.arm165
 
 import android.Manifest
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.content.res.ColorStateList
+import android.graphics.Typeface
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.text.Editable
-import android.text.TextWatcher
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowInsets
-import android.view.inputmethod.InputMethodManager
-import android.widget.AbsListView
-import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ListView
 import android.widget.ProgressBar
+import android.widget.SeekBar
 import android.widget.TextView
-import java.util.concurrent.Executors
 
-class MainActivity : Activity() {
+class MainActivity : ShellActivity() {
 
     private enum class Filter { ALL, ARMED, USER, SYSTEM }
-
-    private lateinit var prefs: SharedPreferences
 
     private var all: List<AppEntry> = emptyList()
     private var shown: List<AppEntry> = emptyList()
@@ -44,56 +32,52 @@ class MainActivity : Activity() {
     private var activeRate = RateLock.DEFAULT_RATE
 
     private var filter = Filter.ALL
-    private var query = ""
-    private var loading = true
-    private var busy = false
-    private var dividerShown = false
 
-    private val main = Handler(Looper.getMainLooper())
-
-    /** Serialises the arm/disarm sweeps so two of them can never interleave. */
-    private val worker = Executors.newSingleThreadExecutor()
-
-    private lateinit var root: FrameLayout
-    private lateinit var header: View
-    private lateinit var divider: View
-    private lateinit var list: ListView
-    private lateinit var search: EditText
-    private lateinit var searchClear: View
     private lateinit var armedCount: TextView
     private lateinit var armedSub: TextView
     private lateinit var armedBar: ProgressBar
     private lateinit var rateSegments: LinearLayout
     private lateinit var watchdogDot: View
     private lateinit var watchdogLabel: TextView
-    private lateinit var stateBox: View
-    private lateinit var stateSpinner: View
-    private lateinit var stateIcon: View
-    private lateinit var stateTitle: TextView
-    private lateinit var stateBody: TextView
-    private lateinit var actionBar: View
-    private lateinit var scrim: View
-    private lateinit var snack: TextView
-    private lateinit var actions: List<View>
+    private lateinit var fpsChip: TextView
     private lateinit var chips: List<Pair<TextView, Filter>>
     private var segments: List<Pair<TextView, Int>> = emptyList()
     private lateinit var adapter: AppRowAdapter
+
+    override val layoutRes = R.layout.activity_main
+    override val actionIds = listOf(R.id.btn_rearm, R.id.btn_arm_all, R.id.btn_clear)
 
     // ------------------------------------------------------------------ setup
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = ArmedStore.open(this)
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
 
-        goEdgeToEdge()
-        setContentView(R.layout.activity_main)
-        bindViews()
-        applyInsets()
-        wireSearch()
-        wireChips()
+        armedCount = findViewById(R.id.armed_count)
+        armedSub = findViewById(R.id.armed_sub)
+        armedBar = findViewById(R.id.armed_bar)
+        rateSegments = findViewById(R.id.rate_segments)
+        watchdogDot = findViewById(R.id.watchdog_dot)
+        watchdogLabel = findViewById(R.id.watchdog_label)
+        fpsChip = findViewById(R.id.chip_fps)
+        chips = listOf(
+            findViewById<TextView>(R.id.chip_all) to Filter.ALL,
+            findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
+            findViewById<TextView>(R.id.chip_user) to Filter.USER,
+            findViewById<TextView>(R.id.chip_system) to Filter.SYSTEM,
+        )
+        chips.forEach { (chip, value) ->
+            chip.setOnClickListener {
+                if (filter == value) return@setOnClickListener
+                filter = value
+                syncChips(chips, filter)
+                applyFilter()
+                list.setSelection(0)
+            }
+        }
+        syncChips(chips, filter)
         wireRates()
         wireActions()
 
@@ -106,7 +90,6 @@ class MainActivity : Activity() {
             onDetails = ::showRatePicker,
         )
         list.adapter = adapter
-        list.setOnScrollListener(scrollListener)
 
         refreshStatus()
         updateState()
@@ -123,144 +106,21 @@ class MainActivity : Activity() {
         requestNotificationPermission()
     }
 
-    override fun onDestroy() {
-        main.removeCallbacksAndMessages(null)
-        worker.shutdown()
-        super.onDestroy()
-    }
-
-    private fun bindViews() {
-        root = findViewById(R.id.root)
-        header = findViewById(R.id.header)
-        divider = findViewById(R.id.header_divider)
-        list = findViewById(R.id.list)
-        search = findViewById(R.id.search)
-        searchClear = findViewById(R.id.search_clear)
-        armedCount = findViewById(R.id.armed_count)
-        armedSub = findViewById(R.id.armed_sub)
-        armedBar = findViewById(R.id.armed_bar)
-        rateSegments = findViewById(R.id.rate_segments)
-        watchdogDot = findViewById(R.id.watchdog_dot)
-        watchdogLabel = findViewById(R.id.watchdog_label)
-        stateBox = findViewById(R.id.state_box)
-        stateSpinner = findViewById(R.id.state_spinner)
-        stateIcon = findViewById(R.id.state_icon)
-        stateTitle = findViewById(R.id.state_title)
-        stateBody = findViewById(R.id.state_body)
-        actionBar = findViewById(R.id.action_bar)
-        scrim = findViewById(R.id.scrim)
-        snack = findViewById(R.id.snack)
-        actions = listOf(
-            findViewById(R.id.btn_rearm),
-            findViewById(R.id.btn_arm_all),
-            findViewById(R.id.btn_clear),
-        )
-        chips = listOf(
-            findViewById<TextView>(R.id.chip_all) to Filter.ALL,
-            findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
-            findViewById<TextView>(R.id.chip_user) to Filter.USER,
-            findViewById<TextView>(R.id.chip_system) to Filter.SYSTEM,
-        )
-        syncChips()
-    }
-
-    private fun goEdgeToEdge() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            @Suppress("DEPRECATION") // no-op from targetSdk 35, still needed on API 30-34
-            window.setDecorFitsSystemWindows(false)
-        } else {
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility =
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-        }
-    }
-
-    /**
-     * The layout draws under the status and navigation bars; everything that
-     * touches an edge gets its offset from here. The keyboard counts as a
-     * bottom inset so the action bar rides above it.
-     */
-    private fun applyInsets() {
-        val barMargin = resources.getDimensionPixelSize(R.dimen.action_bar_margin)
-        val barSpace = resources.getDimensionPixelSize(R.dimen.action_bar_height) + barMargin
-
-        root.setOnApplyWindowInsetsListener { _, insets ->
-            val top: Int
-            val bottom: Int
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val bars = insets.getInsets(
-                    WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
-                )
-                val ime = insets.getInsets(WindowInsets.Type.ime())
-                top = bars.top
-                bottom = maxOf(bars.bottom, ime.bottom)
-            } else {
-                @Suppress("DEPRECATION")
-                top = insets.systemWindowInsetTop
-                @Suppress("DEPRECATION")
-                bottom = insets.systemWindowInsetBottom
-            }
-
-            header.setPaddingRelative(
-                header.paddingStart,
-                top + dp(8),
-                header.paddingEnd,
-                header.paddingBottom,
-            )
-            setBottomMargin(actionBar, bottom + barMargin)
-            setBottomMargin(snack, bottom + barSpace + dp(10))
-            scrim.layoutParams = (scrim.layoutParams as FrameLayout.LayoutParams).apply {
-                height = bottom + barSpace + dp(46)
-            }
-            list.setPadding(0, list.paddingTop, 0, bottom + barSpace + dp(16))
-            insets
-        }
-        root.requestApplyInsets()
-    }
-
-    private fun setBottomMargin(view: View, value: Int) {
-        view.layoutParams = (view.layoutParams as FrameLayout.LayoutParams).apply {
-            bottomMargin = value
+    override fun onResume() {
+        super.onResume()
+        // The overlay permission is granted on a settings screen, and the games
+        // page may have changed the armed set — re-read both.
+        syncFpsChip()
+        val latest = ArmedStore.read(prefs)
+        if (latest != armed) {
+            armed.clear()
+            armed.putAll(latest)
+            applyFilter()
+            refreshStatus()
         }
     }
 
     // --------------------------------------------------------------- controls
-
-    private fun wireSearch() {
-        search.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
-            override fun afterTextChanged(e: Editable?) {
-                val raw = e?.toString().orEmpty()
-                searchClear.visibility = if (raw.isEmpty()) View.GONE else View.VISIBLE
-                query = raw.trim().lowercase()
-                applyFilter()
-                list.setSelection(0)
-            }
-        })
-        searchClear.setOnClickListener { search.setText("") }
-        search.setOnEditorActionListener { _, _, _ ->
-            search.clearFocus()
-            hideKeyboard()
-            true
-        }
-    }
-
-    private fun wireChips() {
-        chips.forEach { (chip, value) ->
-            chip.setOnClickListener {
-                if (filter == value) return@setOnClickListener
-                filter = value
-                syncChips()
-                applyFilter()
-                list.setSelection(0)
-            }
-        }
-    }
-
-    private fun syncChips() {
-        chips.forEach { (chip, value) -> chip.isSelected = value == filter }
-    }
 
     /** Builds the segmented rate selector so it always matches [RateLock.RATES]. */
     private fun wireRates() {
@@ -275,19 +135,15 @@ class MainActivity : Activity() {
             rateSegments.addView(segment)
             segment to rateId
         }
-        syncRates()
+        syncChips(segments, activeRate)
     }
 
     private fun selectRate(rateId: Int) {
         if (activeRate == rateId) return
         activeRate = rateId
         prefs.edit().putInt(KEY_RATE, rateId).apply()
-        syncRates()
+        syncChips(segments, activeRate)
         adapter.notifyDataSetChanged() // unarmed rows describe the rate they would use
-    }
-
-    private fun syncRates() {
-        segments.forEach { (segment, rateId) -> segment.isSelected = rateId == activeRate }
     }
 
     private fun wireActions() {
@@ -297,39 +153,101 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.btn_games).setOnClickListener {
             startActivity(Intent(this, GamesActivity::class.java))
         }
-        findViewById<View>(R.id.btn_coffee).setOnClickListener { openCoffee() }
+        findViewById<View>(R.id.btn_coffee).setOnClickListener {
+            open(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url))))
+        }
+        fpsChip.setOnClickListener { toggleFpsOverlay() }
+        fpsChip.setOnLongClickListener {
+            if (overlayEnabled()) showOverlayPositionDialog() else toggleFpsOverlay()
+            true
+        }
     }
 
-    private fun openCoffee() {
+    private fun open(intent: Intent) {
         try {
-            startActivity(
-                Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url)))
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            )
+            startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         } catch (t: ActivityNotFoundException) {
             snack(getString(R.string.no_browser))
         }
     }
 
-    private val scrollListener = object : AbsListView.OnScrollListener {
-        override fun onScrollStateChanged(view: AbsListView, state: Int) {
-            if (state == AbsListView.OnScrollListener.SCROLL_STATE_TOUCH_SCROLL && search.hasFocus()) {
-                search.clearFocus()
-                hideKeyboard()
-            }
-        }
+    // ------------------------------------------------------------ fps overlay
 
-        override fun onScroll(view: AbsListView, first: Int, visible: Int, total: Int) {
-            // hairline under the header, but only once there is content above the fold
-            val show = list.canScrollVertically(-1)
-            if (show != dividerShown) {
-                dividerShown = show
-                divider.animate().alpha(if (show) 1f else 0f).setDuration(140).start()
-            }
+    private fun overlayEnabled(): Boolean =
+        prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false) && Settings.canDrawOverlays(this)
+
+    private fun syncFpsChip() {
+        fpsChip.isSelected = overlayEnabled()
+    }
+
+    private fun toggleFpsOverlay() {
+        if (!Settings.canDrawOverlays(this)) {
+            // "Draw over other apps" is a settings screen, not a runtime permission.
+            AlertDialog.Builder(this)
+                .setTitle(R.string.fps_chip)
+                .setMessage(R.string.fps_needs_permission)
+                .setPositiveButton(R.string.fps_grant) { _, _ ->
+                    open(
+                        Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName"),
+                        )
+                    )
+                }
+                .setNegativeButton(R.string.risk_no, null)
+                .show()
+            return
         }
+        val on = !prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false)
+        prefs.edit().putBoolean(ArmWatchService.KEY_OVERLAY, on).apply()
+        syncFpsChip()
+        ArmWatchService.sync(this)
+        snack(getString(if (on) R.string.fps_on else R.string.fps_off))
+    }
+
+    /**
+     * No API reports where the status bar's own wifi/battery icons sit, so the
+     * offset from the right edge is the user's to set. Updates live.
+     */
+    private fun showOverlayPositionDialog() {
+        val current = prefs.getInt(ArmWatchService.KEY_OVERLAY_X, ArmWatchService.DEFAULT_RIGHT_OFFSET_DP)
+        val value = TextView(this).apply {
+            setPadding(dp(24), dp(16), dp(24), dp(2))
+            setTextColor(getColor(R.color.text_primary))
+            textSize = 14f
+            setTypeface(typeface, Typeface.BOLD)
+            text = getString(R.string.fps_position_value, current)
+        }
+        val bar = SeekBar(this).apply {
+            max = MAX_OVERLAY_OFFSET_DP
+            progress = current.coerceIn(0, MAX_OVERLAY_OFFSET_DP)
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                    value.text = getString(R.string.fps_position_value, p)
+                    prefs.edit().putInt(ArmWatchService.KEY_OVERLAY_X, p).apply()
+                    ArmWatchService.sync(this@MainActivity)
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar) = Unit
+                override fun onStopTrackingTouch(sb: SeekBar) = Unit
+            })
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.fps_position_title)
+            .setMessage(R.string.fps_position_body)
+            .setView(LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(value)
+                addView(bar)
+            })
+            .setPositiveButton(R.string.done, null)
+            .show()
     }
 
     // ------------------------------------------------------------------ state
+
+    override fun onQueryChanged() = applyFilter()
 
     private fun applyFilter() {
         shown = all.filter { entry ->
@@ -344,18 +262,13 @@ class MainActivity : Activity() {
         updateState()
     }
 
-    private fun updateState() {
-        val empty = shown.isEmpty()
-        stateBox.visibility = if (loading || empty) View.VISIBLE else View.GONE
-        stateSpinner.visibility = if (loading) View.VISIBLE else View.GONE
-        stateIcon.visibility = if (!loading && empty) View.VISIBLE else View.GONE
-        stateTitle.setText(if (loading) R.string.loading else R.string.empty_title)
-        stateBody.visibility = if (loading) View.GONE else View.VISIBLE
-        stateBody.setText(
+    private fun updateState() = renderState(
+        empty = shown.isEmpty(),
+        emptyTitle = R.string.empty_title,
+        emptyBody =
             if (filter == Filter.ARMED && query.isEmpty()) R.string.empty_armed_body
-            else R.string.empty_body
-        )
-    }
+            else R.string.empty_body,
+    )
 
     private fun refreshStatus() {
         val count = armed.size
@@ -387,12 +300,7 @@ class MainActivity : Activity() {
         ArmedStore.write(prefs, armed)
         if (isFinishing || isDestroyed) return
         refreshStatus()
-        if (filter == Filter.ARMED) {
-            applyFilter()
-        } else {
-            adapter.notifyDataSetChanged()
-            updateState()
-        }
+        if (filter == Filter.ARMED) applyFilter() else { adapter.notifyDataSetChanged(); updateState() }
     }
 
     // ---------------------------------------------------------------- actions
@@ -449,9 +357,7 @@ class MainActivity : Activity() {
     private fun showRatePicker(entry: AppEntry) {
         if (rejectWhileBusy()) return
         val current = armed[entry.pkg]
-        val labels = RateLock.RATES
-            .map { getString(R.string.rate_hz, it.second) }
-            .toTypedArray()
+        val labels = RateLock.RATES.map { getString(R.string.rate_hz, it.second) }.toTypedArray()
         val checked = RateLock.RATES.indexOfFirst { it.first == (current ?: activeRate) }
 
         val builder = AlertDialog.Builder(this)
@@ -531,49 +437,6 @@ class MainActivity : Activity() {
         worker.execute { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
     }
 
-    /** True when a sweep owns the armed set; tells the user why nothing happened. */
-    private fun rejectWhileBusy(): Boolean {
-        if (busy) snack(getString(R.string.busy))
-        return busy
-    }
-
-    private fun runBusy(message: String, work: () -> Unit) {
-        if (rejectWhileBusy()) return
-        busy = true
-        setActionsEnabled(false)
-        snack(message)
-        worker.execute {
-            work()
-            ui {
-                busy = false
-                setActionsEnabled(true)
-            }
-        }
-    }
-
-    private fun setActionsEnabled(enabled: Boolean) {
-        actions.forEach {
-            it.isEnabled = enabled
-            it.animate().alpha(if (enabled) 1f else 0.45f).setDuration(120).start()
-        }
-    }
-
-    private fun confirmFirstTime(onYes: () -> Unit) {
-        if (prefs.getBoolean(KEY_WARNED, false)) {
-            onYes()
-            return
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.risk_title)
-            .setMessage(R.string.risk_body)
-            .setPositiveButton(R.string.risk_yes) { _, _ ->
-                prefs.edit().putBoolean(KEY_WARNED, true).apply()
-                onYes()
-            }
-            .setNegativeButton(R.string.risk_no, null)
-            .show()
-    }
-
     private fun requestNotificationPermission() {
         // The watchdog runs as a foreground service; without this its silent
         // notification never shows and Android may not keep the service alive.
@@ -585,46 +448,9 @@ class MainActivity : Activity() {
         }
     }
 
-    // --------------------------------------------------------------- feedback
-
-    private val hideSnack = Runnable {
-        snack.animate()
-            .alpha(0f)
-            .translationY(dp(10).toFloat())
-            .setDuration(160)
-            .withEndAction { snack.visibility = View.GONE }
-            .start()
-    }
-
-    private fun snack(text: String) {
-        if (isFinishing || isDestroyed) return
-        main.removeCallbacks(hideSnack)
-        snack.text = text
-        if (snack.visibility != View.VISIBLE) {
-            snack.visibility = View.VISIBLE
-            snack.alpha = 0f
-            snack.translationY = dp(12).toFloat()
-        }
-        snack.animate().alpha(1f).translationY(0f).setDuration(180).start()
-        main.postDelayed(hideSnack, SNACK_MS)
-    }
-
-    private fun hideKeyboard() {
-        getSystemService(InputMethodManager::class.java)
-            ?.hideSoftInputFromWindow(root.windowToken, 0)
-    }
-
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
-
-    /** Posts to the main thread, dropping the work if the screen is already gone. */
-    private fun ui(block: () -> Unit) {
-        main.post { if (!isFinishing && !isDestroyed) block() }
-    }
-
     private companion object {
-        const val KEY_WARNED = "warned"
         const val KEY_RATE = "rate"
         const val REQ_NOTIFICATIONS = 165
-        const val SNACK_MS = 2400L
+        const val MAX_OVERLAY_OFFSET_DP = 260
     }
 }

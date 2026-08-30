@@ -22,8 +22,6 @@ object RateLock {
     private const val TX_REQUEST_GAME_REFRESH_RATE = 12 // (String, int) -> boolean
     private const val TX_GET_GAME_LIST = 14 //             (Bundle) inout -> boolean
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
-    private const val TX_GET_APP_OVERRIDE = 26 //          (String, int mode) -> int
-    private const val TX_GET_APP_OVERRIDE_LIST = 27 //     () -> Bundle
 
     // Vendor rateIds, same numbering as refresh_rate_config.xml.
     const val RATE_60 = 2
@@ -110,22 +108,6 @@ object RateLock {
     fun clearAppOverride(packageName: String, mode: Int = 0): Boolean =
         setAppOverride(packageName, 0, mode)
 
-    /** Current persistent override rateId for [packageName], or 0 when unset. */
-    fun appOverride(packageName: String, mode: Int = 0): Int = transact(
-        TX_GET_APP_OVERRIDE,
-        write = { it.writeString(packageName); it.writeInt(mode) },
-        read = { it.readInt() },
-        fallback = 0,
-    )
-
-    /** Packages that currently hold a persistent override, from the system's list. */
-    fun overriddenPackages(): Set<String> = transact(
-        TX_GET_APP_OVERRIDE_LIST,
-        write = { },
-        read = { reply -> reply.readBundleCompat()?.let(::packagesIn).orEmpty() },
-        fallback = emptySet(),
-    )
-
     /**
      * The system's own recognized-game list, a secondary signal for detection.
      * Keys inside the Bundle aren't documented, so pull every package-shaped
@@ -145,9 +127,6 @@ object RateLock {
         },
         fallback = emptySet(),
     )
-
-    private fun Parcel.readBundleCompat(): Bundle? =
-        if (readInt() != 0) Bundle().apply { readFromParcel(this@readBundleCompat) } else null
 
     /** Collects String / string-collection values from an untyped Bundle. */
     private fun packagesIn(bundle: Bundle): Set<String> {

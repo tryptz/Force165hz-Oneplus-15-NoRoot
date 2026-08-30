@@ -25,6 +25,7 @@ object Oiface {
     private const val TX_SET_GAME_MODE_STATUS = 1007 // (int status, String pkg)
     private const val TX_GET_INSTALLED_GAME_LIST = 1011 // () -> String[]
     private const val TX_SET_INSTALLED_GAME_LIST = 1010 // (String[])
+    private const val TX_GET_FPS = 851 //                   (String, int) -> int
     private const val TX_GET_CURRENT_GAME_PACKAGE = 1009 // () -> String
     private const val TX_GET_GPU_LOAD = 863 //              () -> float
 
@@ -96,6 +97,33 @@ object Oiface {
             data.recycle()
             reply.recycle()
         }
+    }
+
+    /** Package of the game the vendor service currently considers foreground. */
+    fun currentGamePackage(): String? {
+        if (!isReachable()) return null
+        return transact(
+            TX_GET_CURRENT_GAME_PACKAGE,
+            write = { },
+            read = { it.readString()?.takeIf(String::isNotEmpty) },
+            fallback = null,
+        )
+    }
+
+    /**
+     * Frames per second the vendor service measures for [packageName] — the
+     * rate the game actually renders at, as opposed to the panel's refresh
+     * rate. Returns 0 when unavailable or implausible.
+     */
+    fun fps(packageName: String): Int {
+        if (!isReachable()) return 0
+        val v = transact(
+            TX_GET_FPS,
+            write = { it.writeString(packageName); it.writeInt(0) },
+            read = { it.readInt() },
+            fallback = 0,
+        )
+        return if (v in 1..480) v else 0
     }
 
     private fun installedGames(): List<String> = transact(

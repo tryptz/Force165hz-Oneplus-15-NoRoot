@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- FPS readout in the status-bar strip; user grants it on a settings screen. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <!-- Granted once over adb (pm grant); inert until then. Gates the OPlus
          app_extreme_high_refresh_switch toggle on the games screen. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"

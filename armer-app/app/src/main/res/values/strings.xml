@@ -54,6 +54,17 @@
     <string name="rate_set">%1$s at %2$d Hz</string>
     <string name="rate_badge_desc">%1$s is armed at %2$d Hz — tap to change</string>
 
+    <!-- FPS overlay -->
+    <string name="fps_chip">FPS</string>
+    <string name="fps_on">FPS overlay on — long-press to move it</string>
+    <string name="fps_off">FPS overlay off</string>
+    <string name="fps_needs_permission">Allow drawing over other apps to show the FPS overlay</string>
+    <string name="fps_position_title">Overlay position</string>
+    <string name="fps_position_body">Distance from the right edge, so it sits left of the wifi and battery icons.</string>
+    <string name="fps_position_value">%1$d dp from the right</string>
+    <string name="fps_grant">Open settings</string>
+    <string name="done">Done</string>
+
     <!-- navigation / support -->
     <string name="open_games">Open 3D games</string>
     <string name="back">Back</string>

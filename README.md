@@ -20,6 +20,11 @@ OxygenOS 16 / Android 16). No root, no Magisk, no bootloader unlock.
   treatment: the persistent per-app override, the watchdog vote, and (when the
   vendor game service allows it) registration in OxygenOS's own game list so
   HyperRendering/GPA applies. Games are auto-detected and can be marked by hand
+- **FPS / refresh-rate overlay** in the status-bar strip, replacing Developer
+  Options' "Show refresh rate". Shows the panel's measured Hz, plus the game's
+  real rendered fps when the vendor game service answers. Sits left of the
+  wifi/battery icons; the offset is adjustable (long-press the FPS chip).
+  Needs "Display over other apps", granted from the app.
 - Follows the system light/dark theme, draws edge to edge under the status and
   navigation bars
 - Armed apps are persisted and automatically re-applied after reboot
@@ -90,7 +95,7 @@ proot-distro login ubuntu -- bash -lc '
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
-(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 6).
+(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 7).
 
 ## Install
 
