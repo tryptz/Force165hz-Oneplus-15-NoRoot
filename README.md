@@ -5,18 +5,22 @@ OxygenOS 16 / Android 16). No root, no Magisk, no bootloader unlock.
 
 ## What the APK does
 
-- Lists every installed app with its icon and a toggle — arm/disarm **165 Hz**
-  per app
+- Lists every installed app with its icon and a toggle — arm/disarm a pinned
+  refresh rate per app
+- **Rate selector** for **60 / 120 / 144 / 165 Hz**: pick the rate, then toggle
+  apps to arm them there. Tap an armed app's rate badge (or long-press any row)
+  to move that one app to a different rate
 - Search by app name or package, plus **All / Armed / User / System** filters
-- A status card up top: how many apps are armed, coverage across everything
-  installed, and whether the watchdog is live
-- **Arm all** (system-wide sweep), **Re-arm** (re-applies your saved selection)
-  and **Clear** (disarms everything) in a floating action bar
+- A status card up top: how many apps are armed, the split across rates, and
+  whether the watchdog is live
+- **Arm all** (system-wide sweep at the selected rate), **Re-arm** (re-applies
+  every saved app at its own rate) and **Clear** (disarms everything) in a
+  floating action bar
 - Follows the system light/dark theme, draws edge to edge under the status and
   navigation bars
 - Armed apps are persisted and automatically re-applied after reboot
   (`BOOT_COMPLETED` receiver)
-- **Watchdog foreground service** re-issues the 165 Hz vote for all armed apps
+- **Watchdog foreground service** re-issues each armed app's vote at its own rate
   every 5 s while the screen is on — this beats games (Unity/Unreal etc.) that
   pin their own frame rate on focus and would otherwise override a one-shot vote.
   Pauses when the screen is off.
@@ -29,9 +33,15 @@ iface:    com.oplus.screenmode.IOplusScreenMode
 transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 ```
 
-Rate id `7` = 165 Hz. The resulting vote is `min=max=165`, so the target app's
-windows run at 165 while foregrounded and return to normal system policy when
-you leave.
+Rate ids match `refresh_rate_config.xml`: `2` = 60, `1` = 90, `3` = 120,
+`4` = 144, `7` = 165. The resulting vote is `min=max=<rate>`, so the target
+app's windows run at that rate while foregrounded and return to normal system
+policy when you leave.
+
+Re-issuing the id an app is already pinned at removes the override, so
+disarming replays that app's own rate and changing an app's rate drops the old
+pin before setting the new one. The armed set is stored as `pkg|rateId`
+entries; anything saved by an older build reads back as 165 Hz.
 
 ## Build (inside proot-distro Ubuntu)
 
@@ -43,7 +53,7 @@ proot-distro login ubuntu -- bash -lc '
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`
-(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 4).
+(~2.6 MB, debug-signed, package `tf.arm165`, versionCode 5).
 
 ## Install
 
@@ -66,7 +76,8 @@ the background.
 - Apps that pin their own frame rate are handled by the watchdog, which keeps
   re-voting every 5 s so our vote lands after theirs; a stubborn game may still
   need a few seconds after gaining focus before it locks at 165.
-- Video/streaming apps may judder under a hard 165 pin — disarm those.
+- Video/streaming apps may judder under a hard pin — disarm those, or drop
+  them to 60 Hz.
 - Battery and heat increase with the number of armed apps.
 - A future OxygenOS update may add a permission check; a `SecurityException`
   after an OTA means the trick was patched.

@@ -3,7 +3,6 @@ package tf.arm165
 import android.Manifest
 import android.app.Activity
 import android.app.AlertDialog
-import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -22,6 +21,7 @@ import android.widget.BaseAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -35,7 +35,12 @@ class MainActivity : Activity() {
 
     private var all: List<AppEntry> = emptyList()
     private var shown: List<AppEntry> = emptyList()
-    private val armed = LinkedHashSet<String>()
+
+    /** Package to vendor rateId, mirroring what [ArmedStore] has on disk. */
+    private val armed = LinkedHashMap<String, Int>()
+
+    /** The rate a plain row tap arms at, picked in the hero's selector. */
+    private var activeRate = RateLock.DEFAULT_RATE
 
     private var filter = Filter.ALL
     private var query = ""
@@ -44,7 +49,6 @@ class MainActivity : Activity() {
     private var dividerShown = false
 
     private val main = Handler(Looper.getMainLooper())
-
 
     /** Serialises the arm/disarm sweeps so two of them can never interleave. */
     private val worker = Executors.newSingleThreadExecutor()
@@ -58,6 +62,7 @@ class MainActivity : Activity() {
     private lateinit var armedCount: TextView
     private lateinit var armedSub: TextView
     private lateinit var armedBar: ProgressBar
+    private lateinit var rateSegments: LinearLayout
     private lateinit var watchdogDot: View
     private lateinit var watchdogLabel: TextView
     private lateinit var stateBox: View
@@ -70,14 +75,17 @@ class MainActivity : Activity() {
     private lateinit var snack: TextView
     private lateinit var actions: List<View>
     private lateinit var chips: List<Pair<TextView, Filter>>
+    private var segments: List<Pair<TextView, Int>> = emptyList()
     private lateinit var adapter: AppAdapter
 
     // ------------------------------------------------------------------ setup
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        armed.addAll(prefs.getStringSet(KEY_ARMED, emptySet()).orEmpty())
+        prefs = ArmedStore.open(this)
+        armed.putAll(ArmedStore.read(prefs))
+        activeRate = prefs.getInt(KEY_RATE, RateLock.DEFAULT_RATE)
+            .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
 
         goEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -85,6 +93,7 @@ class MainActivity : Activity() {
         applyInsets()
         wireSearch()
         wireChips()
+        wireRates()
         wireActions()
 
         adapter = AppAdapter()
@@ -122,6 +131,7 @@ class MainActivity : Activity() {
         armedCount = findViewById(R.id.armed_count)
         armedSub = findViewById(R.id.armed_sub)
         armedBar = findViewById(R.id.armed_bar)
+        rateSegments = findViewById(R.id.rate_segments)
         watchdogDot = findViewById(R.id.watchdog_dot)
         watchdogLabel = findViewById(R.id.watchdog_label)
         stateBox = findViewById(R.id.state_box)
@@ -244,6 +254,34 @@ class MainActivity : Activity() {
         chips.forEach { (chip, value) -> chip.isSelected = value == filter }
     }
 
+    /** Builds the segmented rate selector so it always matches [RateLock.RATES]. */
+    private fun wireRates() {
+        segments = RateLock.RATES.map { (rateId, hz) ->
+            val segment = TextView(this, null, 0, R.style.Segment).apply {
+                // A style can't carry layout params onto a view built in code.
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                text = hz.toString()
+                contentDescription = getString(R.string.rate_hz, hz)
+                setOnClickListener { selectRate(rateId) }
+            }
+            rateSegments.addView(segment)
+            segment to rateId
+        }
+        syncRates()
+    }
+
+    private fun selectRate(rateId: Int) {
+        if (activeRate == rateId) return
+        activeRate = rateId
+        prefs.edit().putInt(KEY_RATE, rateId).apply()
+        syncRates()
+        adapter.notifyDataSetChanged() // unarmed rows describe the rate they would use
+    }
+
+    private fun syncRates() {
+        segments.forEach { (segment, rateId) -> segment.isSelected = rateId == activeRate }
+    }
+
     private fun wireActions() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
@@ -299,8 +337,11 @@ class MainActivity : Activity() {
     private fun refreshStatus() {
         val count = armed.size
         armedCount.text = count.toString()
-        armedSub.text =
-            if (loading) getString(R.string.hero_loading) else getString(R.string.hero_of, all.size)
+        armedSub.text = when {
+            loading -> getString(R.string.hero_loading)
+            count == 0 -> getString(R.string.hero_of, all.size)
+            else -> rateBreakdown()
+        }
         armedBar.max = maxOf(all.size, 1)
         armedBar.setProgress(if (loading) 0 else count, true)
 
@@ -311,9 +352,16 @@ class MainActivity : Activity() {
         )
     }
 
+    /** e.g. "165 Hz × 8  ·  120 Hz × 4", fastest first, skipping unused rates. */
+    private fun rateBreakdown(): String =
+        RateLock.RATES.asReversed().mapNotNull { (rateId, hz) ->
+            val n = armed.count { it.value == rateId }
+            if (n == 0) null else getString(R.string.rate_breakdown_part, hz, n)
+        }.joinToString("  ·  ")
+
     /** Call after [armed] changes so the hero, the rows and the Armed filter agree again. */
     private fun onArmedChanged() {
-        saveArmed()
+        ArmedStore.write(prefs, armed)
         if (isFinishing || isDestroyed) return
         refreshStatus()
         if (filter == Filter.ARMED) {
@@ -324,30 +372,23 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun saveArmed() {
-        // SharedPreferences must not be handed a set we keep mutating.
-        prefs.edit().putStringSet(KEY_ARMED, HashSet(armed)).apply()
-    }
-
     // ---------------------------------------------------------------- actions
 
     private fun onRowTapped(entry: AppEntry, toggle: RateSwitch) {
-        if (busy) {
-            snack(getString(R.string.busy))
-            return
-        }
+        if (rejectWhileBusy()) return
         when {
             entry.pkg in armed -> disarm(entry, toggle)
-            prefs.getBoolean(KEY_WARNED, false) -> arm(entry, toggle)
+            prefs.getBoolean(KEY_WARNED, false) -> arm(entry, activeRate, toggle)
             // behind the dialog the row repaints itself, so nothing to animate
-            else -> confirmFirstTime { arm(entry, null) }
+            else -> confirmFirstTime { arm(entry, activeRate, null) }
         }
     }
 
-    private fun arm(entry: AppEntry, toggle: RateSwitch?) {
+    private fun arm(entry: AppEntry, rateId: Int, toggle: RateSwitch?) {
+        if (rejectWhileBusy()) return
         toggle?.setChecked(true, animate = true)
-        if (RateLock.arm(entry.pkg)) {
-            armed.add(entry.pkg)
+        if (RateLock.arm(entry.pkg, rateId)) {
+            armed[entry.pkg] = rateId
             ArmWatchService.start(this)
         } else {
             snack(getString(R.string.arm_failed, entry.label))
@@ -356,21 +397,62 @@ class MainActivity : Activity() {
     }
 
     private fun disarm(entry: AppEntry, toggle: RateSwitch?) {
+        if (rejectWhileBusy()) return
         toggle?.setChecked(false, animate = true)
-        RateLock.arm(entry.pkg) // the identical call toggles the override back off
+        // Re-issuing the id an app is pinned at is what clears it, so replay
+        // that app's own rate rather than whatever the selector says.
+        armed[entry.pkg]?.let { RateLock.arm(entry.pkg, it) }
         armed.remove(entry.pkg)
         onArmedChanged()
     }
 
+    /** Moves one app to [rateId], dropping whatever it was pinned at first. */
+    private fun setRate(entry: AppEntry, rateId: Int) {
+        if (rejectWhileBusy()) return
+        val current = armed[entry.pkg]
+        if (current == rateId) return
+        if (current != null) RateLock.arm(entry.pkg, current)
+        if (RateLock.arm(entry.pkg, rateId)) {
+            armed[entry.pkg] = rateId
+            ArmWatchService.start(this)
+            snack(getString(R.string.rate_set, entry.label, RateLock.hz(rateId)))
+        } else {
+            armed.remove(entry.pkg)
+            snack(getString(R.string.arm_failed, entry.label))
+        }
+        onArmedChanged()
+    }
+
+    private fun showRatePicker(entry: AppEntry) {
+        if (rejectWhileBusy()) return
+        val current = armed[entry.pkg]
+        val labels = RateLock.RATES
+            .map { getString(R.string.rate_hz, it.second) }
+            .toTypedArray()
+        val checked = RateLock.RATES.indexOfFirst { it.first == (current ?: activeRate) }
+
+        val builder = AlertDialog.Builder(this)
+            .setTitle(entry.label)
+            .setSingleChoiceItems(labels, checked) { dialog, which ->
+                dialog.dismiss()
+                confirmFirstTime { setRate(entry, RateLock.RATES[which].first) }
+            }
+            .setNegativeButton(R.string.risk_no, null)
+        if (current != null) {
+            builder.setNeutralButton(R.string.rate_picker_disarm) { _, _ -> disarm(entry, null) }
+        }
+        builder.show()
+    }
+
     private fun reArmSaved() {
-        val saved = armed.toList()
+        val saved = armed.toMap()
         if (saved.isEmpty()) {
             snack(getString(R.string.nothing_saved))
             return
         }
         runBusy(getString(R.string.rearming)) {
             var ok = 0
-            saved.forEach { if (RateLock.arm(it)) ok++ }
+            saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
             ui { snack(getString(R.string.rearmed, ok, saved.size)) }
         }
     }
@@ -378,28 +460,40 @@ class MainActivity : Activity() {
     private fun armAll() {
         if (all.isEmpty()) return
         confirmFirstTime {
+            val rateId = activeRate
             val targets = all.map { it.pkg }
-            runBusy(getString(R.string.arming_all, targets.size)) {
+            val existing = armed.toMap()
+            runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
                 val done = ArrayList<String>(targets.size)
-                targets.forEach { if (RateLock.arm(it)) done.add(it) }
+                targets.forEach { pkg ->
+                    val current = existing[pkg]
+                    when {
+                        // already pinned here: re-issuing would only toggle it off
+                        current == rateId -> done.add(pkg)
+                        else -> {
+                            if (current != null) RateLock.arm(pkg, current) // drop the old pin
+                            if (RateLock.arm(pkg, rateId)) done.add(pkg)
+                        }
+                    }
+                }
                 main.post {
-                    armed.addAll(done)
+                    done.forEach { armed[it] = rateId }
                     onArmedChanged()
                     ArmWatchService.start(this)
-                    snack(getString(R.string.armed_all, done.size, targets.size))
+                    snack(getString(R.string.armed_all, done.size, targets.size, RateLock.hz(rateId)))
                 }
             }
         }
     }
 
     private fun clearAll() {
-        val saved = armed.toList()
+        val saved = armed.toMap()
         if (saved.isEmpty()) {
             snack(getString(R.string.nothing_saved))
             return
         }
         runBusy(getString(R.string.clearing)) {
-            saved.forEach { RateLock.arm(it) }
+            saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
             main.post {
                 armed.clear()
                 onArmedChanged()
@@ -409,16 +503,19 @@ class MainActivity : Activity() {
     }
 
     private fun reArmSavedQuietly() {
-        val saved = armed.toList()
+        val saved = armed.toMap()
         if (saved.isEmpty()) return
-        worker.execute { saved.forEach { RateLock.arm(it) } }
+        worker.execute { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+    }
+
+    /** True when a sweep owns the armed set; tells the user why nothing happened. */
+    private fun rejectWhileBusy(): Boolean {
+        if (busy) snack(getString(R.string.busy))
+        return busy
     }
 
     private fun runBusy(message: String, work: () -> Unit) {
-        if (busy) {
-            snack(getString(R.string.busy))
-            return
-        }
+        if (rejectWhileBusy()) return
         busy = true
         setActionsEnabled(false)
         snack(message)
@@ -507,6 +604,7 @@ class MainActivity : Activity() {
         val icon: ImageView = view.findViewById(R.id.icon)
         val label: TextView = view.findViewById(R.id.label)
         val sub: TextView = view.findViewById(R.id.pkg)
+        val badge: TextView = view.findViewById(R.id.rate_badge)
         val toggle: RateSwitch = view.findViewById(R.id.toggle)
         var pkg: String? = null
         var background = 0
@@ -530,12 +628,24 @@ class MainActivity : Activity() {
                 if (entry.system) getString(R.string.system_prefix) + "  ·  " + entry.pkg
                 else entry.pkg
 
-            val isArmed = entry.pkg in armed
+            val rateId = armed[entry.pkg]
+            val isArmed = rateId != null
             val background = if (isArmed) R.drawable.bg_row_armed else R.drawable.bg_row
             if (holder.background != background) {
                 holder.background = background
                 view.setBackgroundResource(background)
             }
+
+            if (rateId != null) {
+                val hz = RateLock.hz(rateId)
+                holder.badge.visibility = View.VISIBLE
+                holder.badge.text = hz.toString()
+                holder.badge.contentDescription =
+                    getString(R.string.rate_badge_desc, entry.label, hz)
+            } else {
+                holder.badge.visibility = View.GONE
+            }
+            holder.badge.setOnClickListener { showRatePicker(entry) }
 
             val cached = AppCatalog.cachedIcon(entry.pkg)
             if (cached != null) {
@@ -552,16 +662,21 @@ class MainActivity : Activity() {
             if (recycled || holder.toggle.isChecked != isArmed) {
                 holder.toggle.setChecked(isArmed, animate = false)
             }
-            holder.toggle.contentDescription = getString(R.string.toggle_desc, entry.label)
+            holder.toggle.contentDescription =
+                getString(R.string.toggle_desc, entry.label, RateLock.hz(rateId ?: activeRate))
+
             view.setOnClickListener { onRowTapped(entry, holder.toggle) }
+            view.setOnLongClickListener {
+                showRatePicker(entry)
+                true
+            }
             return view
         }
     }
 
     private companion object {
-        const val PREFS = "arm165"
-        const val KEY_ARMED = "armed"
         const val KEY_WARNED = "warned"
+        const val KEY_RATE = "rate"
         const val REQ_NOTIFICATIONS = 165
         const val SNACK_MS = 2400L
     }

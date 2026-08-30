@@ -13,10 +13,10 @@ import android.util.Log
 import kotlin.concurrent.thread
 
 /**
- * Watchdog: re-issues the requestGameRefreshRate vote for every armed app
- * every few seconds while the screen is on. Games that pin their own frame
- * rate on focus (Unity/Unreal engines etc.) overwrite our single-shot vote —
- * re-arming continuously lands our vote after theirs and wins.
+ * Watchdog: re-issues the requestGameRefreshRate vote for every armed app, at
+ * that app's own rate, every few seconds while the screen is on. Games that pin
+ * their own frame rate on focus (Unity/Unreal engines etc.) overwrite our
+ * single-shot vote — re-arming continuously lands our vote after theirs and wins.
  */
 class ArmWatchService : Service() {
 
@@ -27,10 +27,14 @@ class ArmWatchService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (screenOn) {
-                val set = prefs?.getStringSet("armed", emptySet()) ?: emptySet()
-                if (set.isNotEmpty()) {
+                val armed = prefs?.let { ArmedStore.read(it) }.orEmpty()
+                if (armed.isNotEmpty()) {
                     // re-arm off the main thread; binder calls here are fast but be safe
-                    thread { synchronized(RateLock) { set.forEach { RateLock.arm(it) } } }
+                    thread {
+                        synchronized(RateLock) {
+                            armed.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+                        }
+                    }
                 }
             }
             handler.postDelayed(this, INTERVAL_MS)
@@ -46,7 +50,7 @@ class ArmWatchService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences("arm165", Context.MODE_PRIVATE)
+        prefs = ArmedStore.open(this)
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
         })
@@ -73,7 +77,7 @@ class ArmWatchService : Service() {
         )
         return Notification.Builder(this, chan())
             .setContentTitle("165 Armer")
-            .setContentText("Watchdog active — keeping ${prefs?.getStringSet("armed", emptySet())?.size ?: 0} app(s) @165Hz")
+            .setContentText("Watchdog active — holding ${prefs?.let { ArmedStore.read(it).size } ?: 0} app(s)")
             .setSmallIcon(android.R.drawable.ic_menu_manage)
             .setContentIntent(pi)
             .setOngoing(true)

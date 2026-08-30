@@ -7,9 +7,9 @@ import android.content.Intent
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
-        val prefs = context.getSharedPreferences("arm165", 0)
-        prefs.getStringSet("armed", emptySet())?.forEach { RateLock.arm(it) }
-        if (prefs.getStringSet("armed", emptySet())!!.isNotEmpty()) {
+        val armed = ArmedStore.read(ArmedStore.open(context))
+        armed.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+        if (armed.isNotEmpty()) {
             ArmWatchService.start(context) // keep re-arming after games re-pin their rate
         }
     }

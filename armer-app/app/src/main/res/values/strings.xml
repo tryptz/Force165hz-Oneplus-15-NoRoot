@@ -6,10 +6,12 @@
     <string name="watchdog_live">Watchdog live</string>
     <string name="watchdog_idle">Idle</string>
 
-    <string name="hero_unit">armed at 165 Hz</string>
+    <string name="hero_unit">apps armed</string>
     <string name="hero_of">of %1$d installed</string>
     <string name="hero_loading">Reading installed apps…</string>
-    <string name="badge_rate">165 Hz</string>
+    <string name="rate_label">Arm at</string>
+    <string name="rate_hz">%1$d Hz</string>
+    <string name="rate_breakdown_part">%1$d Hz × %2$d</string>
 
     <string name="search_hint">Search apps or packages</string>
     <string name="search_clear">Clear search</string>
@@ -25,13 +27,13 @@
 
     <string name="empty_title">Nothing here</string>
     <string name="empty_body">No app matches this search or filter.</string>
-    <string name="empty_armed_body">Flip a switch on any app to arm it at 165 Hz.</string>
+    <string name="empty_armed_body">Flip a switch on any app to arm it at the selected rate.</string>
     <string name="loading">Loading apps…</string>
 
     <string name="system_prefix">system</string>
-    <string name="toggle_desc">Arm %1$s at 165 Hz</string>
+    <string name="toggle_desc">Arm %1$s at %2$d Hz</string>
 
-    <string name="risk_title">Pin 165 Hz?</string>
+    <string name="risk_title">Pin the refresh rate?</string>
     <string name="risk_body">This drives the display through an undocumented vendor interface. Expect higher battery drain and more heat, and some video apps may judder.</string>
     <string name="risk_yes">Turn on</string>
     <string name="risk_no">Cancel</string>
@@ -39,8 +41,8 @@
     <string name="busy">Still working…</string>
     <string name="rearming">Re-arming saved apps…</string>
     <string name="rearmed">Re-armed %1$d of %2$d</string>
-    <string name="arming_all">Arming %1$d apps…</string>
-    <string name="armed_all">Armed %1$d of %2$d</string>
+    <string name="arming_all">Arming %1$d apps at %2$d Hz…</string>
+    <string name="armed_all">Armed %1$d of %2$d at %3$d Hz</string>
     <string name="clearing">Disarming…</string>
     <plurals name="cleared">
         <item quantity="one">Disarmed %1$d app</item>
@@ -48,4 +50,7 @@
     </plurals>
     <string name="arm_failed">Couldn\'t arm %1$s</string>
     <string name="nothing_saved">Nothing armed yet</string>
+    <string name="rate_picker_disarm">Disarm</string>
+    <string name="rate_set">%1$s at %2$d Hz</string>
+    <string name="rate_badge_desc">%1$s is armed at %2$d Hz — tap to change</string>
 </resources>
