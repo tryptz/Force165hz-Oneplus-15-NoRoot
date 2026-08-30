@@ -24,8 +24,8 @@ object RateLock {
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
 
     // Vendor rateIds, same numbering as refresh_rate_config.xml.
-    const val RATE_60 = 2
-    const val RATE_90 = 1
+    const val RATE_60 = 1
+    const val RATE_90 = 2
     const val RATE_120 = 3
     const val RATE_144 = 4
     const val RATE_165 = 7
