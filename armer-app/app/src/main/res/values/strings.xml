@@ -18,6 +18,7 @@
 
     <string name="filter_all">All</string>
     <string name="filter_armed">Armed</string>
+    <string name="filter_games">Games</string>
     <string name="filter_user">User</string>
     <string name="filter_system">System</string>
 
@@ -66,7 +67,6 @@
     <string name="done">Done</string>
 
     <!-- navigation / support -->
-    <string name="open_games">Open 3D games</string>
     <string name="back">Back</string>
     <string name="coffee">Buy me a coffee</string>
     <string name="coffee_url">https://ko-fi.com/tryptz</string>

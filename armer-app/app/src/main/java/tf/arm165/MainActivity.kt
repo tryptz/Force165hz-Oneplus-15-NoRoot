@@ -20,7 +20,7 @@ import android.widget.TextView
 
 class MainActivity : ShellActivity() {
 
-    private enum class Filter { ALL, ARMED, USER, SYSTEM }
+    private enum class Filter { ALL, ARMED, GAMES, USER, SYSTEM }
 
     private var all: List<AppEntry> = emptyList()
     private var shown: List<AppEntry> = emptyList()
@@ -65,6 +65,7 @@ class MainActivity : ShellActivity() {
         chips = listOf(
             findViewById<TextView>(R.id.chip_all) to Filter.ALL,
             findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
+            findViewById<TextView>(R.id.chip_games) to Filter.GAMES,
             findViewById<TextView>(R.id.chip_user) to Filter.USER,
             findViewById<TextView>(R.id.chip_system) to Filter.SYSTEM,
         )
@@ -150,9 +151,6 @@ class MainActivity : ShellActivity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
-        findViewById<View>(R.id.btn_games).setOnClickListener {
-            startActivity(Intent(this, GamesActivity::class.java))
-        }
         findViewById<View>(R.id.btn_coffee).setOnClickListener {
             open(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url))))
         }
@@ -254,6 +252,7 @@ class MainActivity : ShellActivity() {
             (query.isEmpty() || entry.key.contains(query)) && when (filter) {
                 Filter.ALL -> true
                 Filter.ARMED -> entry.pkg in armed
+                Filter.GAMES -> entry.game
                 Filter.USER -> !entry.system
                 Filter.SYSTEM -> entry.system
             }

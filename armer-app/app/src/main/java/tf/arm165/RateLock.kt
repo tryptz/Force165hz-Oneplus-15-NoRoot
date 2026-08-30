@@ -36,7 +36,9 @@ object RateLock {
     )
 
     /** Rates offered in the UI, in display order: rateId to Hz. */
-    val RATES = listOf(RATE_60 to 60, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165)
+    val RATES = listOf(
+        RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
+    )
 
     const val DEFAULT_RATE = RATE_165
 

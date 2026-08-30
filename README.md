@@ -42,7 +42,7 @@ iface:    com.oplus.screenmode.IOplusScreenMode
 transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 ```
 
-Rate ids match `refresh_rate_config.xml`: `2` = 60, `1` = 90, `3` = 120,
+Rate ids match `refresh_rate_config.xml`: `1` = 60, `2` = 90, `3` = 120,
 `4` = 144, `7` = 165. The resulting vote is `min=max=<rate>`, so the target
 app's windows run at that rate while foregrounded and return to normal system
 policy when you leave.
@@ -55,35 +55,13 @@ entries; anything saved by an older build reads back as 165 Hz.
 Transaction numbers and signatures were recovered from `oplus-framework.jar`
 (`jadx`, then the `TRANSACTION_*` constants in each `Stub`); the long-standing
 `0x0c` shows up there as `requestGameRefreshRate = 12`, which is how the rest
-were trusted. Beyond the transient vote, the games page also uses:
+were trusted.
 
-```
-oplusscreenmode  com.oplus.screenmode.IOplusScreenMode      (no permission check)
-  25  setAppOverrideRefreshRate(String pkg, int mode, int rate) -> boolean
-  26  getAppOverrideRefreshRate(String pkg, int mode) -> int
-  27  getAppOverrideRefreshRateList() -> Bundle
-  14  getGameList(Bundle) -> boolean
-
-oplusoiface      com.oplus.oiface.IOIfaceService            (guard lives in the
-  1010 setInstalledGameList(String[])                        native daemon, so
-  1011 getInstalledGameList() -> String[]                    reachability is
-  1007 setGameModeStatus(int status, String pkg)             probed at runtime)
-   863 getGpuLoad() -> float          <- read-only probe
-```
-
-The oiface calls are gated: the app first issues the read-only `getGpuLoad`
-probe, and only registers games if the daemon answers. If it refuses, the page
-says so and boosting falls back to pinning the display rate. No transaction is
-ever issued blind. Run `tool/probe-vendor.sh` for a read-only report of what
-this device actually exposes.
-
-The **Game boost switch** writes the OPlus global
-`app_extreme_high_refresh_switch` (the same one `boot/165hz.sh` sets). That
-needs a one-time grant, which is not root:
-
-```bash
-adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS
-```
+The FPS overlay also reads the vendor game service (`getFPS[851]`,
+`getCurrentGamePackage[1009]` via `oplusoiface`) so it can show a foreground
+game's *rendered* fps next to the display's rate. The oiface daemon is
+checked with the read-only `getGpuLoad` before any mutating call; if it
+doesn't answer, only the display rate is shown.
 
 ## Build (inside proot-distro Ubuntu)
 

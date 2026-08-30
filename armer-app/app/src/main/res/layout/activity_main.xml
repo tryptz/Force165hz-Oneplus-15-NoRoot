@@ -68,17 +68,6 @@
                     android:src="@drawable/ic_coffee"
                     android:tint="@color/text_primary"
                     android:contentDescription="@string/coffee" />
-
-                <ImageView
-                    android:id="@+id/btn_games"
-                    android:layout_width="42dp"
-                    android:layout_height="42dp"
-                    android:padding="10dp"
-                    android:background="@drawable/bg_icon_btn"
-                    android:src="@drawable/ic_games"
-                    android:tint="@color/on_accent"
-                    android:backgroundTint="@color/accent"
-                    android:contentDescription="@string/open_games" />
             </LinearLayout>
 
             <!-- watchdog state + FPS overlay toggle -->
@@ -303,6 +292,7 @@
 
                     <TextView android:id="@+id/chip_all" style="@style/Chip" android:text="@string/filter_all" />
                     <TextView android:id="@+id/chip_armed" style="@style/Chip" android:text="@string/filter_armed" />
+                    <TextView android:id="@+id/chip_games" style="@style/Chip" android:text="@string/filter_games" />
                     <TextView android:id="@+id/chip_user" style="@style/Chip" android:text="@string/filter_user" />
                     <TextView android:id="@+id/chip_system" style="@style/Chip" android:text="@string/filter_system" />
                 </LinearLayout>
