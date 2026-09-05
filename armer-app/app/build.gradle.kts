@@ -10,8 +10,8 @@ android {
         applicationId = "tf.arm165"
         minSdk = 29
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.4.1"
+        versionCode = 9
+        versionName = "1.0.5"
     }
 
     buildTypes {
