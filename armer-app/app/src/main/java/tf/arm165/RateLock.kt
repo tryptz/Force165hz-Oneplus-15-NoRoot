@@ -23,14 +23,17 @@ object RateLock {
     private const val TX_GET_GAME_LIST = 14 //             (Bundle) inout -> boolean
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
 
-    // Vendor rateIds, same numbering as refresh_rate_config.xml.
-    const val RATE_60 = 1
-    const val RATE_90 = 2
+    // Vendor rateIds, same numbering as refresh_rate_config.xml. They are not
+    // in Hz order: the vendor numbers 90 Hz as 1 and 60 Hz as 2. Builds that
+    // read them the other way round put the panel on 90 Hz when the user asked
+    // for 60 and on 60 Hz when they asked for 90 — see ArmedStore.migrate.
+    const val RATE_90 = 1
+    const val RATE_60 = 2
     const val RATE_120 = 3
     const val RATE_144 = 4
     const val RATE_165 = 7
 
-    /** Every id we can name. 90 Hz is not offered but still reads back correctly. */
+    /** Every id we can name, for lookups: rateId to Hz. */
     private val ALL = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
     )
