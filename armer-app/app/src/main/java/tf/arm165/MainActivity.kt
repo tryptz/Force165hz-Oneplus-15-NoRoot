@@ -52,7 +52,7 @@ class MainActivity : ShellActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         armed.putAll(ArmedStore.read(prefs))
-        activeRate = prefs.getInt(KEY_RATE, RateLock.DEFAULT_RATE)
+        activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
 
         armedCount = findViewById(R.id.armed_count)
@@ -142,7 +142,7 @@ class MainActivity : ShellActivity() {
     private fun selectRate(rateId: Int) {
         if (activeRate == rateId) return
         activeRate = rateId
-        prefs.edit().putInt(KEY_RATE, rateId).apply()
+        prefs.edit().putInt(ArmedStore.KEY_RATE, rateId).apply()
         syncChips(segments, activeRate)
         adapter.notifyDataSetChanged() // unarmed rows describe the rate they would use
     }
@@ -448,7 +448,6 @@ class MainActivity : ShellActivity() {
     }
 
     private companion object {
-        const val KEY_RATE = "rate"
         const val REQ_NOTIFICATIONS = 165
         const val MAX_OVERLAY_OFFSET_DP = 260
     }

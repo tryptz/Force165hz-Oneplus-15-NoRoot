@@ -29,10 +29,11 @@ iface:    com.oplus.screenmode.IOplusScreenMode
 transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 ```
 
-Rate ids from `refresh_rate_config.xml`: `1`=60, `2`=90, `3`=120, `4`=144,
-`7`=165. The vote is `min=max=<rate>` while the app is foregrounded.
-Re-issuing an app's pinned id removes the override. Ids/transactions were
-recovered from `oplus-framework.jar` with `jadx`.
+Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
+`7`=165 — note the ids are not in Hz order, 90 comes before 60. The vote
+is `min=max=<rate>` while the app is foregrounded. Re-issuing an app's
+pinned id removes the override. Ids/transactions were recovered from
+`oplus-framework.jar` with `jadx`.
 
 ## Build & install
 

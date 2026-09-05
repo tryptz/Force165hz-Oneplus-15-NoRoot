@@ -4,7 +4,7 @@
 # Reverse-engineered chain (OxygenOS 16.1):
 #   oplusscreenmode binder -> IOplusScreenMode::requestGameRefreshRate
 #   transaction 0x0c, args (String pkg, int rateId), NO caller permission check.
-#   rateIds: 1=90 2=60 3=120 7=165 (same ids as refresh_rate_config.xml).
+#   rateIds: 1=90 2=60 3=120 4=144 7=165 (same ids as refresh_rate_config.xml).
 #   Re-issuing the SAME rateId toggles/removes the override.
 
 set -u
@@ -69,7 +69,7 @@ esac
 
 PKG="$1"
 RATE="${2:-7}"
-case "$RATE" in 165) RATE=7;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; esac
+case "$RATE" in 165) RATE=7;; 144) RATE=4;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; esac
 
 command -v adb >/dev/null || die "adb not found (pkg install android-tools)"
 adb devices | grep -q . || true
