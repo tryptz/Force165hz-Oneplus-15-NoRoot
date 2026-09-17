@@ -56,7 +56,11 @@ permission on first launch.
 
 - The armed app must be foregrounded to receive the vote.
 - Video apps may judder — disarm them or pin at 60 Hz.
-- Battery and heat increase with the number of armed apps.
+- Battery and heat increase with the number of armed apps. The vote is
+  `min = max`, so while an armed app is in front the LTPO panel cannot ramp
+  down to its 1 Hz idle rate even on a still screen — that is where the drain
+  comes from. `tool/probe-ltpo-idle.sh` looks for a ceiling-only vote that
+  would keep the idle ramp.
 - A `SecurityException` after an OTA means the vendor patched the trick.
 - If an app stays pinned after a disarm, the release paths above were both
   refused on that build. `adb logcat -s Arm165` says which one was tried;
