@@ -49,7 +49,12 @@
         <item quantity="one">Disarmed %1$d app</item>
         <item quantity="other">Disarmed %1$d apps</item>
     </plurals>
+    <plurals name="clear_failed">
+        <item quantity="one">%1$d app wouldn\'t release — restart the phone to clear it</item>
+        <item quantity="other">%1$d apps wouldn\'t release — restart the phone to clear them</item>
+    </plurals>
     <string name="arm_failed">Couldn\'t arm %1$s</string>
+    <string name="disarm_failed">Couldn\'t release %1$s — restart the phone to clear it</string>
     <string name="nothing_saved">Nothing armed yet</string>
     <string name="rate_picker_disarm">Disarm</string>
     <string name="rate_set">%1$s at %2$d Hz</string>

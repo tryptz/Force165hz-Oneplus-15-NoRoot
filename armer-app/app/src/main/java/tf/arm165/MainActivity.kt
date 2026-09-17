@@ -297,6 +297,9 @@ class MainActivity : ShellActivity() {
     /** Call after [armed] changes so the hero, the rows and the Armed filter agree again. */
     private fun onArmedChanged() {
         ArmedStore.write(prefs, armed)
+        // Nothing left to hold: a watchdog that keeps ticking every few seconds
+        // would only spend battery and show a notification about no apps.
+        if (armed.isEmpty()) ArmWatchService.stopIfIdle(this)
         if (isFinishing || isDestroyed) return
         refreshStatus()
         if (filter == Filter.ARMED) applyFilter() else { adapter.notifyDataSetChanged(); updateState() }
@@ -329,28 +332,36 @@ class MainActivity : ShellActivity() {
     private fun disarm(entry: AppEntry, toggle: RateSwitch?) {
         if (rejectWhileBusy()) return
         toggle?.setChecked(false, animate = true)
-        // Re-issuing the id an app is pinned at is what clears it, so replay
-        // that app's own rate rather than whatever the selector says.
-        armed[entry.pkg]?.let { RateLock.arm(entry.pkg, it) }
-        armed.remove(entry.pkg)
+        val rateId = armed.remove(entry.pkg) ?: return
+        // Drop it from the stored set before touching the vendor: the watchdog
+        // reads that set inside the same lock the release takes, so a tick can
+        // no longer land in between and pin the app straight back.
         onArmedChanged()
+        worker.execute {
+            val released = synchronized(RateLock) { RateLock.release(entry.pkg, rateId) }
+            if (!released) ui { snack(getString(R.string.disarm_failed, entry.label)) }
+        }
     }
 
-    /** Moves one app to [rateId], dropping whatever it was pinned at first. */
+    /** Moves one app to [rateId]; the new vote replaces whatever it was pinned at. */
     private fun setRate(entry: AppEntry, rateId: Int) {
         if (rejectWhileBusy()) return
         val current = armed[entry.pkg]
         if (current == rateId) return
-        if (current != null) RateLock.arm(entry.pkg, current)
+        var stale: Int? = null
         if (RateLock.arm(entry.pkg, rateId)) {
             armed[entry.pkg] = rateId
             ArmWatchService.start(this)
             snack(getString(R.string.rate_set, entry.label, RateLock.hz(rateId)))
         } else {
+            // The move failed, so the row goes back to unarmed — but any vote it
+            // already had is still live, and only a release takes that down.
             armed.remove(entry.pkg)
+            stale = current
             snack(getString(R.string.arm_failed, entry.label))
         }
         onArmedChanged()
+        stale?.let { rate -> worker.execute { synchronized(RateLock) { RateLock.release(entry.pkg, rate) } } }
     }
 
     private fun showRatePicker(entry: AppEntry) {
@@ -380,7 +391,9 @@ class MainActivity : ShellActivity() {
         }
         runBusy(getString(R.string.rearming)) {
             var ok = 0
-            saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
+            synchronized(RateLock) {
+                saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
+            }
             ui { snack(getString(R.string.rearmed, ok, saved.size)) }
         }
     }
@@ -390,19 +403,13 @@ class MainActivity : ShellActivity() {
         confirmFirstTime {
             val rateId = activeRate
             val targets = all.map { it.pkg }
-            val existing = armed.toMap()
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
                 val done = ArrayList<String>(targets.size)
-                targets.forEach { pkg ->
-                    val current = existing[pkg]
-                    when {
-                        // already pinned here: re-issuing would only toggle it off
-                        current == rateId -> done.add(pkg)
-                        else -> {
-                            if (current != null) RateLock.arm(pkg, current) // drop the old pin
-                            if (RateLock.arm(pkg, rateId)) done.add(pkg)
-                        }
-                    }
+                // One vote per app, whatever it was pinned at before: the call
+                // is a set, so re-issuing an id an app already holds is free and
+                // repairs a vote the vendor dropped.
+                synchronized(RateLock) {
+                    targets.forEach { pkg -> if (RateLock.arm(pkg, rateId)) done.add(pkg) }
                 }
                 main.post {
                     done.forEach { armed[it] = rateId }
@@ -415,17 +422,25 @@ class MainActivity : ShellActivity() {
     }
 
     private fun clearAll() {
+        if (rejectWhileBusy()) return
         val saved = armed.toMap()
         if (saved.isEmpty()) {
             snack(getString(R.string.nothing_saved))
             return
         }
+        // Emptied up front for the same reason as a single disarm: nothing the
+        // watchdog can read may still name an app this sweep is releasing.
+        armed.clear()
+        onArmedChanged()
         runBusy(getString(R.string.clearing)) {
-            saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            main.post {
-                armed.clear()
-                onArmedChanged()
-                snack(resources.getQuantityString(R.plurals.cleared, saved.size, saved.size))
+            val stuck = synchronized(RateLock) {
+                saved.count { (pkg, rateId) -> !RateLock.release(pkg, rateId) }
+            }
+            ui {
+                snack(
+                    if (stuck == 0) resources.getQuantityString(R.plurals.cleared, saved.size, saved.size)
+                    else resources.getQuantityString(R.plurals.clear_failed, stuck, stuck)
+                )
             }
         }
     }
@@ -433,7 +448,9 @@ class MainActivity : ShellActivity() {
     private fun reArmSavedQuietly() {
         val saved = armed.toMap()
         if (saved.isEmpty()) return
-        worker.execute { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+        worker.execute {
+            synchronized(RateLock) { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+        }
     }
 
     private fun requestNotificationPermission() {

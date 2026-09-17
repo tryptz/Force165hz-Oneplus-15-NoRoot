@@ -33,6 +33,14 @@ object RateLock {
     const val RATE_144 = 4
     const val RATE_165 = 7
 
+    /**
+     * Not a rate: the vendor's "no request" id, used to withdraw a vote. The
+     * real ids all come from refresh_rate_config.xml and start at 1, so 0 is out
+     * of band, and it is the same value `setAppOverrideRefreshRate` reads as
+     * "auto" — see [release].
+     */
+    const val RATE_NONE = 0
+
     /** Every id we can name, for lookups: rateId to Hz. */
     private val ALL = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
@@ -81,9 +89,11 @@ object RateLock {
     /**
      * Transient game-rate vote via `requestGameRefreshRate`.
      *
-     * Re-issuing the id an app is already pinned at removes the override, so a
-     * disarm has to replay that app's own rate — see [ArmedStore]. The vote is
-     * lost when the app leaves the foreground, which is why the watchdog exists.
+     * The call is a plain set, not a toggle: the watchdog re-issues every armed
+     * app's own id every few seconds and the pin holds instead of flickering
+     * off, so handing the vendor an id it already holds can never be the way to
+     * withdraw it — that is [release]'s job. The vote applies while the app is
+     * foregrounded, which is why the watchdog exists.
      */
     fun arm(packageName: String, rateId: Int = DEFAULT_RATE): Boolean = transact(
         TX_REQUEST_GAME_REFRESH_RATE,
@@ -111,7 +121,44 @@ object RateLock {
 
     /** Clears a persistent override by writing rate 0 (auto). */
     fun clearAppOverride(packageName: String, mode: Int = 0): Boolean =
-        setAppOverride(packageName, 0, mode)
+        setAppOverride(packageName, RATE_NONE, mode)
+
+    /**
+     * Withdraws whatever we pinned for [packageName] — the thing [arm] cannot
+     * do by being called again. The vendor stores the last id it was handed, so
+     * replaying [rateId], which is what a disarm used to do, only wrote the same
+     * pin back: the panel stayed at the armed rate until a reboot rebuilt the
+     * service's state (issue #10).
+     *
+     * No single cancel is documented, so the candidates are tried in order and
+     * the first one the vendor accepts wins:
+     *
+     *  1. the vote again at [RATE_NONE] — the out-of-band id, which is the shape
+     *     a vendor cancel usually takes;
+     *  2. the persistent per-app override set back to auto. That is a different
+     *     store, worth touching only once the vote itself refused to lift, since
+     *     it would otherwise also reset a per-app rate the user picked in the
+     *     system display settings;
+     *  3. replaying [rateId], the old behaviour, so a build where that really
+     *     did release keeps releasing.
+     *
+     * Returns whether any of them reported success, and logs which one did — a
+     * bug report from a build that answers differently is the only way to find
+     * out that it does.
+     */
+    fun release(packageName: String, rateId: Int): Boolean {
+        if (arm(packageName, RATE_NONE)) {
+            Log.i(TAG, "$packageName released by vote id=$RATE_NONE")
+            return true
+        }
+        if (clearAppOverride(packageName)) {
+            Log.i(TAG, "$packageName released by app override -> auto")
+            return true
+        }
+        val replayed = arm(packageName, rateId)
+        Log.i(TAG, "$packageName release fell back to replaying id=$rateId ok=$replayed")
+        return replayed
+    }
 
     /**
      * The system's own recognized-game list, a secondary signal for detection.

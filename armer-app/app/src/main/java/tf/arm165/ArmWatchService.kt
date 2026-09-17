@@ -10,7 +10,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import kotlin.concurrent.thread
+import java.util.concurrent.Executors
 
 /**
  * Watchdog: re-issues the requestGameRefreshRate vote for every armed app, at
@@ -24,6 +24,9 @@ import kotlin.concurrent.thread
 class ArmWatchService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
+
+    /** Binder calls stay off the main thread, and one tick cannot overlap the next. */
+    private val worker = Executors.newSingleThreadExecutor()
     private var prefs: android.content.SharedPreferences? = null
     private var screenOn = true
     private var overlay: FpsOverlay? = null
@@ -31,13 +34,13 @@ class ArmWatchService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (screenOn) {
-                val armed = prefs?.let { ArmedStore.read(it) }.orEmpty()
-                if (armed.isNotEmpty()) {
-                    // re-arm off the main thread; binder calls here are fast but be safe
-                    thread {
-                        synchronized(RateLock) {
-                            armed.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-                        }
+                worker.execute {
+                    synchronized(RateLock) {
+                        // Read the armed set here, not when the tick was posted:
+                        // a disarm that lands in between has already taken the
+                        // app out, and replaying it would pin it straight back.
+                        prefs?.let { ArmedStore.read(it) }.orEmpty()
+                            .forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
                     }
                 }
             }
@@ -72,11 +75,16 @@ class ArmWatchService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         syncOverlay()
+        // The armed count is baked into the notification text, so re-post it:
+        // the service is re-started on every change to the armed set.
+        getSystemService(android.app.NotificationManager::class.java)
+            ?.notify(NOTIFY_ID, buildNotification())
         return START_STICKY
     }
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        worker.shutdown()
         overlay?.hide()
         overlay = null
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
@@ -130,6 +138,19 @@ class ArmWatchService : Service() {
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, ArmWatchService::class.java))
+        }
+
+        /**
+         * Stops the watchdog once nothing is armed — a disarm should leave
+         * nothing running behind it. The fps overlay lives in this service too,
+         * so a user who keeps the overlay on keeps the service, ticking over an
+         * empty set.
+         */
+        fun stopIfIdle(context: Context) {
+            val prefs = ArmedStore.open(context)
+            if (ArmedStore.read(prefs).isNotEmpty()) return
+            if (prefs.getBoolean(KEY_OVERLAY, false)) sync(context)
+            else context.stopService(Intent(context, ArmWatchService::class.java))
         }
 
         /** Restarts the command so the service re-reads the overlay preference. */

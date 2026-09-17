@@ -31,9 +31,12 @@ transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 
 Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
 `7`=165 — note the ids are not in Hz order, 90 comes before 60. The vote
-is `min=max=<rate>` while the app is foregrounded. Re-issuing an app's
-pinned id removes the override. Ids/transactions were recovered from
-`oplus-framework.jar` with `jadx`.
+is `min=max=<rate>` while the app is foregrounded, and the call is a plain
+set: handing the vendor an id it already holds re-writes the same pin, it
+does not withdraw it. Disarming therefore asks for rate id `0` — the
+out-of-band "no request" id — and falls back to
+`setAppOverrideRefreshRate(pkg, mode, 0)` if the vendor refuses that.
+Ids/transactions were recovered from `oplus-framework.jar` with `jadx`.
 
 ## Build & install
 
@@ -55,6 +58,9 @@ permission on first launch.
 - Video apps may judder — disarm them or pin at 60 Hz.
 - Battery and heat increase with the number of armed apps.
 - A `SecurityException` after an OTA means the vendor patched the trick.
+- If an app stays pinned after a disarm, the release paths above were both
+  refused on that build. `adb logcat -s Arm165` says which one was tried;
+  a reboot always clears the vendor's state.
 
 **Use at your own risk.** Undocumented vendor IPC; battery/thermal
 disclaimers apply.
