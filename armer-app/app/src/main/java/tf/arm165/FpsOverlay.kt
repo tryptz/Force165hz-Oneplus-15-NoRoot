@@ -41,6 +41,16 @@ class FpsOverlay(private val context: Context) {
 
     private var frames = 0
     private var windowStartNs = 0L
+    private var lastFrameNs = 0L
+
+    /**
+     * Exponentially smoothed interval between consecutive vsync callbacks, in
+     * ns. Interval-based measurement is what makes sub-2 Hz readable: a frame
+     * counter needs a window several times the interval (≥3 s at 1 Hz) before
+     * it stops reading 0 or double, while a single pair of frames 1 s apart
+     * already says 1 Hz. Recomputed every frame, read by the render tick.
+     */
+    private var emaIntervalNs = 0L
     private var hz = 0
 
     /** Latest vendor-reported game fps, 0 when unknown. */
@@ -93,6 +103,8 @@ class FpsOverlay(private val context: Context) {
         view = text
         frames = 0
         windowStartNs = 0L
+        lastFrameNs = 0L
+        emaIntervalNs = 0L
         choreographer = Choreographer.getInstance().also { it.postFrameCallback(frameCallback) }
         handler.post(fpsPoll)
     }
@@ -121,20 +133,34 @@ class FpsOverlay(private val context: Context) {
         }
         view = null
         gameFps = 0
+        lastFrameNs = 0L
+        emaIntervalNs = 0L
     }
 
-    // Counting vsync callbacks on our own window measures the rate the display
-    // is actually running at — the same thing dev options reports.
+    // Measuring the interval between vsync callbacks (smoothed) rather than
+    // counting frames per fixed window: at the 1 Hz LTPO idle floor a 500 ms
+    // window contains 0 or 1 callbacks and reads 0 or 2, never 1. The EMA
+    // converges in a handful of frames at any rate down to 1 Hz.
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (view == null) return
-            if (windowStartNs == 0L) windowStartNs = frameTimeNanos
+            if (lastFrameNs != 0L) {
+                val interval = frameTimeNanos - lastFrameNs
+                // >5 s between frames = renderer paused (app switch, screen
+                // off) — stale data, restart the estimate.
+                if (interval in 1..5_000_000_000L) {
+                    emaIntervalNs = if (emaIntervalNs == 0L) interval
+                    else (emaIntervalNs * 3 + interval) / 4
+                } else {
+                    emaIntervalNs = 0L
+                }
+            }
+            lastFrameNs = frameTimeNanos
             frames++
             val elapsed = frameTimeNanos - windowStartNs
             if (elapsed >= SAMPLE_NS) {
-                hz = (frames * 1_000_000_000.0 / elapsed).roundToInt()
-                frames = 0
                 windowStartNs = frameTimeNanos
+                frames = 0
                 render()
             }
             choreographer?.postFrameCallback(this)
@@ -161,6 +187,11 @@ class FpsOverlay(private val context: Context) {
 
     private fun render() {
         val v = view ?: return
+        // A stale estimate (no frame within 2.5 s) reads as stopped: show —
+        // rather than the last known rate, which at idle could have been 1.
+        val stale = lastFrameNs != 0L &&
+            System.nanoTime() - lastFrameNs > 2_500_000_000L
+        hz = if (!stale && emaIntervalNs > 0L) (1_000_000_000.0 / emaIntervalNs).roundToInt() else 0
         val fps = gameFps
         v.text = if (fps > 0) "$hz Hz · $fps fps" else "$hz Hz"
         v.setTextColor(context.getColor(tierColor(hz)))
