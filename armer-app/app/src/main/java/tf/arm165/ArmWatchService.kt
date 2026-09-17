@@ -157,7 +157,7 @@ class ArmWatchService : Service() {
         // in motion ramps it up, whatever the app is. The instantaneous check
         // fires on the first fast frame pair; the EMA confirms sustained rate.
         // Both are ignored inside the park grace window: the vote just moved
-        // and the panel is still falling through the fast rates.
+        // into the 120 mode and its handover frames are still fast.
         val graceOver = System.nanoTime() >= parkGraceUntilNs
         val phz = panelHz()
         val busy = (parked.isNotEmpty() && graceOver &&
@@ -189,9 +189,11 @@ class ArmWatchService : Service() {
                 lowTicks[pkg] = n
                 if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
                     parked += pkg
-                    // The vote just moved to 120 and the panel is falling
-                    // through 60/30 on its way to 1 Hz — those fast frames are
-                    // the transition, not motion. Ignore them briefly.
+                    // Parking switches the panel into the 120 mode directly
+                    // (no discrete 60/30 hop): it can present at up to 120 for
+                    // a beat until the idle ramp takes over inside the mode's
+                    // 1-120 range. Those fast frames are the transition, not
+                    // motion — ignore them briefly.
                     parkGraceUntilNs = System.nanoTime() + PARK_GRACE_NS
                     Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, gpu=%.2f)".format(pkg, gpu))
                 }
@@ -333,16 +335,15 @@ class ArmWatchService : Service() {
 
         /**
          * Panel EMA at or above this = content in motion = restore. Well below
-         * the 120 park rate (the vote takes a tick to settle down through 60)
-         * and far above the 1 Hz floor.
+         * the 120 park rate and far above the 1 Hz floor.
          */
         private const val PANEL_BUSY_HZ = 24
 
         /** 1 / [PANEL_BUSY_HZ] in ns — the instantaneous-motion threshold. */
         private const val PANEL_BUSY_INTERVAL_NS = 41_600_000L
 
-        /** How long after a park the falling-through-fast-rates is ignored. */
-        private const val PARK_GRACE_NS = 600_000_000L
+        /** How long after a park the 120-mode handover frames are ignored. */
+        private const val PARK_GRACE_NS = 400_000_000L
 
         /** Quiet ticks before a parked release: one burst is not idleness. */
         private const val LOW_TICKS = 2
