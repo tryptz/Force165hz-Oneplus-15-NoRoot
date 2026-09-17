@@ -247,8 +247,15 @@ class ArmWatchService : Service() {
         private const val INTERVAL_MS = 5000L
         private const val NOTIFY_ID = 165
 
-        /** Tick rate while a vote is parked for LTPO idle — input is noticed fast. */
-        private const val RESUME_TICK_MS = 1500L
+        /**
+         * Tick rate while a vote is parked. The requirement is a return to the
+         * armed rate in <0.3 s of motion: worst case the touch lands right
+         * after a poll, so detection = one interval, plus one binder set.
+         * 200 ms poll + ~5 ms set ≈ 0.21 s. Only runs while parked, and only
+         * while the oiface probes answer — a dead probe never parks in the
+         * first place.
+         */
+        private const val RESUME_TICK_MS = 200L
 
         /** Quiet ticks before a parked release: one burst is not idleness. */
         private const val LOW_TICKS = 2
