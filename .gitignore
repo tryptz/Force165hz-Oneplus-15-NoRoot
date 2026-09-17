@@ -5,3 +5,4 @@ build/
 app/build/
 *.apk
 local.properties
+armer-app/.kotlin/

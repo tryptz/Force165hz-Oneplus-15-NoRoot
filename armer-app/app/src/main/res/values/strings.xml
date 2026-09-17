@@ -60,24 +60,28 @@
     <string name="rate_set">%1$s at %2$d Hz</string>
     <string name="rate_badge_desc">%1$s is armed at %2$d Hz — tap to change</string>
 
-    <!-- FPS overlay -->
-    <string name="fps_chip">FPS</string>
-    <string name="idle_chip">LTPO idle: %1$s</string>
-    <string name="ltpo_on">LTPO idle on — parked screens ramp to 1 Hz (120-mode floor), armed rate returns on motion</string>
-    <string name="ltpo_off">LTPO idle off — armed votes hold the rate permanently</string>
-    <string name="fps_on">FPS overlay on — long-press to move it</string>
-    <string name="fps_off">FPS overlay off</string>
-    <string name="fps_needs_permission">Allow drawing over other apps to show the FPS overlay</string>
-    <string name="fps_position_title">Overlay position</string>
-    <string name="fps_position_body">Distance from the right edge, so it sits left of the wifi and battery icons.</string>
-    <string name="fps_position_value">%1$d dp from the right</string>
-    <string name="fps_grant">Open settings</string>
-    <string name="done">Done</string>
+    <!-- Idle behaviour: the 165 mode's floor is 55 Hz (measured on this build), so
+         a 165 vote can never idle below it; every other mode reaches 1 Hz. The
+         watchdog's park (144 only now) swaps a still vote into the 120 mode and
+         back on motion — always on, no toggle. -->
+    <string name="idle_note">Idle: armed apps rest in the 120 mode and ramp to 1 Hz when still, returning to full speed on motion. Exception: 165 Hz — that mode\'s floor is 55 Hz, so a still 165-armed app rests at 55 Hz.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
     <string name="coffee">Buy me a coffee</string>
     <string name="coffee_url">https://ko-fi.com/tryptz</string>
+
+    <!-- Settings / logs -->
+    <string name="settings">Settings and logs</string>
+    <string name="settings_title">Settings</string>
+    <string name="back_desc">Back</string>
+    <string name="log_hint">Live log — Arm165 is the watchdog (park / restore / arm), RefreshRate is the vendor framework\'s own rate changes.</string>
+    <string name="log_loading">Loading log…</string>
+    <string name="log_refresh">Refresh log</string>
+    <string name="log_share">Share log</string>
+    <string name="log_clear">Clear</string>
+    <string name="log_auto_on">Auto: on</string>
+    <string name="log_auto_off">Auto: off</string>
     <string name="no_browser">No browser to open the link</string>
 
     <!-- games page -->

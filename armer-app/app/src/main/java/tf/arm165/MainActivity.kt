@@ -6,16 +6,13 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.SeekBar
 import android.widget.TextView
 
 class MainActivity : ShellActivity() {
@@ -39,8 +36,6 @@ class MainActivity : ShellActivity() {
     private lateinit var rateSegments: LinearLayout
     private lateinit var watchdogDot: View
     private lateinit var watchdogLabel: TextView
-    private lateinit var fpsChip: TextView
-    private lateinit var idleChip: TextView
     private lateinit var chips: List<Pair<TextView, Filter>>
     private var segments: List<Pair<TextView, Int>> = emptyList()
     private lateinit var adapter: AppRowAdapter
@@ -52,6 +47,8 @@ class MainActivity : ShellActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // No-op after the first process start; makes the Settings log view work.
+        LogRing // touch so the object is initialized early
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
@@ -62,8 +59,6 @@ class MainActivity : ShellActivity() {
         rateSegments = findViewById(R.id.rate_segments)
         watchdogDot = findViewById(R.id.watchdog_dot)
         watchdogLabel = findViewById(R.id.watchdog_label)
-        fpsChip = findViewById(R.id.chip_fps)
-        idleChip = findViewById(R.id.chip_idle)
         chips = listOf(
             findViewById<TextView>(R.id.chip_all) to Filter.ALL,
             findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
@@ -111,10 +106,7 @@ class MainActivity : ShellActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The overlay permission is granted on a settings screen, and the games
-        // page may have changed the armed set — re-read both.
-        syncFpsChip()
-        syncIdleChip()
+        // The games page may have changed the armed set — re-read it.
         val latest = ArmedStore.read(prefs)
         if (latest != armed) {
             armed.clear()
@@ -154,16 +146,12 @@ class MainActivity : ShellActivity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
+        findViewById<View>(R.id.btn_settings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         findViewById<View>(R.id.btn_coffee).setOnClickListener {
             open(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url))))
         }
-        fpsChip.setOnClickListener { toggleFpsOverlay() }
-        fpsChip.setOnLongClickListener {
-            if (overlayEnabled()) showOverlayPositionDialog() else toggleFpsOverlay()
-            true
-        }
-        idleChip.setOnClickListener { toggleLtpoIdle() }
-        syncIdleChip()
     }
 
     private fun open(intent: Intent) {
@@ -172,93 +160,6 @@ class MainActivity : ShellActivity() {
         } catch (t: ActivityNotFoundException) {
             snack(getString(R.string.no_browser))
         }
-    }
-
-    // ------------------------------------------------------------ fps overlay
-
-    private fun ltpoIdle(): Boolean = prefs.getBoolean(ArmWatchService.KEY_LTP_IDLE, true)
-
-    private fun toggleLtpoIdle() {
-        val on = !ltpoIdle()
-        prefs.edit().putBoolean(ArmWatchService.KEY_LTP_IDLE, on).apply()
-        syncIdleChip()
-        snack(getString(if (on) R.string.ltpo_on else R.string.ltpo_off))
-    }
-
-    private fun syncIdleChip() {
-        idleChip.text = getString(R.string.idle_chip, if (ltpoIdle()) "on" else "off")
-    }
-
-    private fun overlayEnabled(): Boolean =
-        prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false) && Settings.canDrawOverlays(this)
-
-    private fun syncFpsChip() {
-        fpsChip.isSelected = overlayEnabled()
-    }
-
-    private fun toggleFpsOverlay() {
-        if (!Settings.canDrawOverlays(this)) {
-            // "Draw over other apps" is a settings screen, not a runtime permission.
-            AlertDialog.Builder(this)
-                .setTitle(R.string.fps_chip)
-                .setMessage(R.string.fps_needs_permission)
-                .setPositiveButton(R.string.fps_grant) { _, _ ->
-                    open(
-                        Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:$packageName"),
-                        )
-                    )
-                }
-                .setNegativeButton(R.string.risk_no, null)
-                .show()
-            return
-        }
-        val on = !prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false)
-        prefs.edit().putBoolean(ArmWatchService.KEY_OVERLAY, on).apply()
-        syncFpsChip()
-        ArmWatchService.sync(this)
-        snack(getString(if (on) R.string.fps_on else R.string.fps_off))
-    }
-
-    /**
-     * No API reports where the status bar's own wifi/battery icons sit, so the
-     * offset from the right edge is the user's to set. Updates live.
-     */
-    private fun showOverlayPositionDialog() {
-        val current = prefs.getInt(ArmWatchService.KEY_OVERLAY_X, ArmWatchService.DEFAULT_RIGHT_OFFSET_DP)
-        val value = TextView(this).apply {
-            setPadding(dp(24), dp(16), dp(24), dp(2))
-            setTextColor(getColor(R.color.text_primary))
-            textSize = 14f
-            setTypeface(typeface, Typeface.BOLD)
-            text = getString(R.string.fps_position_value, current)
-        }
-        val bar = SeekBar(this).apply {
-            max = MAX_OVERLAY_OFFSET_DP
-            progress = current.coerceIn(0, MAX_OVERLAY_OFFSET_DP)
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
-                    value.text = getString(R.string.fps_position_value, p)
-                    prefs.edit().putInt(ArmWatchService.KEY_OVERLAY_X, p).apply()
-                    ArmWatchService.sync(this@MainActivity)
-                }
-
-                override fun onStartTrackingTouch(sb: SeekBar) = Unit
-                override fun onStopTrackingTouch(sb: SeekBar) = Unit
-            })
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.fps_position_title)
-            .setMessage(R.string.fps_position_body)
-            .setView(LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(value)
-                addView(bar)
-            })
-            .setPositiveButton(R.string.done, null)
-            .show()
     }
 
     // ------------------------------------------------------------------ state
@@ -464,6 +365,13 @@ class MainActivity : ShellActivity() {
     }
 
     private fun reArmSavedQuietly() {
+        // Boot catch-up ONLY: when the watchdog service is alive in this
+        // process it already holds the votes and — critically — its own park
+        // state. Re-arming behind its back would land 165 votes right over
+        // a parked 120 set and un-park everything, so a mere cold start of
+        // the activity (task discard, debug reinstall, user revisit) must
+        // not touch the votes.
+        if (ArmWatchService.running) return
         val saved = armed.toMap()
         if (saved.isEmpty()) return
         worker.execute {
@@ -484,6 +392,5 @@ class MainActivity : ShellActivity() {
 
     private companion object {
         const val REQ_NOTIFICATIONS = 165
-        const val MAX_OVERLAY_OFFSET_DP = 260
     }
 }
