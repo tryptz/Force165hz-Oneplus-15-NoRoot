@@ -18,13 +18,15 @@ import java.util.concurrent.Executors
  * their own frame rate on focus (Unity/Unreal engines etc.) overwrite our
  * single-shot vote — re-arming continuously lands our vote after theirs and wins.
  *
- * With the LTPO idle preference on, the watchdog additionally gets out of the
- * panel's way: when the GPU has been quiet for a couple of ticks the armed
- * vote is withdrawn (`requestGameRefreshRate(pkg, 0)`, the same cancel a
- * disarm uses), so the panel's own LTPO logic can ramp to its 1 Hz idle rate
- * while the armed app sits still. Motion — a GPU load or a measured frame
- * rate above the hysteresis band — puts the vote straight back. A parked
- * screen costs battery; a resumed one costs at most one fast tick.
+ * With the LTPO idle preference on, the watchdog additionally parks the panel
+ * instead of pinning it: when the GPU has been quiet for a couple of ticks the
+ * armed vote is downgraded to 120 Hz — the one vendor rate whose panel mode
+ * spans 1–120, so the LTPO ramp reaches its 1 Hz idle floor on a still screen
+ * — while the vote itself stays held, so game engines that pin their own rate
+ * still lose to ours. Measured floors on this build: 60→30, 90→30, 120→1,
+ * 165→55. Motion — a GPU load or a measured frame rate above the hysteresis
+ * band — puts the armed rate straight back. A parked screen idles at 1 Hz; a
+ * resumed one costs at most one fast tick.
  *
  * Also hosts the [FpsOverlay], so the status-bar readout reuses this service's
  * notification and screen on/off handling rather than adding a second one.
@@ -39,8 +41,8 @@ class ArmWatchService : Service() {
     private var screenOn = true
     private var overlay: FpsOverlay? = null
 
-    /** Armed packages whose vote is currently dropped for LTPO idle. */
-    private val idleReleased = HashSet<String>()
+    /** Armed packages whose vote is currently parked at the idle rate. */
+    private val parked = HashSet<String>()
 
     /** Consecutive quiet ticks per armed package, leading up to a release. */
     private val lowTicks = HashMap<String, Int>()
@@ -74,11 +76,11 @@ class ArmWatchService : Service() {
         // Feature off, nothing armed, or no oiface to measure with: plain
         // watchdog, every armed vote re-landed at its own rate.
         if (!ltpo || armedNow.isEmpty() || !Oiface.isReachable()) {
-            if (idleReleased.isNotEmpty() && armedNow.isNotEmpty()) {
-                Log.i(TAG, "restoring ${idleReleased.size} idle-released vote(s)")
+            if (parked.isNotEmpty() && armedNow.isNotEmpty()) {
+                Log.i(TAG, "restoring ${parked.size} parked vote(s)")
             }
             armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            idleReleased.clear()
+            parked.clear()
             lowTicks.clear()
             return INTERVAL_MS
         }
@@ -86,34 +88,36 @@ class ArmWatchService : Service() {
         val gpu = Oiface.gpuLoad()
         val busy = gpu >= GPU_ACTIVE || armedNow.any { Oiface.fps(it.key) >= ACTIVE_FPS }
         if (busy) {
-            if (idleReleased.isNotEmpty()) {
-                Log.i(TAG, "LTPO idle over (gpu=%.2f) — restoring votes".format(gpu))
+            if (parked.isNotEmpty()) {
+                Log.i(TAG, "LTPO idle over (gpu=%.2f) — restoring armed rates".format(gpu))
             }
             armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            idleReleased.clear()
+            parked.clear()
             lowTicks.clear()
             return INTERVAL_MS
         }
 
         // Quiet GPU, no measured motion: static content. After a couple of
-        // consecutive quiet ticks, drop the vote so the panel's own LTPO logic
-        // can ramp down to its 1 Hz idle rate. One quiet tick alone is left
-        // alone — a burst of loading between frames would flap the vote.
+        // consecutive quiet ticks, downgrade the vote to 120 Hz — its panel
+        // mode spans 1–120, so the LTPO ramp can reach the 1 Hz idle floor
+        // while the vote stays held. One quiet tick alone is left alone — a
+        // burst of loading between frames would flap the vote. Apps armed at
+        // 120 (or lower) already sit in a mode with a low floor; nothing to do.
         if (gpu <= GPU_IDLE) {
-            armedNow.forEach { (pkg, _) ->
-                if (pkg in idleReleased) return@forEach
+            armedNow.forEach { (pkg, rateId) ->
+                if (pkg in parked || rateId <= RateLock.RATE_120) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
-                if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_NONE)) {
-                    idleReleased += pkg
-                    Log.i(TAG, "%s released for LTPO idle (gpu=%.2f)".format(pkg, gpu))
+                if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
+                    parked += pkg
+                    Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, gpu=%.2f)".format(pkg, gpu))
                 }
             }
         }
 
-        // Anything parked: tick fast, so touch input is noticed — and the vote
-        // restored — within a second or two instead of five.
-        return if (idleReleased.isNotEmpty()) RESUME_TICK_MS else INTERVAL_MS
+        // Anything parked: tick fast, so touch input is noticed — and the
+        // armed rate restored — within a second or two instead of five.
+        return if (parked.isNotEmpty()) RESUME_TICK_MS else INTERVAL_MS
     }
 
     private val screenReceiver = object : BroadcastReceiver() {
@@ -191,7 +195,7 @@ class ArmWatchService : Service() {
     private fun buildNotificationText(): String {
         val armed = prefs?.let { ArmedStore.read(it) }.orEmpty()
         val base = "Watchdog active — holding ${armed.size} app(s)"
-        return if (idleReleased.isNotEmpty()) "$base · LTPO idle: ${idleReleased.size} parked"
+        return if (parked.isNotEmpty()) "$base · LTPO idle: ${parked.size} parked @ 120"
         else base
     }
 
