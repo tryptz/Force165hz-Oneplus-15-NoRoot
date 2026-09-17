@@ -40,6 +40,7 @@ class MainActivity : ShellActivity() {
     private lateinit var watchdogDot: View
     private lateinit var watchdogLabel: TextView
     private lateinit var fpsChip: TextView
+    private lateinit var idleChip: TextView
     private lateinit var chips: List<Pair<TextView, Filter>>
     private var segments: List<Pair<TextView, Int>> = emptyList()
     private lateinit var adapter: AppRowAdapter
@@ -62,6 +63,7 @@ class MainActivity : ShellActivity() {
         watchdogDot = findViewById(R.id.watchdog_dot)
         watchdogLabel = findViewById(R.id.watchdog_label)
         fpsChip = findViewById(R.id.chip_fps)
+        idleChip = findViewById(R.id.chip_idle)
         chips = listOf(
             findViewById<TextView>(R.id.chip_all) to Filter.ALL,
             findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
@@ -112,6 +114,7 @@ class MainActivity : ShellActivity() {
         // The overlay permission is granted on a settings screen, and the games
         // page may have changed the armed set — re-read both.
         syncFpsChip()
+        syncIdleChip()
         val latest = ArmedStore.read(prefs)
         if (latest != armed) {
             armed.clear()
@@ -159,6 +162,8 @@ class MainActivity : ShellActivity() {
             if (overlayEnabled()) showOverlayPositionDialog() else toggleFpsOverlay()
             true
         }
+        idleChip.setOnClickListener { toggleLtpoIdle() }
+        syncIdleChip()
     }
 
     private fun open(intent: Intent) {
@@ -170,6 +175,19 @@ class MainActivity : ShellActivity() {
     }
 
     // ------------------------------------------------------------ fps overlay
+
+    private fun ltpoIdle(): Boolean = prefs.getBoolean(ArmWatchService.KEY_LTP_IDLE, true)
+
+    private fun toggleLtpoIdle() {
+        val on = !ltpoIdle()
+        prefs.edit().putBoolean(ArmWatchService.KEY_LTP_IDLE, on).apply()
+        syncIdleChip()
+        snack(getString(if (on) R.string.ltpo_on else R.string.ltpo_off))
+    }
+
+    private fun syncIdleChip() {
+        idleChip.text = getString(R.string.idle_chip, if (ltpoIdle()) "on" else "off")
+    }
 
     private fun overlayEnabled(): Boolean =
         prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false) && Settings.canDrawOverlays(this)

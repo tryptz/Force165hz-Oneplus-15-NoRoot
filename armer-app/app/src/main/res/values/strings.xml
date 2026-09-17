@@ -62,6 +62,9 @@
 
     <!-- FPS overlay -->
     <string name="fps_chip">FPS</string>
+    <string name="idle_chip">LTPO idle: %1$s</string>
+    <string name="ltpo_on">LTPO idle on — parked screens ramp to 1 Hz, votes restore on motion</string>
+    <string name="ltpo_off">LTPO idle off — armed votes hold the rate permanently</string>
     <string name="fps_on">FPS overlay on — long-press to move it</string>
     <string name="fps_off">FPS overlay off</string>
     <string name="fps_needs_permission">Allow drawing over other apps to show the FPS overlay</string>

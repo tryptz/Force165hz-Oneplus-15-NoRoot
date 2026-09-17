@@ -31,12 +31,32 @@ transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 
 Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
 `7`=165 — note the ids are not in Hz order, 90 comes before 60. The vote
-is `min=max=<rate>` while the app is foregrounded, and the call is a plain
-set: handing the vendor an id it already holds re-writes the same pin, it
-does not withdraw it. Disarming therefore asks for rate id `0` — the
-out-of-band "no request" id — and falls back to
-`setAppOverrideRefreshRate(pkg, mode, 0)` if the vendor refuses that.
-Ids/transactions were recovered from `oplus-framework.jar` with `jadx`.
+applies while the app is foregrounded, and the call is a plain set: handing
+the vendor an id it already holds re-writes the same pin, it does not
+withdraw it. Disarming asks for rate id `0` — the server-side verified
+cancel (see below).
+
+### Verified against the server (CPH2749_16.0.9.400)
+
+Decompiled `oplus-services.jar` (md5 `4ee84ffc…`, byte-identical to the
+build this was written on) and live `service call` probes from an
+unprivileged uid:
+
+- `requestGameRefreshRate(pkg, 0)` is the vendor's own cancel: the server
+  takes the `mOifaceRequestedRates.remove(pkg)` branch and then rewrites the
+  override on every live window the package owns. Returns 1, idempotent,
+  no reboot needed. This is the only mutating call a rootless app can make.
+- `setAppOverrideRefreshRate` (0x19), `removeCustomizeRefreshRate` (0x1c),
+  `removeAllCustomizeRefreshRate` (0x1d), `getAppOverrideRefreshRate` (0x1a)
+  and `getVoteInfo` all enforce `oplus.permission.OPLUS_COMPONENT_SAFE` —
+  a live call answers with a `SecurityException` naming it. The
+  "Settings uses setAppOverrideRefreshRate" route is closed to us.
+- `oplus_vrr_service` (`com.oplus.vrr.IOPlusRefreshRate`) has zero caller
+  checks (verified: 0 `enforceCalling` in 12,754 smali lines), and its FRTC
+  path (`setFrameRateTargetControl`, tx 0x14) reaches SurfaceFlinger as
+  transaction `0x5601` — a per-process frame-rate ceiling that leaves the
+  LTPO floor free. Candidate for a future ceiling-only arm; not needed for
+  the idle ramp below.
 
 ## Build & install
 
@@ -56,15 +76,17 @@ permission on first launch.
 
 - The armed app must be foregrounded to receive the vote.
 - Video apps may judder — disarm them or pin at 60 Hz.
-- Battery and heat increase with the number of armed apps. The vote is
-  `min = max`, so while an armed app is in front the LTPO panel cannot ramp
-  down to its 1 Hz idle rate even on a still screen — that is where the drain
-  comes from. `tool/probe-ltpo-idle.sh` looks for a ceiling-only vote that
-  would keep the idle ramp.
+- Battery and heat increase with the number of armed apps. With **LTPO
+  idle** on (the chip next to FPS), the watchdog watches GPU load and the
+  vendor's measured fps: after a couple of quiet ticks on a still screen it
+  withdraws the armed vote, the panel's own LTPO logic ramps to 1 Hz, and a
+  `GPU_ACTIVE` load (or ≥45 measured fps) puts the vote back within ~1.5 s.
+  The hysteresis band between the two thresholds holds state so a loading
+  burst cannot flap the vote. Turn it off to hold the armed rate permanently.
 - A `SecurityException` after an OTA means the vendor patched the trick.
-- If an app stays pinned after a disarm, the release paths above were both
-  refused on that build. `adb logcat -s Arm165` says which one was tried;
-  a reboot always clears the vendor's state.
+- If an app stays pinned after a disarm, the vote withdraw was refused on
+  that build — `adb logcat -s Arm165` logs it; a reboot always clears the
+  vendor's state.
 
 **Use at your own risk.** Undocumented vendor IPC; battery/thermal
 disclaimers apply.

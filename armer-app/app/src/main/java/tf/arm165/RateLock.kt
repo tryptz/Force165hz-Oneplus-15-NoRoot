@@ -36,8 +36,8 @@ object RateLock {
     /**
      * Not a rate: the vendor's "no request" id, used to withdraw a vote. The
      * real ids all come from refresh_rate_config.xml and start at 1, so 0 is out
-     * of band, and it is the same value `setAppOverrideRefreshRate` reads as
-     * "auto" — see [release].
+     * of band, and the server reads it as "remove this package's vote and
+     * unpin its windows" — see [release].
      */
     const val RATE_NONE = 0
 
@@ -109,8 +109,11 @@ object RateLock {
     /**
      * Persistent per-app override via `setAppOverrideRefreshRate` — the same
      * call the system Settings app uses, so it survives foreground changes
-     * without the watchdog. [mode] is the vendor override mode; 0 is the plain
-     * per-app case (see the on-device verification note in the plan).
+     * without the watchdog. DEAD ON THIS BUILD: the service enforces
+     * `oplus.permission.OPLUS_COMPONENT_SAFE`, which a rootless app cannot
+     * hold (verified live — the call answers with a SecurityException). Kept
+     * only so privileged builds still have the knob; [release] never relies
+     * on it.
      */
     fun setAppOverride(packageName: String, rateId: Int, mode: Int = 0): Boolean = transact(
         TX_SET_APP_OVERRIDE,
@@ -130,34 +133,34 @@ object RateLock {
      * pin back: the panel stayed at the armed rate until a reboot rebuilt the
      * service's state (issue #10).
      *
-     * No single cancel is documented, so the candidates are tried in order and
-     * the first one the vendor accepts wins:
+     * The vendor's own cancel is `requestGameRefreshRate(pkg, 0)`. Verified
+     * against the server on this exact build (CPH2749_16.0.9.400,
+     * oplus-services.jar md5 4ee84ffc…): with a 0 id,
+     * `OplusRefreshRatePolicyImpl.requestGameRefreshRate` takes the
+     * `mOifaceRequestedRates.remove(pkg)` branch and then rewrites the override
+     * on every live window the package owns
+     * (`lambda$requestGameRefreshRate$3` writes the 0 straight into
+     * `mOifaceOverrideRateId`), so the unpin lands without a traversal or a
+     * reboot. Verified live too: result=1 from an unprivileged uid, idempotent.
      *
-     *  1. the vote again at [RATE_NONE] — the out-of-band id, which is the shape
-     *     a vendor cancel usually takes;
-     *  2. the persistent per-app override set back to auto. That is a different
-     *     store, worth touching only once the vote itself refused to lift, since
-     *     it would otherwise also reset a per-app rate the user picked in the
-     *     system display settings;
-     *  3. replaying [rateId], the old behaviour, so a build where that really
-     *     did release keeps releasing.
+     * Every other candidate is closed, not just undocumented:
+     * `setAppOverrideRefreshRate` (0x19), `removeCustomizeRefreshRate` (0x1c),
+     * `removeAllCustomizeRefreshRate` (0x1d) and `getAppOverrideRefreshRate`
+     * (0x1a) all enforce `oplus.permission.OPLUS_COMPONENT_SAFE` — a live call
+     * from an unprivileged uid answers with a SecurityException naming it — so
+     * a rootless app cannot reach the per-app override store at all.
      *
-     * Returns whether any of them reported success, and logs which one did — a
-     * bug report from a build that answers differently is the only way to find
-     * out that it does.
+     * [rateId] stays in the signature for call-site clarity but is no longer
+     * used; replaying an id can only re-pin, never release.
      */
-    fun release(packageName: String, rateId: Int): Boolean {
-        if (arm(packageName, RATE_NONE)) {
-            Log.i(TAG, "$packageName released by vote id=$RATE_NONE")
-            return true
+    fun release(packageName: String, @Suppress("UNUSED_PARAMETER") rateId: Int): Boolean {
+        val ok = arm(packageName, RATE_NONE)
+        if (ok) {
+            Log.i(TAG, "$packageName released (vote -> id=$RATE_NONE)")
+        } else {
+            Log.w(TAG, "$packageName release failed — vendor unreachable; a reboot clears every pin")
         }
-        if (clearAppOverride(packageName)) {
-            Log.i(TAG, "$packageName released by app override -> auto")
-            return true
-        }
-        val replayed = arm(packageName, rateId)
-        Log.i(TAG, "$packageName release fell back to replaying id=$rateId ok=$replayed")
-        return replayed
+        return ok
     }
 
     /**
