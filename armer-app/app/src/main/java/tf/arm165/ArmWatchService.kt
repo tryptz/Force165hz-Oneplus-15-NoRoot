@@ -10,7 +10,9 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.view.Choreographer
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 /**
  * Watchdog: re-issues the requestGameRefreshRate vote for every armed app, at
@@ -49,6 +51,41 @@ class ArmWatchService : Service() {
 
     /** Delay before the next tick; the worker tightens it while parked. */
     @Volatile private var nextInterval = INTERVAL_MS
+
+    /*
+     * Panel-rate motion detector. The oiface probes (gpuLoad, per-app fps)
+     * only track apps the vendor game daemon knows — for everything else they
+     * read 0 forever, which left parked votes stuck at 120 through active use
+     * until the screen cycled. The panel itself is the universal signal: a
+     * parked vote idles at 1 Hz, and the instant content animates the LTPO
+     * controller ramps the panel up — motion shows as a rising vsync EMA long
+     * before any GPU counter moves. Callback-driven via Choreographer, so it
+     * costs nothing when idle and is always current when a tick reads it.
+     */
+    private var panelLastNs = 0L
+    private var panelEmaNs = 0L
+    private val panelFrames = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (panelLastNs != 0L) {
+                val interval = frameTimeNanos - panelLastNs
+                if (interval in 1..5_000_000_000L) {
+                    panelEmaNs = if (panelEmaNs == 0L) interval
+                    else (panelEmaNs * 3 + interval) / 4
+                } else {
+                    panelEmaNs = 0L
+                }
+            }
+            panelLastNs = frameTimeNanos
+            Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
+
+    /** Panel Hz from the vsync EMA; 0 when nothing has rendered recently. */
+    private fun panelHz(): Int {
+        if (panelEmaNs <= 0L || panelLastNs == 0L) return 0
+        if (System.nanoTime() - panelLastNs > 2_500_000_000L) return 0
+        return (1_000_000_000.0 / panelEmaNs).roundToInt()
+    }
 
     private val tick = object : Runnable {
         override fun run() {
@@ -95,10 +132,16 @@ class ArmWatchService : Service() {
         }
 
         val gpu = Oiface.gpuLoad()
-        val busy = gpu >= GPU_ACTIVE || armedNow.any { Oiface.fps(it.key) >= ACTIVE_FPS }
+        // Busy = any of three signals, panel rate first: it is the only one
+        // that works for every app — a parked panel idles at 1 Hz, and content
+        // in motion ramps it up, whatever the app is.
+        val phz = panelHz()
+        val busy = (parked.isNotEmpty() && phz >= PANEL_BUSY_HZ) ||
+            gpu >= GPU_ACTIVE || armedNow.any { Oiface.fps(it.key) >= ACTIVE_FPS }
         if (busy) {
             if (parked.isNotEmpty()) {
-                Log.i(TAG, "LTPO idle over (gpu=%.2f) — restoring armed rates".format(gpu))
+                Log.i(TAG, "LTPO idle over (panel=%d Hz, gpu=%.2f) — restoring armed rates"
+                    .format(phz, gpu))
             }
             armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
             parked.clear()
@@ -169,6 +212,7 @@ class ArmWatchService : Service() {
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
         })
+        Choreographer.getInstance().postFrameCallback(panelFrames)
         startForeground(NOTIFY_ID, buildNotification())
         handler.postDelayed(tick, 3000)
         Log.i("Arm165", "watchdog started")
@@ -191,6 +235,7 @@ class ArmWatchService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        Choreographer.getInstance().removeFrameCallback(panelFrames)
         worker.shutdown()
         overlay?.hide()
         overlay = null
@@ -256,6 +301,13 @@ class ArmWatchService : Service() {
          * first place.
          */
         private const val RESUME_TICK_MS = 200L
+
+        /**
+         * Panel EMA at or above this = content in motion = restore. Well below
+         * the 120 park rate (the vote takes a tick to settle down through 60)
+         * and far above the 1 Hz floor.
+         */
+        private const val PANEL_BUSY_HZ = 24
 
         /** Quiet ticks before a parked release: one burst is not idleness. */
         private const val LOW_TICKS = 2
