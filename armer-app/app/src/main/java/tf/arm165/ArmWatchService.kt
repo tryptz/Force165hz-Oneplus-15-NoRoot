@@ -73,6 +73,15 @@ class ArmWatchService : Service() {
         val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
         val ltpo = prefs?.getBoolean(KEY_LTP_IDLE, true) ?: true
 
+        // The armed set can change under us (disarm, re-arm, rate change) while
+        // this service keeps running. Park/quiet state for a package that is no
+        // longer armed is stale — and worse, a package that was DISARMED while
+        // parked and then RE-ARMED would be skipped by the park branch forever
+        // ("stops switching to 120 after re-enabling"), because its stale entry
+        // made the branch treat it as already parked. Prune to the live set.
+        parked.retainAll(armedNow.keys)
+        lowTicks.keys.retainAll(armedNow.keys)
+
         // Feature off, nothing armed, or no oiface to measure with: plain
         // watchdog, every armed vote re-landed at its own rate.
         if (!ltpo || armedNow.isEmpty() || !Oiface.isReachable()) {
@@ -103,7 +112,9 @@ class ArmWatchService : Service() {
         // while the vote stays held. One quiet tick alone is left alone — a
         // burst of loading between frames would flap the vote. Apps armed at
         // 120 (or lower) already sit in a mode with a low floor; nothing to do.
-        if (gpu <= GPU_IDLE) {
+        // An unknown gpuLoad (service answered nothing) must not read as idle:
+        // -1f would otherwise park everything on a dead probe.
+        if (gpu in 0f..GPU_IDLE) {
             armedNow.forEach { (pkg, rateId) ->
                 if (pkg in parked || rateId <= RateLock.RATE_120) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
@@ -122,9 +133,27 @@ class ArmWatchService : Service() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
-            screenOn = i?.action != Intent.ACTION_SCREEN_OFF
+            val off = i?.action == Intent.ACTION_SCREEN_OFF
+            screenOn = !off
             handler.removeCallbacks(tick)
-            if (screenOn) {
+            if (!off) {
+                // A wake-up is motion by definition: the launcher, the keyguard
+                // and the app all animate. Restore every parked vote to its
+                // armed rate right here — waiting for a tick would leave the
+                // panel parked at 120 through the resume animation, and a
+                // still first frame after it could re-park immediately.
+                worker.execute {
+                    synchronized(RateLock) {
+                        val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
+                        if (parked.isNotEmpty()) {
+                            Log.i(TAG, "screen on — restoring ${parked.size} parked vote(s)")
+                        }
+                        armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+                        parked.clear()
+                        lowTicks.clear()
+                        nextInterval = INTERVAL_MS
+                    }
+                }
                 handler.postDelayed(tick, 1500)
                 syncOverlay()
             } else {
@@ -146,6 +175,12 @@ class ArmWatchService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Every arm/re-arm/rate change restarts the command. A fresh arm is the
+        // user asking for the armed rate NOW, so any park state from the
+        // previous armed-set epoch is void — otherwise a package re-armed while
+        // others keep the service alive stays skipped by the park branch.
+        parked.clear()
+        lowTicks.clear()
         syncOverlay()
         // The armed count is baked into the notification text, so re-post it:
         // the service is re-started on every change to the armed set.
