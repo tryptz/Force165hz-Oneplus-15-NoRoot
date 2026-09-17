@@ -68,6 +68,9 @@ class ArmWatchService : Service() {
     /** Interval of the most recent frame pair — instant, unsmoothed evidence. */
     private var panelLastIntervalNs = 0L
 
+    /** Last time a fast frame pair arrived — evidence of moving content. */
+    private var lastFastFrameNs = 0L
+
     /** Until this time, panel motion is ignored — the park is still settling. */
     @Volatile private var parkGraceUntilNs = 0L
 
@@ -79,6 +82,7 @@ class ArmWatchService : Service() {
                     panelLastIntervalNs = interval
                     panelEmaNs = if (panelEmaNs == 0L) interval
                     else (panelEmaNs * 3 + interval) / 4
+                    if (interval <= PANEL_BUSY_INTERVAL_NS) lastFastFrameNs = frameTimeNanos
                 } else {
                     panelLastIntervalNs = 0L
                     panelEmaNs = 0L
@@ -105,6 +109,20 @@ class ArmWatchService : Service() {
         if (panelLastIntervalNs !in 1..PANEL_BUSY_INTERVAL_NS) return false
         if (panelLastNs == 0L || System.nanoTime() - panelLastNs > 2_500_000_000L) return false
         return true
+    }
+
+    /**
+     * Moving content within the recent settle window — video, animation, any
+     * frame producer at 20 Hz or more. Never touch or gestures: content alone
+     * decides. This is the park gate, symmetric with the restore trigger: the
+     * GPU/fps probes read 0 forever on apps the vendor daemon doesn't track,
+     * so without it a playing video would not stop the park countdown.
+     */
+    private fun contentMoving(): Boolean {
+        if (lastFastFrameNs == 0L || panelLastNs == 0L) return false
+        val now = System.nanoTime()
+        if (now - panelLastNs > 2_500_000_000L) return false // nothing rendering
+        return now - lastFastFrameNs < IDLE_SETTLE_NS
     }
 
     private val tick = object : Runnable {
@@ -174,15 +192,13 @@ class ArmWatchService : Service() {
             return INTERVAL_MS
         }
 
-        // Quiet GPU, no measured motion: static content. After a couple of
-        // consecutive quiet ticks, downgrade the vote to 120 Hz — its panel
-        // mode spans 1–120, so the LTPO ramp can reach the 1 Hz idle floor
-        // while the vote stays held. One quiet tick alone is left alone — a
-        // burst of loading between frames would flap the vote. Apps armed at
-        // 120 (or lower) already sit in a mode with a low floor; nothing to do.
-        // An unknown gpuLoad (service answered nothing) must not read as idle:
-        // -1f would otherwise park everything on a dead probe.
-        if (gpu in 0f..GPU_IDLE) {
+        // Quiet GPU alone is NOT idle: a 24 fps video on an app the vendor
+        // daemon doesn't track still reads gpu=0. Moving content both voids
+        // the quiet ticks counted so far and blocks new ones — symmetric with
+        // the restore trigger. Only genuinely still content may park.
+        if (contentMoving()) {
+            lowTicks.clear()
+        } else if (gpu in 0f..GPU_IDLE) {
             armedNow.forEach { (pkg, rateId) ->
                 if (pkg in parked || rateId <= RateLock.RATE_120) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
@@ -335,15 +351,23 @@ class ArmWatchService : Service() {
 
         /**
          * Panel EMA at or above this = content in motion = restore. Well below
-         * the 120 park rate and far above the 1 Hz floor.
+         * the 120 park rate and far above the 1 Hz floor; 20 keeps a 24 fps
+         * video above the line.
          */
-        private const val PANEL_BUSY_HZ = 24
+        private const val PANEL_BUSY_HZ = 20
 
         /** 1 / [PANEL_BUSY_HZ] in ns — the instantaneous-motion threshold. */
-        private const val PANEL_BUSY_INTERVAL_NS = 41_600_000L
+        private const val PANEL_BUSY_INTERVAL_NS = 50_000_000L
 
         /** How long after a park the 120-mode handover frames are ignored. */
         private const val PARK_GRACE_NS = 400_000_000L
+
+        /**
+         * Content counts as moving for this long after its last fast frame —
+         * the settle window that gates parking. A buffering pause shorter
+         * than this never parks the panel.
+         */
+        private const val IDLE_SETTLE_NS = 2_000_000_000L
 
         /** Quiet ticks before a parked release: one burst is not idleness. */
         private const val LOW_TICKS = 2
