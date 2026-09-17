@@ -64,14 +64,23 @@ class ArmWatchService : Service() {
      */
     private var panelLastNs = 0L
     private var panelEmaNs = 0L
+
+    /** Interval of the most recent frame pair — instant, unsmoothed evidence. */
+    private var panelLastIntervalNs = 0L
+
+    /** Until this time, panel motion is ignored — the park is still settling. */
+    @Volatile private var parkGraceUntilNs = 0L
+
     private val panelFrames = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (panelLastNs != 0L) {
                 val interval = frameTimeNanos - panelLastNs
                 if (interval in 1..5_000_000_000L) {
+                    panelLastIntervalNs = interval
                     panelEmaNs = if (panelEmaNs == 0L) interval
                     else (panelEmaNs * 3 + interval) / 4
                 } else {
+                    panelLastIntervalNs = 0L
                     panelEmaNs = 0L
                 }
             }
@@ -85,6 +94,17 @@ class ArmWatchService : Service() {
         if (panelEmaNs <= 0L || panelLastNs == 0L) return 0
         if (System.nanoTime() - panelLastNs > 2_500_000_000L) return 0
         return (1_000_000_000.0 / panelEmaNs).roundToInt()
+    }
+
+    /**
+     * Instant motion: the last frame pair was fast. The EMA needs several
+     * frames to climb out of the 1 Hz idle state — this needs exactly one, so
+     * the restore waits for the panel's ramp, not for our smoothing.
+     */
+    private fun panelMoving(): Boolean {
+        if (panelLastIntervalNs !in 1..PANEL_BUSY_INTERVAL_NS) return false
+        if (panelLastNs == 0L || System.nanoTime() - panelLastNs > 2_500_000_000L) return false
+        return true
     }
 
     private val tick = object : Runnable {
@@ -134,9 +154,14 @@ class ArmWatchService : Service() {
         val gpu = Oiface.gpuLoad()
         // Busy = any of three signals, panel rate first: it is the only one
         // that works for every app — a parked panel idles at 1 Hz, and content
-        // in motion ramps it up, whatever the app is.
+        // in motion ramps it up, whatever the app is. The instantaneous check
+        // fires on the first fast frame pair; the EMA confirms sustained rate.
+        // Both are ignored inside the park grace window: the vote just moved
+        // and the panel is still falling through the fast rates.
+        val graceOver = System.nanoTime() >= parkGraceUntilNs
         val phz = panelHz()
-        val busy = (parked.isNotEmpty() && phz >= PANEL_BUSY_HZ) ||
+        val busy = (parked.isNotEmpty() && graceOver &&
+            (panelMoving() || phz >= PANEL_BUSY_HZ)) ||
             gpu >= GPU_ACTIVE || armedNow.any { Oiface.fps(it.key) >= ACTIVE_FPS }
         if (busy) {
             if (parked.isNotEmpty()) {
@@ -164,6 +189,10 @@ class ArmWatchService : Service() {
                 lowTicks[pkg] = n
                 if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
                     parked += pkg
+                    // The vote just moved to 120 and the panel is falling
+                    // through 60/30 on its way to 1 Hz — those fast frames are
+                    // the transition, not motion. Ignore them briefly.
+                    parkGraceUntilNs = System.nanoTime() + PARK_GRACE_NS
                     Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, gpu=%.2f)".format(pkg, gpu))
                 }
             }
@@ -294,13 +323,13 @@ class ArmWatchService : Service() {
 
         /**
          * Tick rate while a vote is parked. The requirement is a return to the
-         * armed rate in <0.3 s of motion: worst case the touch lands right
-         * after a poll, so detection = one interval, plus one binder set.
-         * 200 ms poll + ~5 ms set ≈ 0.21 s. Only runs while parked, and only
-         * while the oiface probes answer — a dead probe never parks in the
-         * first place.
+         * armed rate in well under 0.3 s of motion: worst case the touch lands
+         * right after a poll, so detection = one interval, plus one binder
+         * set. 50 ms poll + ~5 ms set ≈ 55 ms of our own latency; the rest is
+         * the panel's own ramp. Only runs while parked, and only after a park
+         * that a live probe authorized.
          */
-        private const val RESUME_TICK_MS = 200L
+        private const val RESUME_TICK_MS = 50L
 
         /**
          * Panel EMA at or above this = content in motion = restore. Well below
@@ -308,6 +337,12 @@ class ArmWatchService : Service() {
          * and far above the 1 Hz floor.
          */
         private const val PANEL_BUSY_HZ = 24
+
+        /** 1 / [PANEL_BUSY_HZ] in ns — the instantaneous-motion threshold. */
+        private const val PANEL_BUSY_INTERVAL_NS = 41_600_000L
+
+        /** How long after a park the falling-through-fast-rates is ignored. */
+        private const val PARK_GRACE_NS = 600_000_000L
 
         /** Quiet ticks before a parked release: one burst is not idleness. */
         private const val LOW_TICKS = 2
