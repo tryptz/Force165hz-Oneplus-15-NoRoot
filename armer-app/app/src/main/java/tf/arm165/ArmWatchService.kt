@@ -150,6 +150,23 @@ class ArmWatchService : Service() {
         }
     }
 
+    /**
+     * Drops every panel-derived claim, so the next decision is made on frames
+     * that arrived AFTER the vote changed.
+     *
+     * Without this the starvation counter carried its pre-park history across
+     * the park: a screen held at 144 Hz had hundreds of sub-10 ms pairs
+     * banked, and the first tick after the park grace restored the armed rate
+     * on that stale evidence, 0.4 s after parking, every time. The park was
+     * never actually measured.
+     */
+    private fun forgetPanel() {
+        panelStarveRun = 0
+        panelEmaNs = 0L
+        panelLastIntervalNs = 0L
+        lastFastFrameNs = 0L
+    }
+
     /** Panel Hz from the vsync EMA; 0 when nothing has rendered recently. */
     private fun panelHz(): Int {
         if (panelEmaNs <= 0L || panelLastNs == 0L) return 0
@@ -275,17 +292,35 @@ class ArmWatchService : Service() {
         // fps stay as conservative backups.
         val graceOver = System.nanoTime() >= parkGraceUntilNs
         val phz = panelHz()
-        val busy = (parked.isNotEmpty() && graceOver &&
-            (panelStarveRun >= STARVED_RUN_FRAMES || phz >= STARVED_HZ)) ||
-            gpu >= GPU_ACTIVE || fpsBusy
+
+        // A park asked the panel for a 120 ceiling. Once the grace is over and
+        // frames have arrived since, what the panel is doing says which of
+        // three things happened, and they want different answers.
+        val parkedAndMeasured = parked.isNotEmpty() && graceOver && phz > 0
+        // Above the ceiling it was given: the vote did not take. Not demand,
+        // and restoring on it would churn forever, so it backs the package off
+        // as well. Worth naming in the log, because it is the vendor refusing
+        // a lower vote on a live window rather than anything we can fix.
+        val parkIgnored = parkedAndMeasured && phz >= PARK_CEILING_HZ + PIN_MARGIN_HZ
+        // At the ceiling: content is saturating it, which is the demand the
+        // armed rate exists for.
+        val ceilingSaturated = parkedAndMeasured && !parkIgnored &&
+            (phz >= STARVED_HZ || panelStarveRun >= STARVED_RUN_FRAMES)
+        val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsBusy
         if (busy) {
-            if (parked.isNotEmpty()) {
+            if (parkIgnored) {
+                Log.i(TAG, ("park had no effect: panel=%d Hz, above the %d it was given " +
+                    "(pair=%.1f ms, gpu=%.2f). Restoring the armed rate and backing off.")
+                    .format(phz, PARK_CEILING_HZ, panelLastIntervalNs / 1e6, gpu))
+                val now = System.nanoTime()
+                parked.forEach { parkBlockedUntilNs[it] = now + PARK_BACKOFF_NS }
+            } else if (parked.isNotEmpty()) {
                 // starve and fps are in the line so a restore that fires at a
                 // still screen names its own trigger: a blip from a system
-                // overlay pumps two fast pairs in with gpu at zero — versus
+                // overlay pumps two fast pairs in with gpu at zero, versus
                 // real motion, which drags the EMA up with it.
                 Log.i(TAG, ("LTPO idle over (panel=%d Hz, gpu=%.2f, starve=%d, " +
-                    "pair=%.1f ms, ema=%.0f ms, focus=%s@%d fps) — restoring armed rates")
+                    "pair=%.1f ms, ema=%.0f ms, focus=%s@%d fps). Restoring armed rates")
                     .format(phz, gpu, panelStarveRun, panelLastIntervalNs / 1e6,
                         panelEmaNs / 1e6, focus?.substringAfterLast('.') ?: "none", focusFps))
             }
@@ -364,6 +399,9 @@ class ArmWatchService : Service() {
                 if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
                     parked += pkg
                     parkedAtNs[pkg] = now
+                    // The ceiling just changed under the panel; nothing it did
+                    // before this moment describes the new one.
+                    forgetPanel()
                     // Parking switches the panel into the 120 mode directly
                     // (no discrete 60/30 hop): it can present at up to 120 for
                     // a beat until the idle ramp takes over inside the mode's
@@ -540,6 +578,7 @@ class ArmWatchService : Service() {
     ) {
         if (churn) noteParkChurn()
         voteSweep(armedNow, focus, parked + extra)
+        if (parked.isNotEmpty()) forgetPanel()
         clearParkState()
     }
 
@@ -799,8 +838,15 @@ class ArmWatchService : Service() {
         /** Passes between repair slices; every pass in between votes focus only. */
         private const val REPAIR_EVERY_PASSES = 10
 
-        /** How long after a park the 120-mode handover frames are ignored. */
-        private const val PARK_GRACE_NS = 400_000_000L
+        /**
+         * How long after a park the panel is not asked about itself.
+         *
+         * It covers two things: the handover frames as the mode changes, and
+         * the EMA rebuilding from scratch now that a park clears it. GPU load
+         * and the vendor's fps counter are not gated by this, so real content
+         * arriving during the grace still restores the armed rate at once.
+         */
+        private const val PARK_GRACE_NS = 1_000_000_000L
 
         /**
          * Content counts as moving for this long after its last fast frame —

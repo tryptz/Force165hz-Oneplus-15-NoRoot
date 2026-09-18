@@ -92,7 +92,7 @@
     <string name="fps_speed_one">1×</string>
     <string name="fps_speed_two">2×</string>
     <string name="fps_hold">Hold %1$d Hz here</string>
-    <string name="fps_hold_on">Holding, armed at %1$d Hz, so the lanes can show it</string>
+    <string name="fps_hold_on">Holding %1$d Hz while this page is open, so the lanes can show it</string>
     <string name="fps_hold_off">Off. The panel runs at its default, nothing above 120 can differ</string>
 
     <string name="log_title">Live log</string>
@@ -153,7 +153,7 @@
     <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>
 
     <string name="help_self_title">Arming this app</string>
-    <string name="help_self_body">That one does work, and doubles as a self test. If this app\'s own screen will not reach the rate you armed it at, no vote is landing at all.</string>
+    <string name="help_self_body">That one does work, and doubles as a self test. If this app\'s own screen will not reach the rate you armed it at, no vote is landing at all. The smoothness test has its own switch for the same thing, and that one gives the hold back when you leave the page. Arm all skips both rows.</string>
 
     <string name="help_fps_title">Seeing the rate</string>
     <string name="help_fps_body">The smoothness test draws one lane of moving blocks per rate, each allowed to update only at its own rate. The lane matching the panel glides and the slower ones step. The readout is the panel measured from its own frame timing.</string>

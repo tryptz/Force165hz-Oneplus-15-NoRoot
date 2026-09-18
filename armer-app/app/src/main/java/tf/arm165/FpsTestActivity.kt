@@ -31,6 +31,15 @@ class FpsTestActivity : Activity() {
     private lateinit var view: FpsTestView
     private var speedSegments: List<Pair<TextView, Float>> = emptyList()
 
+    /**
+     * True when the hold switch on this page is what armed this app, as
+     * opposed to the row in the list having been on before we got here. Only
+     * the first case is released on the way out: a page called "hold 165 Hz
+     * HERE" must not leave the app pinned for the rest of the day, and it
+     * should not undo a choice made somewhere else either.
+     */
+    private var armedBySelf = false
+
     private val prefs by lazy { ArmedStore.open(this) }
 
     /** The rate the main screen is set to arm at; what the switch holds. */
@@ -105,25 +114,44 @@ class FpsTestActivity : Activity() {
         syncHold(animate = false)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Leaving the page by any route gives the hold back, but a rotation is
+        // not leaving: this screen is locked to landscape and turning the
+        // phone over recreates it.
+        if (!isChangingConfigurations && armedBySelf) {
+            setHold(false)
+            armedBySelf = false
+        }
+    }
+
     /**
      * Arms or disarms this app, through the same store the list uses so the
      * armed count, the watchdog and this switch cannot disagree.
      */
     private fun toggleHold() {
+        val held = packageName in ArmedStore.read(prefs)
+        setHold(!held)
+        // Turning it on here makes this page responsible for turning it off.
+        armedBySelf = !held
+        syncHold(animate = true)
+    }
+
+    private fun setHold(on: Boolean) {
         val rate = rateId
         val armed = ArmedStore.read(prefs)
-        val held = packageName in armed
-        if (held) {
+        if (on) {
+            if (RateLock.arm(packageName, rate)) {
+                armed[packageName] = rate
+                ArmedStore.write(prefs, armed)
+                ArmWatchService.start(this)
+            }
+        } else {
             armed.remove(packageName)
             ArmedStore.write(prefs, armed)
             RateLock.release(packageName, rate)
             ArmWatchService.stopIfIdle(this)
-        } else if (RateLock.arm(packageName, rate)) {
-            armed[packageName] = rate
-            ArmedStore.write(prefs, armed)
-            ArmWatchService.start(this)
         }
-        syncHold(animate = true)
     }
 
     private companion object {
