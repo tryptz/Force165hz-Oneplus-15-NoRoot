@@ -163,23 +163,43 @@ object Oiface {
 
     /**
      * Adds [packageName] to the system game list and marks it in game mode.
-     * No-op unless the daemon has already answered a probe. Returns whether the
-     * work was actually attempted.
+     *
+     * Returns true only when THIS call added it. A package the vendor already
+     * listed comes back false, so a caller that undoes its own work never
+     * removes an entry the system had before it: the list is shared with the
+     * vendor's own game features, and taking someone else's game out of it is
+     * not ours to do.
+     *
+     * The add is verified by re-reading the list rather than assumed. The
+     * mutating calls answer with a void parcel, so a rejection is silent, and
+     * whether an unprivileged uid may write this list is the whole question.
      */
     fun registerGame(packageName: String): Boolean {
         if (!isReachable()) return false
         val games = installedGames()
-        if (packageName !in games) setInstalledGames(games + packageName)
+        if (packageName in games) {
+            setGameMode(packageName, on = true)
+            Log.i(TAG, "$packageName already in the vendor game list")
+            return false
+        }
+        setInstalledGames(games + packageName)
+        val added = packageName in installedGames()
         setGameMode(packageName, on = true)
-        return true
+        Log.i(TAG, "registerGame($packageName) added=$added (list was ${games.size})")
+        return added
     }
 
-    /** Removes [packageName] from the system game list. */
+    /**
+     * Removes [packageName] from the system game list. Only ever called for a
+     * package [registerGame] reported adding, so the vendor's own entries are
+     * left alone.
+     */
     fun unregisterGame(packageName: String): Boolean {
         if (!isReachable()) return false
         val games = installedGames()
         if (packageName in games) setInstalledGames(games - packageName)
         setGameMode(packageName, on = false)
+        Log.i(TAG, "unregisterGame($packageName)")
         return true
     }
 }

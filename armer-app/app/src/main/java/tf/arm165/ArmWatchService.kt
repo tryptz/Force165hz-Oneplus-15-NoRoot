@@ -64,6 +64,16 @@ class ArmWatchService : Service() {
     /** When a vote pass last went out; paces the hold on the quiet path. */
     private var lastVoteNs = 0L
 
+    /**
+     * Packages THIS app added to the vendor's game list, so only ours are ever
+     * taken back out. Persisted: the service can be killed and restarted, and
+     * an entry we added with no record left behind is one nobody will remove.
+     */
+    private val registered = HashSet<String>()
+
+    /** Packages already considered for registration this run; one look each. */
+    private val regChecked = HashSet<String>()
+
     /** Game classification per package, and the vendor list it is read against. */
     private val gameCache = HashMap<String, Boolean>()
     private var systemGames: Set<String> = emptySet()
@@ -272,6 +282,10 @@ class ArmWatchService : Service() {
             }
         }
         lastPassFocus = focus
+
+        // Before any vote: an unregistered package can be voted all day and
+        // still be capped, so the list comes first.
+        syncGameList(armedNow, focus)
 
         // Computed only now: the cursor it advances must not be spent by a
         // pass that returned above without voting.
@@ -788,6 +802,57 @@ class ArmWatchService : Service() {
     }
 
     /**
+     * Puts the package we are voting for on the vendor's game list.
+     *
+     * requestGameRefreshRate is a GAME rate: the server stores it for any
+     * package — res=1 either way — but a build that only applies it to what it
+     * recognizes as a game leaves an unrecognized one voted and capped. A
+     * measured case: the vote accepted every 5 s, fps=0 (the daemon tracks
+     * nothing for it), and the panel sitting at 120, the phone's ordinary
+     * maximum. Registering is the vendor's own way of saying "treat this as a
+     * game", and it also turns on the per-app fps the idle detector reads.
+     *
+     * Scoped hard. The list is system-wide and shared with the vendor's game
+     * features, so what goes on it is the app on screen — or, with nothing
+     * identifying the screen, a small armed set, the same bound the vote sweep
+     * uses. "Arm all" must never turn 641 packages into games.
+     *
+     * Everything added is recorded and taken back out when the package stops
+     * being armed, and only what [Oiface.registerGame] reports adding is ever
+     * removed.
+     */
+    private fun syncGameList(armedNow: Map<String, Int>, focus: String?) {
+        if (!Oiface.isReachable()) return
+
+        val stale = registered.filter { it !in armedNow }
+        if (stale.isNotEmpty()) {
+            stale.forEach { pkg ->
+                Oiface.unregisterGame(pkg)
+                registered -= pkg
+                regChecked -= pkg
+            }
+            saveRegistered()
+        }
+
+        val targets = when {
+            focus != null -> listOf(focus)
+            armedNow.size <= FULL_SWEEP_MAX -> armedNow.keys.toList()
+            else -> emptyList() // blind and large: registering would be a mess
+        }
+        targets.forEach { pkg ->
+            if (!regChecked.add(pkg)) return@forEach // looked at once per run
+            if (Oiface.registerGame(pkg)) {
+                registered += pkg
+                saveRegistered()
+            }
+        }
+    }
+
+    private fun saveRegistered() {
+        prefs?.edit()?.putStringSet(KEY_REGISTERED, HashSet(registered))?.apply()
+    }
+
+    /**
      * Whether the vendor itself lists [pkg] as a game. [isGame] folds this
      * together with the package's own category; this asks the narrower
      * question, because a game rate may only be applied to what the vendor
@@ -860,6 +925,7 @@ class ArmWatchService : Service() {
         super.onCreate()
         running = true
         prefs = ArmedStore.open(this)
+        prefs?.getStringSet(KEY_REGISTERED, emptySet())?.let(registered::addAll)
         // An armed set written by a build whose "Arm all" included the
         // framework and SystemUI still names them. Drop those entries and
         // withdraw the votes they left live, before the first pass reads them.
@@ -892,6 +958,9 @@ class ArmWatchService : Service() {
         // A fresh arm is a new epoch: a park the previous one had backed off
         // is not this one's history either.
         parkBlockedUntilNs.clear()
+        // A newly armed package has never been looked at for the vendor game
+        // list; clearing this is what gets it looked at.
+        regChecked.clear()
         // The armed count is baked into the notification text, so re-post it:
         // the service is re-started on every change to the armed set.
         getSystemService(android.app.NotificationManager::class.java)
@@ -901,6 +970,21 @@ class ArmWatchService : Service() {
 
     override fun onDestroy() {
         running = false
+        // Hand the vendor's list back the way we found it. Usually one
+        // package, and the record is cleared with it; anything a kill leaves
+        // behind is pruned by the first pass of the next run, which reads the
+        // record back and sees it is not armed.
+        if (registered.isNotEmpty()) {
+            val ours = registered.toList()
+            // The record is cleared only once the removals are through. Losing
+            // the process in between would otherwise leave entries on the
+            // vendor's list with nothing left saying they are ours to remove.
+            worker.execute {
+                ours.forEach { Oiface.unregisterGame(it) }
+                registered -= ours.toSet()
+                saveRegistered()
+            }
+        }
         handler.removeCallbacksAndMessages(null)
         Choreographer.getInstance().removeFrameCallback(panelFrames)
         worker.shutdown()
@@ -943,6 +1027,9 @@ class ArmWatchService : Service() {
     companion object {
         private const val TAG = "Arm165"
         private const val INTERVAL_MS = 5000L
+
+        /** Prefs key: the packages we put on the vendor's game list. */
+        private const val KEY_REGISTERED = "oiface_registered"
 
         /**
          * Longest a held vote may go unwritten. The watchdog's own interval,
