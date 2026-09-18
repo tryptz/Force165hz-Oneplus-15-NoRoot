@@ -1,5 +1,12 @@
 # 165 Armer (`armer-app/`)
 
+[![latest release](https://img.shields.io/github/v/release/tryptz/Force165hz-Oneplus-15-NoRoot?label=latest&style=flat-square)](https://github.com/tryptz/Force165hz-Oneplus-15-NoRoot/releases/latest)
+[![downloads](https://img.shields.io/github/downloads/tryptz/Force165hz-Oneplus-15-NoRoot/total?style=flat-square)](https://github.com/tryptz/Force165hz-Oneplus-15-NoRoot/releases)
+
+### [Download the latest APK](https://github.com/tryptz/Force165hz-Oneplus-15-NoRoot/releases/latest/download/arm165.apk)
+
+[Release notes and older builds](https://github.com/tryptz/Force165hz-Oneplus-15-NoRoot/releases/latest)
+
 Rootless per-app refresh-rate unlock (60 / 90 / 120 / 144 / 165 Hz) for the
 OnePlus 15 (CPH2747/CPH2749, OxygenOS 16). No root, no Magisk, no bootloader
 unlock.
