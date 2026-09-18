@@ -108,8 +108,8 @@
 
     <string name="usage_title">Usage access</string>
     <string name="usage_no_screen">No usage-access screen on this build — grant it over adb: appops set tf.arm165 GET_USAGE_STATS allow</string>
-    <string name="usage_on">Granted. The watchdog can see which app is on screen, so it votes that one and parks only that one.</string>
-    <string name="usage_off">Not granted. Only a game the vendor tracks can be seen, everything else reads as no focus — tap to grant it.</string>
+    <string name="usage_on">Granted. The watchdog can see which app is on screen, so it votes that one last and parks only that one.</string>
+    <string name="usage_off">Needed to see which app is on screen — without it a vote cannot be aimed and nothing can be parked. Tap to open Usage access, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="log_title">Live log</string>
     <string name="log_open">Open</string>
     <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>
@@ -155,6 +155,9 @@
     <string name="help_focus_title">Why the app on screen decides the order</string>
     <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every pass ends on the app you are using. A pass ending on a background app would vote for windows that do not exist and drop the pin it had just set.</string>
 
+
+    <string name="help_usage_title">Why usage access is needed</string>
+    <string name="help_usage_body">The vote is written onto the windows of the package it names, and the panel follows whichever write landed last — so a pass has to end on the app you are actually using, and it has to know which one that is.\n\nWithout the grant the only thing this app can see on screen is a game the vendor already tracks as a game. Everything else — most apps, and plenty of games — reads as no focus. Votes then go out unaimed, the panel can be left following a background app, nothing can be parked, and a game that re-pins its own frame rate is never noticed taking the panel back.\n\nIt is read-only and narrow: one question, which package resumed most recently. No history, no times, nothing about what you did in any app.\n\nTurn it on in Settings: Apps › Special app access › Usage access › 165 Armer › Permit usage access. The Usage access row at the top of this app\'s Settings opens that page for you.\n\nOr over adb, which does the same thing without the menus:\n\nadb shell appops set tf.arm165 GET_USAGE_STATS allow\n\nEither way the switch on that row turns on as soon as you come back.</string>
 
     <string name="help_park_title">Letting the panel idle</string>
     <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
