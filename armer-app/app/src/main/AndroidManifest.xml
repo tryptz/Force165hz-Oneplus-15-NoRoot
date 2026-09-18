@@ -42,9 +42,12 @@
         <activity
             android:name=".LogActivity"
             android:exported="false" />
+        <!-- Sideways: a long sweep shows a step better than a short one, and
+             five lanes need the height that landscape leaves over. -->
         <activity
             android:name=".FpsTestActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:screenOrientation="sensorLandscape" />
         <service android:name=".ArmWatchService"
                  android:exported="false"
                  android:foregroundServiceType="specialUse">

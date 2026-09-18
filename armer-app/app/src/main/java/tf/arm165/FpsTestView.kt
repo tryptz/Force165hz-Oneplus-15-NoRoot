@@ -137,27 +137,38 @@ class FpsTestView @JvmOverloads constructor(
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec)
-        setMeasuredDimension(width, (lanes.size * LANE_DP * d).toInt())
+        val wanted = (lanes.size * LANE_DP * d).toInt()
+        // The lanes ARE the page, so take the height offered rather than a
+        // fixed one: sideways there is room to spare, and a taller lane is a
+        // clearer lane.
+        val height = when (MeasureSpec.getMode(heightMeasureSpec)) {
+            MeasureSpec.EXACTLY -> MeasureSpec.getSize(heightMeasureSpec)
+            MeasureSpec.AT_MOST -> minOf(wanted, MeasureSpec.getSize(heightMeasureSpec))
+            else -> wanted
+        }
+        setMeasuredDimension(width, height)
     }
 
     override fun onDraw(canvas: Canvas) {
         val seconds = (nowNs - startNs) / 1e9
-        val laneH = LANE_DP * d
+        val laneH = height.toFloat() / lanes.size
         val blockW = 52f * d
-        val blockH = 24f * d
+        // The marker grows with the lane, within reason: a tall lane on a
+        // landscape screen can carry a bar you can actually see stepping.
+        val blockH = (laneH * 0.42f).coerceIn(18f * d, 40f * d)
         val travel = width + blockW
         val radius = 5f * d
 
         lanes.forEachIndexed { index, fps ->
             val top = index * laneH
-            val textY = top + 13f * d
+            val textY = top + laneH * 0.34f
             val shown = shownRate[index]
             canvas.drawText(
                 if (shown == 0) "$fps Hz" else "$fps Hz   ·   $shown drawn/s",
                 0f, textY, label,
             )
 
-            val trackY = top + laneH - blockH / 2f - 6f * d
+            val trackY = top + laneH * 0.70f
             rect.set(0f, trackY - 0.5f * d, width.toFloat(), trackY + 0.5f * d)
             canvas.drawRect(rect, track)
 
