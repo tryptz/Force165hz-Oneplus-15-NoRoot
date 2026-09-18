@@ -25,6 +25,11 @@ import android.widget.TextView
  * Live updates are a switch rather than a button, and the choice is remembered:
  * reading a log usually means stopping it first, and a page that starts
  * scrolling again every time it is opened is a page that cannot be read.
+ *
+ * With the switch on, the page repaints when a line arrives rather than on a
+ * timer. [LogRing] streams, so there is an event to repaint on; a burst of
+ * lines is coalesced into one repaint, which is the only thing the old 2 s
+ * timer was really doing for us.
  */
 class LogActivity : Activity() {
 
@@ -36,15 +41,15 @@ class LogActivity : Activity() {
     private lateinit var liveSub: TextView
     private lateinit var liveToggle: RateSwitch
 
-    /** Whether the buffer is re-read on a timer. Persisted across visits. */
+    /** Whether the page follows the stream. Persisted across visits. */
     private var live = true
 
-    private val refresh = object : Runnable {
-        override fun run() {
-            if (live) handler.postDelayed(this, REFRESH_MS)
-            load()
-        }
-    }
+    /**
+     * Repaint, posted from the reader thread. Coalesced: a park and its restore
+     * can put a dozen lines in within a millisecond of each other, and that is
+     * one repaint, not a dozen.
+     */
+    private val repaint = Runnable { load() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,9 +83,9 @@ class LogActivity : Activity() {
         findViewById<View>(R.id.row_live).setOnClickListener { toggleLive() }
 
         findViewById<View>(R.id.btn_log_clear).setOnClickListener {
-            // logcat -c empties the device buffer; everything before this tap
+            // Empties the device buffer and ours; everything before this tap
             // is gone for good. The app may clear its own entries.
-            try { Runtime.getRuntime().exec(arrayOf("logcat", "-c")) } catch (_: Throwable) {}
+            LogRing.clear()
             load()
         }
 
@@ -101,12 +106,16 @@ class LogActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        LogRing.start()
+        listen(live)
         load()
-        if (live) handler.postDelayed(refresh, REFRESH_MS)
     }
 
     override fun onPause() {
-        handler.removeCallbacks(refresh)
+        // Nothing to follow while the page is away, and a logcat process is not
+        // something to leave running behind it.
+        LogRing.stop()
+        handler.removeCallbacks(repaint)
         super.onPause()
     }
 
@@ -114,8 +123,24 @@ class LogActivity : Activity() {
         live = !live
         prefs.edit().putBoolean(KEY_LIVE, live).apply()
         syncLive(animate = true)
-        handler.removeCallbacks(refresh)
-        if (live) handler.postDelayed(refresh, REFRESH_MS)
+        listen(live)
+        // Turning it back on should show what arrived while it was off.
+        if (live) load()
+    }
+
+    /**
+     * Subscribes the page to the stream, or does not. The listener runs on the
+     * reader thread, so it only posts: everything that touches the view happens
+     * on the main thread in [repaint].
+     */
+    private fun listen(on: Boolean) {
+        handler.removeCallbacks(repaint)
+        LogRing.onLine = if (!on) null else {
+            {
+                handler.removeCallbacks(repaint)
+                handler.postDelayed(repaint, COALESCE_MS)
+            }
+        }
     }
 
     private fun syncLive(animate: Boolean) {
@@ -127,12 +152,16 @@ class LogActivity : Activity() {
     /** Replaces the console text; sticks to the bottom unless the user scrolled up. */
     private fun load() {
         val pinned = scroll.scrollY + scroll.height >= logText.height - 20
-        logText.text = LogRing.read().joinToString("\n")
+        logText.text = LogRing.snapshot().joinToString("\n")
         if (pinned) scroll.post { scroll.fullScroll(View.FOCUS_DOWN) }
     }
 
     private companion object {
-        const val REFRESH_MS = 2000L
+        /**
+         * How long a repaint waits for more lines. Long enough that a burst is
+         * one repaint, short enough to read as immediate.
+         */
+        const val COALESCE_MS = 60L
         const val KEY_LIVE = "log_live"
     }
 }

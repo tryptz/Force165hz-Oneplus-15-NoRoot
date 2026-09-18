@@ -99,8 +99,8 @@
     <string name="log_open">Open</string>
     <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>
     <string name="log_live">Live updates</string>
-    <string name="log_live_on">Re-reading the buffer every 2 seconds</string>
-    <string name="log_live_off">Paused. The buffer is only read when you refresh</string>
+    <string name="log_live_on">Following the log, repainting as lines arrive</string>
+    <string name="log_live_off">Paused. Lines are still collected, shown when you refresh</string>
     <string name="no_browser">No browser to open the link</string>
 
     <!-- opt-in rows: SystemUI and the armer itself -->
