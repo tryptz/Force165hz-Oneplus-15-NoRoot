@@ -86,6 +86,9 @@ class ArmWatchService : Service() {
     /** Consecutive parked ticks spent on the floor of the mode we tried to leave. */
     private var stuckTicks = 0
 
+    /** Consecutive parked ticks with the panel held at the 120 ceiling. */
+    private var ceilingTicks = 0
+
     /**
      * Packages whose park has already been re-asserted once in this park.
      *
@@ -269,7 +272,7 @@ class ArmWatchService : Service() {
                     parked -= focus
                     lowTicks -= focus
                     parkedAtNs -= focus
-                    Log.i(TAG, "$focus back on screen — restored to ${RateLock.hz(rateId)} Hz")
+                    Log.i(TAG, "$focus back on screen , restored to ${RateLock.hz(rateId)} Hz")
                 }
             }
         }
@@ -324,10 +327,19 @@ class ArmWatchService : Service() {
             kotlin.math.abs(phz - armedFloorHz) <= STUCK_MARGIN_HZ
         stuckTicks = if (onOldFloor) stuckTicks + 1 else 0
         val modeUnchanged = stuckTicks >= STUCK_TICKS
-        // At the ceiling: content is saturating it, which is the demand the
-        // armed rate exists for.
-        val ceilingSaturated = parkedAndMeasured && !parkIgnored &&
-            (phz >= STARVED_HZ || panelStarveRun >= STARVED_RUN_FRAMES)
+        // At the ceiling. This is the one that cost a working park: the panel
+        // ENTERS the 120 mode at 120 and ramps down from there, so for the
+        // first seconds of every park it looks exactly like content saturating
+        // the ceiling, and its 8.3 ms pairs also feed the starvation counter.
+        // Neither is evidence of anything: content wanting more than 120
+        // cannot push the panel past a 120 vote, so the panel can never show
+        // us that demand directly. What it can show is the ceiling being held
+        // for longer than any entry ramp takes, which is real, and GPU load
+        // and the vendor's fps counter stay as the fast path since they are
+        // not gated by the grace.
+        val atCeiling = parkedAndMeasured && !parkIgnored && phz >= STARVED_HZ
+        ceilingTicks = if (atCeiling) ceilingTicks + 1 else 0
+        val ceilingSaturated = ceilingTicks >= CEILING_TICKS
         val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsBusy
         // The park did not take, and has not been re-asserted yet: write the
         // 120 once more rather than concluding anything. This is the whole
@@ -454,8 +466,14 @@ class ArmWatchService : Service() {
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
                 if (n >= LOW_TICKS && park(pkg, rateId)) {
+                    // Re-read the clock: park() sleeps between its two writes,
+                    // and a grace measured from before that sleep is short by
+                    // exactly the step, which is how a 1 s grace turned into
+                    // 0.86 s and the restore landed inside the mode's own
+                    // entry ramp.
+                    val landed = System.nanoTime()
                     parked += pkg
-                    parkedAtNs[pkg] = now
+                    parkedAtNs[pkg] = landed
                     // The ceiling just changed under the panel; nothing it did
                     // before this moment describes the new one.
                     forgetPanel()
@@ -464,7 +482,7 @@ class ArmWatchService : Service() {
                     // a beat until the idle ramp takes over inside the mode's
                     // 1-120 range. Those fast frames are the transition, not
                     // motion — ignore them briefly.
-                    parkGraceUntilNs = now + PARK_GRACE_NS
+                    parkGraceUntilNs = landed + PARK_GRACE_NS
                     Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, from %d Hz floor %d, gpu=%.2f)"
                         .format(pkg, RateLock.hz(rateId), RateLock.idleFloorHz(rateId), gpu))
                     holdTicks = 0
@@ -687,6 +705,8 @@ class ArmWatchService : Service() {
     }
 
     private fun clearParkState() {
+        ceilingTicks = 0
+        stuckTicks = 0
         parked.clear()
         lowTicks.clear()
         parkedAtNs.clear()
@@ -708,7 +728,7 @@ class ArmWatchService : Service() {
             val at = parkedAtNs[pkg] ?: return@forEach
             if (now - at >= PARK_MIN_HOLD_NS) return@forEach
             parkBlockedUntilNs[pkg] = now + PARK_BACKOFF_NS
-            Log.i(TAG, "%s un-parked after %.1f s — not idle, park backing off %d s"
+            Log.i(TAG, "%s un-parked after %.1f s , not idle, park backing off %d s"
                 .format(pkg, (now - at) / 1e9, PARK_BACKOFF_NS / 1_000_000_000L))
         }
     }
@@ -728,7 +748,7 @@ class ArmWatchService : Service() {
                     synchronized(RateLock) {
                         val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
                         if (parked.isNotEmpty()) {
-                            Log.i(TAG, "screen on — restoring ${parked.size} parked vote(s)")
+                            Log.i(TAG, "screen on , restoring ${parked.size} parked vote(s)")
                         }
                         // A wake is not park churn: the animation that undoes
                         // the park here is the resume, not content demand.
@@ -893,7 +913,13 @@ class ArmWatchService : Service() {
          * a row — its steps are 8→16→25 ms), two in a row is a panel pinned
          * near 120 by genuinely starved content.
          */
-        private const val STARVED_RUN_FRAMES = 2
+        /**
+         * Parked ticks at the ceiling before it counts as content saturating
+         * it: 3 s at the parked cadence, comfortably longer than the 120
+         * mode's entry ramp and short enough that an app which really does
+         * want more than 120 gets it back before anyone finishes a gesture.
+         */
+        private const val CEILING_TICKS = 60
 
         /**
          * A still armed screen idles AT its mode's floor

@@ -224,7 +224,7 @@ object RateLock {
         if (ok) {
             Log.i(TAG, "$packageName released (vote -> id=$RATE_NONE)")
         } else {
-            Log.w(TAG, "$packageName release failed — vendor unreachable; a reboot clears every pin")
+            Log.w(TAG, "$packageName release failed , vendor unreachable; a reboot clears every pin")
         }
         return ok
     }
