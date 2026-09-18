@@ -40,8 +40,9 @@ import kotlin.math.roundToInt
  * measurement rather than a rule: 144 alone, because from there the switch is
  * clean and the panel ramps to 1 Hz, while from 165 the park lands on a pinned
  * 120, above the 55 that mode idles to by itself.
- * Measured floors on this build: 60→30, 90→30, 120→1, 165→55 (144 estimated
- * at 48, see [RateLock.idleFloorHz]). Restore is rate starvation: the parked 120 ceiling serves every
+ * Measured floors on this build: 60, 90 and 120 all reach 1 Hz, 165 stops at
+ * 55 (144 estimated at 48, see [RateLock.idleFloorHz]), so 165 is the only
+ * mode the park is needed for. Restore is rate starvation: the parked 120 ceiling serves every
  * cadence up to 120, and only content demanding more — seen as the panel
  * pinned near 120 — brings the armed rate back. Slower content is served by
  * the park and never triggers it, so the vote cannot oscillate. A parked
@@ -446,9 +447,11 @@ class ArmWatchService : Service() {
                 // What may park is a measurement, not a rule: see
                 // RateLock.parkable. 144 gains a ramp to 1 Hz. 165 would land
                 // on a pinned 120, above the 55 it idles to unaided, so it
-                // rests at 55 instead. 120 already is the park. 60 and 90 are
-                // ceilings the user picked to keep faster content OFF the
-                // panel (judder), which the park must never raise.
+                // rests at 55 instead. 120 already is the park, and 60 and 90
+                // reach 1 Hz in their own modes, so there is nothing for a park
+                // to win there — they are ceilings the user picked to keep
+                // faster content OFF the panel (judder), and raising one to 120
+                // would defeat the point of choosing it.
                 if (pkg in parked || !RateLock.parkable(rateId)) return@forEach
                 if (now < (parkBlockedUntilNs[pkg] ?: 0L)) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1

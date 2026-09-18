@@ -64,7 +64,7 @@
          a still screen actually rests at per vote. The why (the park, and why 165
          is the one rate that does not take it) is on the help screen under
          "Letting the panel idle" and "What may park". -->
-    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. Resting rates: 60 and 90 reach 30 Hz, 120 and 144 reach 1 Hz, 165 reaches 55 Hz because that is its mode floor.</string>
+    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the 55 Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
@@ -156,7 +156,7 @@
     <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
 
     <string name="help_park_rule_title">What may park</string>
-    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. From 144 the switch to 120 is clean and the panel ramps to 1 Hz. From 165 it lands on a pinned 120, higher than the 55 Hz that mode idles to on its own, so parking it would cost power. A still 165 screen rests at 55 Hz and that is the floor here. 120 already is the park, and 60 or 90 are ceilings you picked to keep faster content off the panel.</string>
+    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at 55 Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that 55. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
 
     <string name="help_optin_title">The system UI row</string>
     <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>

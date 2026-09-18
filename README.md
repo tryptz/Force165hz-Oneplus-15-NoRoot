@@ -55,23 +55,34 @@ always works; it just stops at the floor of whatever mode you asked for.
 
 | vote | mode floor | a still screen rests at |
 |-----:|-----------:|:------------------------|
-|   60 |       30   | 30 Hz |
-|   90 |       30   | 30 Hz |
-|  120 |        1   | 1 Hz |
-|  144 |     48\*   | 1 Hz, by parking into 120 |
-|  165 |       55   | 55 Hz |
+|   60 |         1  | 1 Hz |
+|   90 |         1  | 1 Hz |
+|  120 |         1  | 1 Hz |
+|  144 |      48\*  | 1 Hz, by parking into 120 |
+|  165 |        55  | 55 Hz |
 
-\* estimated, not yet measured.
+\* estimated, never measured, because 144 is the one rate that parks and so
+always leaves its own mode before the screen goes quiet. Given that 60, 90 and
+120 all reach 1, it is likely 144 does too, which would make the park
+pointless for it as well. Worth measuring with the park disabled.
 
-**The park** swaps a still app's vote for 120, the one mode that spans 1 to
-120, so the panel ramps down while a vote stays held. Only 144 takes it. From
-144 the switch to 120 is clean. From 165 it is not: the 120 that follows
-behaves as a pin *at* 120, which is above the 55 Hz the 165 mode already
-idles to, so parking 165 would cost idle power rather than save it. 120 is
-already the park, and 60 / 90 are ceilings you chose, which the park must not
-raise. GPU load or measured fps restores the armed rate in about 55 ms; a
-park that content undoes within 3 s was the 120 mode's entry churn, so that
-package is skipped for 30 s instead of oscillating.
+**165 is the only mode that cannot idle**, and the only reason the park
+exists.
+
+**The park** swaps a still app's vote for 120, so the panel ramps down while a
+vote stays held. Only 144 takes it, and that is a measurement rather than a
+design:
+
+- 60, 90 and 120 reach 1 Hz in their own modes, so there is nothing to win,
+  and raising one to 120 would undo the ceiling you chose it for.
+- 165 would land on a *pin* at 120 (a vote sets min = max), which is higher
+  than the 55 Hz it already idles to unaided. Parking it costs idle power
+  instead of saving it.
+- 144 is what is left, and from there the switch to 120 is clean.
+
+GPU load or measured fps restores the armed rate in about 55 ms; a park that
+content undoes within 3 s was the 120 mode's entry churn, so that package is
+skipped for 30 s instead of oscillating.
 
 **What the park gate must never read** is the panel at the top of its range.
 At the armed rate the panel is reporting our own pin, and its 6 ms frame
