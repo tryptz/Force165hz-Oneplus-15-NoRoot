@@ -124,19 +124,13 @@ permission on first launch.
   behave differently. Arming the armer itself does work, and is the cheapest
   test that votes are landing at all — if its own screen will not reach the
   armed rate, nothing else will.
-- **Display peak rate (global)** in Settings writes the AOSP
-  `peak_refresh_rate` / reads `min_refresh_rate` in `Settings.System` — the
-  display's own ceiling rather than a per-app vote, and the only rootless
-  knob that can reach a surface no app owns (the shade, the lock screen, the
-  launcher). It needs "Modify system settings", which the Grant button opens;
-  on a sideloaded build that screen can itself be a restricted setting, so
-  long-pressing the button copies `adb shell settings put system
-  peak_refresh_rate 165.0` instead. Raising it is global — every unarmed app
-  and the whole system UI get the higher ceiling, with the battery cost —
-  and OnePlus's own refresh-rate setting writes the same keys, so changing
-  that overwrites it. Restore unsets the key rather than writing a guess at
-  the default. The card reads the value back after a write, because the
-  vendor may clamp the ceiling to a mode the panel actually has.
+- **Measured, and a dead end:** raising the AOSP display ceiling
+  (`Settings.System` `peak_refresh_rate` = 165, the key a shell `settings put
+  system` writes) does not lift the shade, the lock screen or any other
+  surface an app does not own — they stay at 120. Together with the SystemUI
+  result above, nothing rootless found so far reaches 165 outside a
+  foreground app window. The app had a control for it; it was removed rather
+  than left offering a global battery cost for no effect.
 - A `SecurityException` after an OTA means the vendor patched the trick.
 - If an app stays pinned after a disarm, the vote withdraw was refused on
   that build — `adb logcat -s Arm165` logs it; a reboot always clears the
