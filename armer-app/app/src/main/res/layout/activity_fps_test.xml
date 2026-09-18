@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Smoothness test. The lanes are drawn by FpsTestView; everything here is the
+    furniture around them.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/fps_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:orientation="vertical">
+
+    <!-- header: back + title -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="@dimen/screen_pad"
+        android:paddingEnd="@dimen/screen_pad">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:padding="11dp"
+            android:background="@drawable/bg_icon_btn"
+            android:src="@drawable/ic_back"
+            android:tint="@color/text_primary"
+            android:contentDescription="@string/back_desc" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:text="@string/fps_title"
+            android:textColor="@color/text_primary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- what the panel is actually doing while the lanes move -->
+    <TextView
+        android:id="@+id/fps_readout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_pad"
+        android:layout_marginEnd="@dimen/screen_pad"
+        android:layout_marginTop="6dp"
+        android:text="@string/fps_measuring"
+        android:textColor="@color/accent"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_pad"
+        android:layout_marginEnd="@dimen/screen_pad"
+        android:layout_marginTop="3dp"
+        android:text="@string/fps_hint"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:lineSpacingExtra="2dp" />
+
+    <!-- hold this app's own rate: the whole row is the touch target -->
+    <LinearLayout
+        android:id="@+id/row_hold"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_pad"
+        android:layout_marginEnd="@dimen/screen_pad"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_card"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/hold_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/hold_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <tf.arm165.RateSwitch
+            android:id="@+id/hold_toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="10dp"
+        android:paddingStart="@dimen/screen_pad"
+        android:paddingEnd="@dimen/screen_pad"
+        android:clipToPadding="false"
+        android:scrollbars="none">
+
+        <tf.arm165.FpsTestView
+            android:id="@+id/fps_lanes"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="12dp" />
+    </ScrollView>
+</LinearLayout>

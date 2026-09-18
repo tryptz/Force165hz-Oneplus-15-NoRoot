@@ -81,6 +81,17 @@
     <string name="log_refresh">Refresh log</string>
     <string name="log_share">Share log</string>
     <string name="log_clear">Clear</string>
+    <!-- smoothness test -->
+    <string name="fps_title">Smoothness test</string>
+    <string name="fps_row_sub">Moving blocks, one lane per rate, and what the panel is really doing</string>
+    <string name="fps_open">Open</string>
+    <string name="fps_measuring">measuring…</string>
+    <string name="fps_readout">%1$d Hz · %2$.1f ms</string>
+    <string name="fps_hint">Each lane moves at the same speed but may only update at its own rate, so the lane that matches the panel glides and the slower ones step. No lane can beat the panel: above the rate the panel is running, the lanes look identical.</string>
+    <string name="fps_hold">Hold %1$d Hz here</string>
+    <string name="fps_hold_on">Holding — this app is armed at %1$d Hz, so the lanes can show it</string>
+    <string name="fps_hold_off">Off — the panel runs at its default, so nothing above 120 will differ. Change the rate on the main screen.</string>
+
     <string name="log_title">Live log</string>
     <string name="log_open">Open</string>
     <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>
@@ -115,7 +126,7 @@
     <string name="help_watchdog_body">Game engines re-pin their own frame rate whenever they take focus, which overwrites a one-shot request. The watchdog is a quiet foreground service that re-issues the vote while the screen is on, so ours lands after theirs and wins. Its notification says how many apps it is holding; with nothing armed it stops itself.</string>
 
     <string name="help_focus_title">Why the app on screen matters</string>
-    <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every sweep ends on the app you are actually using — one that ended on a background app would hand the display a vote for windows that do not exist and drop the pin it had just set, which is what arming hundreds of apps used to do to itself. Usage access (Settings, Foreground detection) is what lets the watchdog know which app that is; without it, only games the vendor\'s game daemon tracks can be recognised.</string>
+    <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every sweep ends on the app you are actually using — one that ended on a background app would hand the display a vote for windows that do not exist and drop the pin it had just set, which is what arming hundreds of apps used to do to itself. Usage access (Settings, Foreground detection) is what lets the watchdog know which app that is; without it, only games the vendor\'s game daemon tracks can be recognised — and on a phone whose game daemon refuses an ordinary app altogether, nothing is, so every pass is ordered blind.</string>
 
     <string name="help_park_title">Letting the panel idle (parking)</string>
     <string name="help_park_body">A held 165 vote cannot idle below 55 Hz, so a still screen keeps paying for frames nobody sees. When nothing on screen is moving, the watchdog swaps the vote for 120 — the one rate whose panel mode spans 1 to 120 — and the panel ramps down to 1 Hz while the vote itself stays held. Content that demands more than 120 gets the armed rate back in about 55 ms. Only 144 and 165 park: 120 already is the park, and 60 or 90 are ceilings you chose to keep faster content off the panel.</string>
@@ -123,6 +134,9 @@
     <string name="help_optin_title">Arming the system UI or this app</string>
     <string name="help_optin_body">The notification shade, quick settings and lock screen are drawn by SystemUI rather than by the app you are in, so they keep their own rate — 120, and arming SystemUI does not change that on this build. The vote is accepted and has no effect: the panel takes its mode from the foreground app\'s window, and SystemUI\'s are system overlays that never consult it. The row is kept for builds that behave differently, and Arm all always skips it, because where such a vote does land it pins the display rather than one app.\n\nThis app\'s own row does work, and doubles as a self-test: if 165 Armer\'s own screen reaches the rate you armed it at, votes are landing — and if it will not, nothing else will either.</string>
 
+
+    <string name="help_fps_title">Seeing the rate, not reading it</string>
+    <string name="help_fps_body">Settings has a Smoothness test: one lane of moving blocks per rate, all at the same speed, each allowed to update only at its own rate. The lane matching the panel glides; the slower ones step, and the step is the judder at the size your eye actually sees it. Above the rate the panel is running everything looks the same, so the test also tells you when a vote is not landing. The readout at the top is the panel measured from its own frame timing, which is the one number that cannot be talked out of. The page can hold this app at the selected rate while you watch, and its animation keeps the idle park away by itself — a screen that never stops moving is never idle.</string>
 
     <string name="help_disarm_title">Disarming</string>
     <string name="help_disarm_body">Disarm withdraws the vote by asking for rate id 0, the vendor\'s own cancel — sending the rate again would only write the same pin back, which is why an older build could not disarm without a reboot. If an app ever stays pinned, that build refused the withdraw; a reboot always clears every vote, because the vendor keeps them in memory only.</string>

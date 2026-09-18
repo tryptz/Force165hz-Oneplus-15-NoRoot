@@ -50,6 +50,10 @@ class SettingsActivity : Activity() {
         fgBtn = findViewById(R.id.btn_fg_grant)
         fgBtn.setOnClickListener { openUsageAccess() }
 
+        findViewById<View>(R.id.row_fps).setOnClickListener {
+            startActivity(Intent(this, FpsTestActivity::class.java))
+        }
+
         findViewById<View>(R.id.row_log).setOnClickListener {
             startActivity(Intent(this, LogActivity::class.java))
         }
