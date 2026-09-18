@@ -392,16 +392,19 @@ class ArmWatchService : Service() {
 
         // A pinned panel can only testify about the content BETWEEN the two
         // rates our own vote sets. At the floor it is resting; at the pinned
-        // rate it is showing us our own pin and nothing else. Both ends have
-        // to be discarded, and discarding the top end is the fix for a panel
-        // that does not ramp down while a vote is held at all: there
-        // `phz >= floor + margin` was permanently true, and so was
-        // `panelStarveRun >= 2` (a 165 Hz panel produces 6 ms pairs, well
-        // under the 10 ms that counts as starved), so the gate vetoed every
-        // park and an idle screen sat at the armed rate forever. Neither
-        // panel-derived term belongs here; the GPU-idle requirement below is
-        // what keeps a game rendering AT the pinned rate from being parked,
-        // and it cannot be fed by a vote.
+        // rate it is showing us our own pin and nothing else.
+        //
+        // The top end is the one that mattered. A still 165 screen does reach
+        // its 55 Hz floor (measured), but any moment the panel is back at 165
+        // — the ramp not yet settled, a touch, a notification — both
+        // `phz >= floor + margin` and `panelStarveRun >= 2` are true, the
+        // latter because 6 ms pairs are well under the 10 ms that counts as
+        // starved. So the park was vetoed by the very vote it was trying to
+        // replace, and a screen that went quiet while the panel was still
+        // high never got a countdown. Neither panel-derived term belongs
+        // here; the GPU-idle requirement below is what keeps a game rendering
+        // AT the pinned rate from being parked, and it cannot be fed by a
+        // vote.
         val panelSaysMoving = floorHidesContent &&
             phz >= floorHz + FLOOR_MARGIN_HZ && phz <= pinnedHz - PIN_MARGIN_HZ
         val gateBusy = if (floorHidesContent) fpsBusy || panelSaysMoving

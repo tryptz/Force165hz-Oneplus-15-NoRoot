@@ -60,7 +60,9 @@ object RateLock {
     /**
      * Measured LTPO idle floor of the panel mode each rateId selects — the
      * lowest the panel goes while that vote is held. From this build's
-     * measurements (README): 60 -> 30, 90 -> 30, 120 -> 1, 165 -> 55.
+     * measurements (README): 60 -> 30, 90 -> 30, 120 -> 1, 165 -> 55. The 55
+     * is confirmed on device: a still screen with 165 held ramps down to it
+     * and stops there, which is the whole reason the park swaps in 120.
      *
      * 144 has never been measured. It takes the ratio the 90 and 165 modes
      * share, a floor near a third of the mode's own rate, which errs on the
