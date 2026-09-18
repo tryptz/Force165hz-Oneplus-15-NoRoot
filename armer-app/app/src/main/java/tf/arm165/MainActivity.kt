@@ -6,16 +6,13 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
-import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.SeekBar
 import android.widget.TextView
 
 class MainActivity : ShellActivity() {
@@ -39,7 +36,6 @@ class MainActivity : ShellActivity() {
     private lateinit var rateSegments: LinearLayout
     private lateinit var watchdogDot: View
     private lateinit var watchdogLabel: TextView
-    private lateinit var fpsChip: TextView
     private lateinit var chips: List<Pair<TextView, Filter>>
     private var segments: List<Pair<TextView, Int>> = emptyList()
     private lateinit var adapter: AppRowAdapter
@@ -51,6 +47,20 @@ class MainActivity : ShellActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // No-op after the first process start; makes the Settings log view work.
+        LogRing // touch so the object is initialized early
+        // An armed set written by a build whose "Arm all" swept in the
+        // framework and SystemUI still names them, and the watchdog would keep
+        // voting for packages whose windows sit next to every app's. Drop them
+        // and withdraw the votes they left live. Idempotent — the service does
+        // the same on its own start, and a clean set gets nothing back.
+        ArmedStore.dropUnvotable(prefs).takeIf { it.isNotEmpty() }?.let { unvotable ->
+            worker.execute {
+                synchronized(RateLock) {
+                    unvotable.forEach { (pkg, rateId) -> RateLock.release(pkg, rateId) }
+                }
+            }
+        }
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
@@ -61,7 +71,6 @@ class MainActivity : ShellActivity() {
         rateSegments = findViewById(R.id.rate_segments)
         watchdogDot = findViewById(R.id.watchdog_dot)
         watchdogLabel = findViewById(R.id.watchdog_label)
-        fpsChip = findViewById(R.id.chip_fps)
         chips = listOf(
             findViewById<TextView>(R.id.chip_all) to Filter.ALL,
             findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
@@ -96,7 +105,7 @@ class MainActivity : ShellActivity() {
         updateState()
 
         reArmSavedQuietly() // covers a reboot the boot receiver missed
-        AppCatalog.loadAsync(packageManager, packageName) { entries ->
+        AppCatalog.loadAsync(packageManager) { entries ->
             if (isFinishing || isDestroyed) return@loadAsync
             all = entries
             loading = false
@@ -109,9 +118,7 @@ class MainActivity : ShellActivity() {
 
     override fun onResume() {
         super.onResume()
-        // The overlay permission is granted on a settings screen, and the games
-        // page may have changed the armed set — re-read both.
-        syncFpsChip()
+        // The games page may have changed the armed set — re-read it.
         val latest = ArmedStore.read(prefs)
         if (latest != armed) {
             armed.clear()
@@ -151,13 +158,14 @@ class MainActivity : ShellActivity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
+        findViewById<View>(R.id.btn_help).setOnClickListener {
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
+        findViewById<View>(R.id.btn_settings).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
         findViewById<View>(R.id.btn_coffee).setOnClickListener {
             open(Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.coffee_url))))
-        }
-        fpsChip.setOnClickListener { toggleFpsOverlay() }
-        fpsChip.setOnLongClickListener {
-            if (overlayEnabled()) showOverlayPositionDialog() else toggleFpsOverlay()
-            true
         }
     }
 
@@ -167,80 +175,6 @@ class MainActivity : ShellActivity() {
         } catch (t: ActivityNotFoundException) {
             snack(getString(R.string.no_browser))
         }
-    }
-
-    // ------------------------------------------------------------ fps overlay
-
-    private fun overlayEnabled(): Boolean =
-        prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false) && Settings.canDrawOverlays(this)
-
-    private fun syncFpsChip() {
-        fpsChip.isSelected = overlayEnabled()
-    }
-
-    private fun toggleFpsOverlay() {
-        if (!Settings.canDrawOverlays(this)) {
-            // "Draw over other apps" is a settings screen, not a runtime permission.
-            AlertDialog.Builder(this)
-                .setTitle(R.string.fps_chip)
-                .setMessage(R.string.fps_needs_permission)
-                .setPositiveButton(R.string.fps_grant) { _, _ ->
-                    open(
-                        Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:$packageName"),
-                        )
-                    )
-                }
-                .setNegativeButton(R.string.risk_no, null)
-                .show()
-            return
-        }
-        val on = !prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false)
-        prefs.edit().putBoolean(ArmWatchService.KEY_OVERLAY, on).apply()
-        syncFpsChip()
-        ArmWatchService.sync(this)
-        snack(getString(if (on) R.string.fps_on else R.string.fps_off))
-    }
-
-    /**
-     * No API reports where the status bar's own wifi/battery icons sit, so the
-     * offset from the right edge is the user's to set. Updates live.
-     */
-    private fun showOverlayPositionDialog() {
-        val current = prefs.getInt(ArmWatchService.KEY_OVERLAY_X, ArmWatchService.DEFAULT_RIGHT_OFFSET_DP)
-        val value = TextView(this).apply {
-            setPadding(dp(24), dp(16), dp(24), dp(2))
-            setTextColor(getColor(R.color.text_primary))
-            textSize = 14f
-            setTypeface(typeface, Typeface.BOLD)
-            text = getString(R.string.fps_position_value, current)
-        }
-        val bar = SeekBar(this).apply {
-            max = MAX_OVERLAY_OFFSET_DP
-            progress = current.coerceIn(0, MAX_OVERLAY_OFFSET_DP)
-            setPadding(dp(20), dp(8), dp(20), dp(8))
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
-                    value.text = getString(R.string.fps_position_value, p)
-                    prefs.edit().putInt(ArmWatchService.KEY_OVERLAY_X, p).apply()
-                    ArmWatchService.sync(this@MainActivity)
-                }
-
-                override fun onStartTrackingTouch(sb: SeekBar) = Unit
-                override fun onStopTrackingTouch(sb: SeekBar) = Unit
-            })
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.fps_position_title)
-            .setMessage(R.string.fps_position_body)
-            .setView(LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                addView(value)
-                addView(bar)
-            })
-            .setPositiveButton(R.string.done, null)
-            .show()
     }
 
     // ------------------------------------------------------------------ state
@@ -297,6 +231,9 @@ class MainActivity : ShellActivity() {
     /** Call after [armed] changes so the hero, the rows and the Armed filter agree again. */
     private fun onArmedChanged() {
         ArmedStore.write(prefs, armed)
+        // Nothing left to hold: a watchdog that keeps ticking every few seconds
+        // would only spend battery and show a notification about no apps.
+        if (armed.isEmpty()) ArmWatchService.stopIfIdle(this)
         if (isFinishing || isDestroyed) return
         refreshStatus()
         if (filter == Filter.ARMED) applyFilter() else { adapter.notifyDataSetChanged(); updateState() }
@@ -308,10 +245,30 @@ class MainActivity : ShellActivity() {
         if (rejectWhileBusy()) return
         when {
             entry.pkg in armed -> disarm(entry, toggle)
+            // Arming the shade is not like arming an app; say so once.
+            entry.pkg == RateLock.SYSTEM_UI && !prefs.getBoolean(KEY_WARNED_SYSTEM_UI, false) ->
+                confirmSystemUi { arm(entry, activeRate, null) }
             prefs.getBoolean(KEY_WARNED, false) -> arm(entry, activeRate, toggle)
             // behind the dialog the row repaints itself, so nothing to animate
             else -> confirmFirstTime { arm(entry, activeRate, null) }
         }
+    }
+
+    /**
+     * The SystemUI-specific warning, shown once. The generic first-run dialog
+     * is about the vendor IPC; this one is about what a vote on always-visible
+     * windows does to the rest of the display.
+     */
+    private fun confirmSystemUi(onYes: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.systemui_title)
+            .setMessage(R.string.systemui_body)
+            .setPositiveButton(R.string.systemui_yes) { _, _ ->
+                prefs.edit().putBoolean(KEY_WARNED_SYSTEM_UI, true).apply()
+                onYes()
+            }
+            .setNegativeButton(R.string.risk_no, null)
+            .show()
     }
 
     private fun arm(entry: AppEntry, rateId: Int, toggle: RateSwitch?) {
@@ -329,28 +286,36 @@ class MainActivity : ShellActivity() {
     private fun disarm(entry: AppEntry, toggle: RateSwitch?) {
         if (rejectWhileBusy()) return
         toggle?.setChecked(false, animate = true)
-        // Re-issuing the id an app is pinned at is what clears it, so replay
-        // that app's own rate rather than whatever the selector says.
-        armed[entry.pkg]?.let { RateLock.arm(entry.pkg, it) }
-        armed.remove(entry.pkg)
+        val rateId = armed.remove(entry.pkg) ?: return
+        // Drop it from the stored set before touching the vendor: the watchdog
+        // reads that set inside the same lock the release takes, so a tick can
+        // no longer land in between and pin the app straight back.
         onArmedChanged()
+        worker.execute {
+            val released = synchronized(RateLock) { RateLock.release(entry.pkg, rateId) }
+            if (!released) ui { snack(getString(R.string.disarm_failed, entry.label)) }
+        }
     }
 
-    /** Moves one app to [rateId], dropping whatever it was pinned at first. */
+    /** Moves one app to [rateId]; the new vote replaces whatever it was pinned at. */
     private fun setRate(entry: AppEntry, rateId: Int) {
         if (rejectWhileBusy()) return
         val current = armed[entry.pkg]
         if (current == rateId) return
-        if (current != null) RateLock.arm(entry.pkg, current)
+        var stale: Int? = null
         if (RateLock.arm(entry.pkg, rateId)) {
             armed[entry.pkg] = rateId
             ArmWatchService.start(this)
             snack(getString(R.string.rate_set, entry.label, RateLock.hz(rateId)))
         } else {
+            // The move failed, so the row goes back to unarmed — but any vote it
+            // already had is still live, and only a release takes that down.
             armed.remove(entry.pkg)
+            stale = current
             snack(getString(R.string.arm_failed, entry.label))
         }
         onArmedChanged()
+        stale?.let { rate -> worker.execute { synchronized(RateLock) { RateLock.release(entry.pkg, rate) } } }
     }
 
     private fun showRatePicker(entry: AppEntry) {
@@ -379,8 +344,10 @@ class MainActivity : ShellActivity() {
             return
         }
         runBusy(getString(R.string.rearming)) {
-            var ok = 0
-            saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
+            // Foreground last, like every other sweep — see RateLock.armEach.
+            val ok = synchronized(RateLock) {
+                RateLock.armEach(saved, Oiface.currentGamePackage()).size
+            }
             ui { snack(getString(R.string.rearmed, ok, saved.size)) }
         }
     }
@@ -389,51 +356,78 @@ class MainActivity : ShellActivity() {
         if (all.isEmpty()) return
         confirmFirstTime {
             val rateId = activeRate
-            val targets = all.map { it.pkg }
-            val existing = armed.toMap()
+            // The opt-in rows are skipped here by design: SystemUI because a
+            // vote on always-visible windows is display-wide, and this app
+            // because arming itself should be a decision, not a side effect of
+            // Arm all. Both are still one tap away in the list.
+            val skip = RateLock.optInOnly(packageName) + RateLock.NEVER_ARM
+            val targets = all.map { it.pkg }.filter { it !in skip }
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
-                val done = ArrayList<String>(targets.size)
-                targets.forEach { pkg ->
-                    val current = existing[pkg]
-                    when {
-                        // already pinned here: re-issuing would only toggle it off
-                        current == rateId -> done.add(pkg)
-                        else -> {
-                            if (current != null) RateLock.arm(pkg, current) // drop the old pin
-                            if (RateLock.arm(pkg, rateId)) done.add(pkg)
-                        }
-                    }
+                // One vote per app, whatever it was pinned at before: the call
+                // is a set, so re-issuing an id an app already holds is free and
+                // repairs a vote the vendor dropped. The app on screen is voted
+                // last (see RateLock.armEach) — during this sweep that is the
+                // armer itself, which is never armed, so the watchdog's next
+                // pass is what lands the pin on whatever you open next.
+                val done = synchronized(RateLock) {
+                    RateLock.armEach(targets.associateWith { rateId }, Oiface.currentGamePackage())
                 }
                 main.post {
                     done.forEach { armed[it] = rateId }
                     onArmedChanged()
                     ArmWatchService.start(this)
-                    snack(getString(R.string.armed_all, done.size, targets.size, RateLock.hz(rateId)))
+                    // Above a handful of armed apps the watchdog needs to know
+                    // which one is on screen to order its votes; without usage
+                    // access it cannot, so say so here rather than silently
+                    // doing the weaker thing.
+                    val needsFg = done.size > ArmWatchService.FULL_SWEEP_MAX &&
+                        !Foreground.hasAccess(this)
+                    snack(getString(
+                        if (needsFg) R.string.armed_all_no_fg else R.string.armed_all,
+                        done.size, targets.size, RateLock.hz(rateId),
+                    ))
                 }
             }
         }
     }
 
     private fun clearAll() {
+        if (rejectWhileBusy()) return
         val saved = armed.toMap()
         if (saved.isEmpty()) {
             snack(getString(R.string.nothing_saved))
             return
         }
+        // Emptied up front for the same reason as a single disarm: nothing the
+        // watchdog can read may still name an app this sweep is releasing.
+        armed.clear()
+        onArmedChanged()
         runBusy(getString(R.string.clearing)) {
-            saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            main.post {
-                armed.clear()
-                onArmedChanged()
-                snack(resources.getQuantityString(R.plurals.cleared, saved.size, saved.size))
+            val stuck = synchronized(RateLock) {
+                saved.count { (pkg, rateId) -> !RateLock.release(pkg, rateId) }
+            }
+            ui {
+                snack(
+                    if (stuck == 0) resources.getQuantityString(R.plurals.cleared, saved.size, saved.size)
+                    else resources.getQuantityString(R.plurals.clear_failed, stuck, stuck)
+                )
             }
         }
     }
 
     private fun reArmSavedQuietly() {
+        // Boot catch-up ONLY: when the watchdog service is alive in this
+        // process it already holds the votes and — critically — its own park
+        // state. Re-arming behind its back would land 165 votes right over
+        // a parked 120 set and un-park everything, so a mere cold start of
+        // the activity (task discard, debug reinstall, user revisit) must
+        // not touch the votes.
+        if (ArmWatchService.running) return
         val saved = armed.toMap()
         if (saved.isEmpty()) return
-        worker.execute { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+        worker.execute {
+            synchronized(RateLock) { RateLock.armEach(saved, Oiface.currentGamePackage()) }
+        }
     }
 
     private fun requestNotificationPermission() {
@@ -449,6 +443,5 @@ class MainActivity : ShellActivity() {
 
     private companion object {
         const val REQ_NOTIFICATIONS = 165
-        const val MAX_OVERLAY_OFFSET_DP = 260
     }
 }

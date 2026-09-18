@@ -48,9 +48,17 @@ class AppRowAdapter(
         holder.pkg = entry.pkg
 
         holder.label.text = entry.label
+        // The two opt-in rows say what they are instead of just "system": what
+        // arming them does is not what arming an app does.
+        val prefix = when {
+            entry.pkg == RateLock.SYSTEM_UI -> R.string.row_display_wide
+            entry.pkg == activity.packageName -> R.string.row_self
+            entry.system -> R.string.system_prefix
+            else -> 0
+        }
         holder.sub.text =
-            if (entry.system) activity.getString(R.string.system_prefix) + "  ·  " + entry.pkg
-            else entry.pkg
+            if (prefix == 0) entry.pkg
+            else activity.getString(prefix) + "  ·  " + entry.pkg
 
         val rateId = armedRate(entry.pkg)
         val isArmed = rateId != null

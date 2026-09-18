@@ -9,10 +9,11 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val prefs = ArmedStore.open(context)
         val armed = ArmedStore.read(prefs)
-        armed.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-        // The service also hosts the FPS overlay, so it is needed whenever
-        // either feature is in use.
-        if (armed.isNotEmpty() || prefs.getBoolean(ArmWatchService.KEY_OVERLAY, false)) {
+        // Nothing is foregrounded yet at boot, so there is no app to vote
+        // last; the watchdog re-orders every later pass around the one on
+        // screen (see RateLock.armEach).
+        RateLock.armEach(armed)
+        if (armed.isNotEmpty()) {
             ArmWatchService.start(context) // keep re-arming after games re-pin their rate
         }
     }

@@ -5,7 +5,14 @@
 #   oplusscreenmode binder -> IOplusScreenMode::requestGameRefreshRate
 #   transaction 0x0c, args (String pkg, int rateId), NO caller permission check.
 #   rateIds: 1=90 2=60 3=120 4=144 7=165 (same ids as refresh_rate_config.xml).
-#   Re-issuing the SAME rateId toggles/removes the override.
+#   The call is a set, not a toggle: handing it an id it already holds only
+#   writes the same pin back. Withdraw one with rateId 0 (--clear <pkg>);
+#   a reboot clears the vendor's whole map.
+#
+# usage:  setrate.sh <pkg> [rate]      pin (rate as Hz or rateId, default 165)
+#         setrate.sh --clear <pkg>     withdraw that app's pin
+#         setrate.sh --all             pin every package at 165
+#         setrate.sh --list|--watch    dump the vendor's map / follow the log
 
 set -u
 
@@ -42,7 +49,18 @@ arm() { # arm <pkg> <rateId>
 
 case "${1:-}" in
   ""|-h|--help)
-    sed -n '2,12p' "$0"; exit 0 ;;
+    sed -n '2,16p' "$0"; exit 0 ;;
+  --clear)
+    [ $# -ge 2 ] || die "usage: $0 --clear <pkg>"
+    pick_device
+    ensure_dex
+    OUT=$(arm "$2" 0)
+    echo "$OUT"
+    case "$OUT" in
+      *"result=1"*) echo "[ok] $2 released" ;;
+      *) echo "[??] vendor refused rateId 0 — reboot to clear it" ;;
+    esac
+    exit 0 ;;
   --list)
     pick_device
     $ADB shell dumpsys oplusscreenmode | grep -E 'OifaceRequested|override list'
@@ -69,7 +87,7 @@ esac
 
 PKG="$1"
 RATE="${2:-7}"
-case "$RATE" in 165) RATE=7;; 144) RATE=4;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; esac
+case "$RATE" in 165) RATE=7;; 144) RATE=4;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; off|none) RATE=0;; esac
 
 command -v adb >/dev/null || die "adb not found (pkg install android-tools)"
 adb devices | grep -q . || true

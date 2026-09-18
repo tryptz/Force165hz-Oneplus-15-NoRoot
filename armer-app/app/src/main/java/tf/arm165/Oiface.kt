@@ -111,6 +111,20 @@ object Oiface {
     }
 
     /**
+     * GPU load, normalized 0..1, as the vendor scheduler measures it. -1f when
+     * the service is unreachable. This is the idle signal for the LTPO release:
+     * a still screen costs almost nothing to draw, so load near zero means the
+     * content is static and the panel has nothing to render — exactly when the
+     * armed vote should get out of the panel's way.
+     */
+    fun gpuLoad(): Float = if (!isReachable()) -1f else transact(
+        TX_GET_GPU_LOAD,
+        write = { },
+        read = { it.readFloat() },
+        fallback = -1f,
+    )
+
+    /**
      * Frames per second the vendor service measures for [packageName] — the
      * rate the game actually renders at, as opposed to the panel's refresh
      * rate. Returns 0 when unavailable or implausible.
