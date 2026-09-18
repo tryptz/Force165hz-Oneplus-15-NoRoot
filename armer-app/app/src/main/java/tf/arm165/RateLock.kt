@@ -96,6 +96,19 @@ object RateLock {
     const val SYSTEM_UI = "com.android.systemui"
 
     /**
+     * Whether swapping this rate for 120 can idle LOWER than the rate's own
+     * mode does. Measured on this build, and the answer is 144 alone.
+     *
+     * From 144 the switch is clean and the panel ramps to 1 Hz. From 165 it is
+     * not: the extreme mode has to be left through 144 first, and the 120 that
+     * follows behaves as a pin at 120 rather than a 1-120 range, so the park
+     * lands ABOVE the 55 Hz the 165 mode idles to on its own. Parking 165
+     * therefore costs idle power instead of saving it, whatever the vote says.
+     * A still 165 screen rests at 55 and that is the floor on this build.
+     */
+    fun parkable(rateId: Int): Boolean = hz(rateId) in 121..144
+
+    /**
      * Packages a bulk sweep must skip while a deliberate row tap may still arm
      * them: SystemUI for the reason above, and [self] because an app arming
      * itself is a choice (a useful one — it is the cheapest test of whether

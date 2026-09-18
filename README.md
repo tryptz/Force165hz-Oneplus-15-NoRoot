@@ -88,12 +88,11 @@ permission on first launch.
   that floor**: the vote changes, the mode does not. From 144 the same write
   switches cleanly and the panel ramps to 1 Hz, so a park from above 144
   steps out through 144 first, waits a beat, and only then asks for 120.
-  **A 120 vote can still be a pin at 120 rather than a 1-120 range** (a vote
-  sets min and max to the same rate), and no lower vote fixes that, so a park
-  that holds the ceiling for 3 s with nothing rendering escalates to
-  withdrawing the vote altogether: an unarmed screen runs the default 1-120
-  policy, which is the ramp the park wanted. The armed rate returns on the
-  first evidence of content, as it would from a park. What the park gate
+  **That 120 then behaves as a pin at 120 rather than a 1-120 range** (a vote
+  sets min and max to the same rate), so the park lands ABOVE the 55 Hz the
+  165 mode idles to unaided. Parking 165 would cost idle power instead of
+  saving it, so **165 does not park: a still 165 screen rests at 55 Hz, and
+  that is the floor on this build.** 144 does park, and reaches 1 Hz. What the park gate
   must not do is read the panel at the TOP of that range: whenever the panel
   is at the armed rate it is reporting our own pin, and its 6 ms frame pairs
   also feed the rate-starvation counter, which counts anything above 100 Hz.
