@@ -44,6 +44,7 @@
     <string name="rearmed">Re-armed %1$d of %2$d</string>
     <string name="arming_all">Arming %1$d apps at %2$d Hz…</string>
     <string name="armed_all">Armed %1$d of %2$d at %3$d Hz</string>
+    <string name="armed_all_no_fg">Armed %1$d of %2$d at %3$d Hz — grant usage access in Settings so the watchdog knows which app is on screen</string>
     <string name="clearing">Disarming…</string>
     <plurals name="cleared">
         <item quantity="one">Disarmed %1$d app</item>
@@ -83,6 +84,14 @@
     <string name="log_auto_on">Auto: on</string>
     <string name="log_auto_off">Auto: off</string>
     <string name="no_browser">No browser to open the link</string>
+
+    <!-- usage access: foreground detection for the watchdog -->
+    <string name="fg_title">Foreground detection</string>
+    <string name="fg_on">On — the watchdog knows which armed app is on screen, so its vote lands last</string>
+    <string name="fg_off">Off — with more than a handful of apps armed, the watchdog cannot tell which pin the panel is following</string>
+    <string name="fg_grant">Grant</string>
+    <string name="fg_manage">Manage</string>
+    <string name="fg_no_screen">This build has no usage-access screen</string>
 
     <!-- games page -->
     <string name="games_title">3D Games</string>

@@ -18,6 +18,8 @@ unlock.
   cannot dissolve the pin it just set (see below)
 - **FPS overlay** in the status bar: real panel Hz plus a foreground game's
   rendered fps (needs "Display over other apps")
+- **Foreground detection** (optional, Settings → Foreground detection): with
+  usage access granted the watchdog knows which armed app is on screen
 - Follows the system theme and wallpaper (Material You), edge to edge
 
 ## How it works
@@ -100,7 +102,15 @@ permission on first launch.
   to its default 1–120 range, idling to 1 Hz inside an app that was supposed
   to be pinned. Background votes are sticky in the vendor's map (only a
   release takes one away), so they are refreshed a bounded slice at a time
-  and the app on screen — as oiface reports it — always owns the last write.
+  and the app on screen always owns the last write.
+- **Which app is on screen** comes from `UsageStatsManager` when usage access
+  is granted (Settings → Foreground detection opens the grant screen; it is an
+  appop, so there is no permission dialog to show), and from oiface's
+  `getCurrentGamePackage` otherwise — that one answers only for games its
+  daemon tracks, so without the grant an armed set larger than 8 leaves the
+  watchdog unable to tell which pin the panel is following. Usage access also
+  lets it see that the app in front of you is NOT armed, in which case it
+  issues no votes at all, so a pin cannot leak onto an unarmed app.
 - `android` and `com.android.systemui` are never armed. The framework is the
   package `setrate.sh --all` has always skipped, and SystemUI's windows are
   composited alongside every app's, so a vote on either is a vote on the

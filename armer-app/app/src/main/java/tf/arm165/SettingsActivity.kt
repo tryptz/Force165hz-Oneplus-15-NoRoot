@@ -7,10 +7,12 @@ import android.os.Bundle
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.View
 import android.view.WindowInsets
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 
 /**
  * Settings: a live console of what the watchdog and the vendor's rate
@@ -26,6 +28,8 @@ class SettingsActivity : Activity() {
     private lateinit var logText: TextView
     private lateinit var scroll: ScrollView
     private lateinit var autoBtn: TextView
+    private lateinit var fgBody: TextView
+    private lateinit var fgBtn: TextView
 
     /** Pulls the buffer and repaints; keeps the view pinned to the newest line. */
     private val refresh = object : Runnable {
@@ -70,6 +74,10 @@ class SettingsActivity : Activity() {
         autoBtn = findViewById(R.id.btn_log_autorefresh)
         autoBtn.setOnClickListener { toggleAuto() }
 
+        fgBody = findViewById(R.id.fg_body)
+        fgBtn = findViewById(R.id.btn_fg_grant)
+        fgBtn.setOnClickListener { openUsageAccess() }
+
         findViewById<View>(R.id.btn_log_share).setOnClickListener {
             val text = LogRing.readText()
             val send = Intent(Intent.ACTION_SEND).apply {
@@ -87,7 +95,45 @@ class SettingsActivity : Activity() {
         super.onResume()
         auto = true
         syncAutoBtn()
+        // Coming back from the usage-access screen is the one moment the grant
+        // can have changed, so re-read it and drop the watchdog's cached
+        // answer with it (same process, same object).
+        Foreground.forget()
+        syncFg()
         handler.postDelayed(refresh, 100)
+    }
+
+    /** Paints the usage-access card from the live appop state. */
+    private fun syncFg() {
+        val granted = Foreground.hasAccess(this, refresh = true)
+        fgBody.setText(if (granted) R.string.fg_on else R.string.fg_off)
+        fgBtn.setText(if (granted) R.string.fg_manage else R.string.fg_grant)
+        fgBtn.setBackgroundResource(
+            if (granted) R.drawable.bg_btn_tonal else R.drawable.bg_btn_primary
+        )
+        fgBtn.setTextColor(getColor(if (granted) R.color.text_primary else R.color.on_accent))
+    }
+
+    /**
+     * Opens the usage-access list. There is no dialog to request this appop —
+     * Settings is the only place it can be granted, which is why the card sends
+     * the user there rather than asking.
+     */
+    private fun openUsageAccess() {
+        val intents = listOf(
+            // The per-app page where it exists, the whole list as the fallback.
+            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, android.net.Uri.parse("package:$packageName")),
+            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS),
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                return
+            } catch (_: Throwable) {
+                // try the next one
+            }
+        }
+        Toast.makeText(this, R.string.fg_no_screen, Toast.LENGTH_LONG).show()
     }
 
     override fun onPause() {
