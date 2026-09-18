@@ -82,7 +82,12 @@ permission on first launch.
 - Battery and heat increase with the number of armed apps. The panel's LTPO
   floor depends on the mode the vote selects — measured on this build:
   60→30 Hz, 90→30 Hz, 120→1 Hz, 165→55 Hz (144 not measured yet; the code
-  estimates 48) — so a held 165 vote can never idle below 55 on its own. The
+  estimates 48). On a build where the panel does **not** ramp down while a
+  vote is held, the park gate must not read the panel at all: a pinned 165
+  screen reports 165 Hz and 6 ms frame pairs, which the gate used to count as
+  motion and as rate starvation, so it vetoed every park and an idle screen
+  stayed at the armed rate. The gate now believes the panel only between the
+  mode's floor and the vote's own rate, and leans on GPU load for the rest — so a held 165 vote can never idle below 55 on its own. The
   watchdog parks it instead: after a couple of quiet ticks it swaps the vote
   for 120, the one rate whose mode spans 1–120, so a still screen ramps to
   1 Hz while the vote itself stays held (game-engine self-pins still lose to

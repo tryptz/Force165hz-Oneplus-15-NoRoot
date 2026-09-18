@@ -78,15 +78,22 @@ class HelpActivity : Activity() {
         /** Title to body, in reading order: what it is, then how, then limits. */
         val SECTIONS = listOf(
             R.string.help_what_title to R.string.help_what_body,
+            R.string.help_sweeps_title to R.string.help_sweeps_body,
             R.string.help_how_title to R.string.help_how_body,
+            R.string.help_ids_title to R.string.help_ids_body,
             R.string.help_pin_title to R.string.help_pin_body,
+            R.string.help_floors_title to R.string.help_floors_body,
             R.string.help_watchdog_title to R.string.help_watchdog_body,
             R.string.help_focus_title to R.string.help_focus_body,
+            R.string.help_usage_title to R.string.help_usage_body,
             R.string.help_park_title to R.string.help_park_body,
+            R.string.help_park_rule_title to R.string.help_park_rule_body,
             R.string.help_optin_title to R.string.help_optin_body,
+            R.string.help_self_title to R.string.help_self_body,
             R.string.help_fps_title to R.string.help_fps_body,
             R.string.help_disarm_title to R.string.help_disarm_body,
             R.string.help_limits_title to R.string.help_limits_body,
+            R.string.help_ota_title to R.string.help_ota_body,
             R.string.help_log_title to R.string.help_log_body,
         )
     }

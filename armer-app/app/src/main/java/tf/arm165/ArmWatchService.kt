@@ -80,6 +80,9 @@ class ArmWatchService : Service() {
     /** Last pass's focus, so a switch INTO an armed app can be noticed. */
     private var lastPassFocus: String? = null
 
+    /** Ticks in the pinned-but-unparked state; paces its diagnostic line. */
+    private var pinnedTicks = 0
+
     /** Pass counter and cursor for the bounded background repair. */
     private var passes = 0
     private var repairCursor = 0
@@ -309,19 +312,36 @@ class ArmWatchService : Service() {
         // contentMoving(); once parked there the restore path uses starvation
         // evidence only.
         //
-        // This used to test `any { it > RATE_144 }`, which is 165 alone — and
+        // This used to test `any { it > RATE_144 }`, which is 165 alone, and
         // 165 was also the one rate the park refused, so the two conditions
         // cancelled out and nothing could ever park: 144 fell to the
         // contentMoving() branch and read its own 48 Hz floor as motion.
-        // The vote in effect is the foreground app's, so its floor is the one
-        // the panel is sitting on. With no focus to go by, take the highest
-        // floor in the armed set: over-estimating it only delays a park,
-        // while under-estimating it would read the floor as motion.
-        val floorHz = focus?.let { armedNow[it] }?.let { RateLock.idleFloorHz(it) }
-            ?: armedNow.values.maxOfOrNull { RateLock.idleFloorHz(it) } ?: 0
+        //
+        // The vote in effect is the foreground app's, so its floor and its
+        // ceiling are the two rates the panel is bounded by. With no focus to
+        // go by, take the highest floor in the armed set: over-estimating it
+        // only delays a park.
+        val heldRate = focus?.let { armedNow[it] }
+            ?: armedNow.values.maxByOrNull { RateLock.idleFloorHz(it) }
+        val floorHz = heldRate?.let { RateLock.idleFloorHz(it) } ?: 0
+        val pinnedHz = heldRate?.let { RateLock.hz(it) } ?: 0
         val floorHidesContent = floorHz >= PANEL_MOTION_HZ
-        val gateBusy = if (floorHidesContent) fpsBusy ||
-            panelStarveRun >= STARVED_RUN_FRAMES || phz >= floorHz + FLOOR_MARGIN_HZ
+
+        // A pinned panel can only testify about the content BETWEEN the two
+        // rates our own vote sets. At the floor it is resting; at the pinned
+        // rate it is showing us our own pin and nothing else. Both ends have
+        // to be discarded, and discarding the top end is the fix for a panel
+        // that does not ramp down while a vote is held at all: there
+        // `phz >= floor + margin` was permanently true, and so was
+        // `panelStarveRun >= 2` (a 165 Hz panel produces 6 ms pairs, well
+        // under the 10 ms that counts as starved), so the gate vetoed every
+        // park and an idle screen sat at the armed rate forever. Neither
+        // panel-derived term belongs here; the GPU-idle requirement below is
+        // what keeps a game rendering AT the pinned rate from being parked,
+        // and it cannot be fed by a vote.
+        val panelSaysMoving = floorHidesContent &&
+            phz >= floorHz + FLOOR_MARGIN_HZ && phz <= pinnedHz - PIN_MARGIN_HZ
+        val gateBusy = if (floorHidesContent) fpsBusy || panelSaysMoving
             else contentMoving() || fpsBusy
         if (gateBusy) {
             lowTicks.clear()
@@ -355,6 +375,22 @@ class ArmWatchService : Service() {
                     holdTicks = 0
                 }
             }
+        }
+
+        // The state this whole branch exists to leave: a high vote held, the
+        // park not yet taken. One line every few seconds says why, which is
+        // the difference between "the countdown is running" and "something
+        // keeps vetoing it".
+        if (parked.isEmpty() && floorHidesContent) {
+            if (++pinnedTicks % HOLD_LOG_PINNED == 1) {
+                Log.i(TAG, ("pinned hold: panel=%d Hz (floor %d, pin %d), gpu=%.2f, " +
+                    "fps=%d, gate=%s, quiet=%d/%d")
+                    .format(phz, floorHz, pinnedHz, gpu, focusFps,
+                        if (gateBusy) "busy" else "quiet",
+                        lowTicks[focus] ?: 0, LOW_TICKS))
+            }
+        } else {
+            pinnedTicks = 0
         }
 
         // While parked, periodically report what the panel is actually doing.
@@ -673,6 +709,9 @@ class ArmWatchService : Service() {
         /** Parked-hold diagnostic cadence: 100 parked ticks × 50 ms = one line per 5 s. */
         private const val HOLD_LOG_TICKS = 100
 
+        /** Pinned-hold diagnostic cadence: 5 pinned ticks × 1 s = one line per 5 s. */
+        private const val HOLD_LOG_PINNED = 5
+
         /**
          * Tick rate while a 165 (or 144) vote is held but not yet parked.
          * The pin holds the panel at its mode floor — 55 Hz for 165 — so
@@ -720,6 +759,13 @@ class ArmWatchService : Service() {
          * hard-coded constant for before 144 needed the same treatment.
          */
         private const val FLOOR_MARGIN_HZ = 10
+
+        /**
+         * How close to the pinned rate still counts as "this is our own pin,
+         * not the content". The panel wobbles a Hz or two around a held rate,
+         * so the margin only has to cover that.
+         */
+        private const val PIN_MARGIN_HZ = 8
 
         /**
          * The ceiling a park puts in place of the armed vote, and therefore
