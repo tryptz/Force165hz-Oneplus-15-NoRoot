@@ -86,7 +86,9 @@
     <string name="fps_row_sub">Moving blocks, one lane per rate, and what the panel is really doing</string>
     <string name="fps_open">Open</string>
     <string name="fps_measuring">measuring…</string>
-    <string name="fps_readout">%1$d Hz · %2$.1f ms</string>
+    <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d long</string>
+    <string name="fps_strip_label">frame time, last 2 s</string>
+    <string name="fps_strip_worst">worst %1$.1f ms</string>
     <string name="fps_speed">Speed</string>
     <string name="fps_speed_half">½×</string>
     <string name="fps_speed_one">1×</string>

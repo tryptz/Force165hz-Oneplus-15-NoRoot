@@ -83,6 +83,9 @@ class ArmWatchService : Service() {
     /** Ticks in the pinned-but-unparked state; paces its diagnostic line. */
     private var pinnedTicks = 0
 
+    /** Consecutive parked ticks spent on the floor of the mode we tried to leave. */
+    private var stuckTicks = 0
+
     /**
      * Packages whose park has already been re-asserted once in this park.
      *
@@ -313,6 +316,14 @@ class ArmWatchService : Service() {
         // as well. Worth naming in the log, because it is the vendor refusing
         // a lower vote on a live window rather than anything we can fix.
         val parkIgnored = parkedAndMeasured && phz >= PARK_CEILING_HZ + PIN_MARGIN_HZ
+        // Or the other shape of a park that did not take: the panel resting on
+        // the floor of the mode it was supposed to have LEFT. One reading of
+        // that could be the ramp passing through, so it has to persist.
+        val armedFloorHz = focus?.let { armedNow[it] }?.let { RateLock.idleFloorHz(it) } ?: 0
+        val onOldFloor = parkedAndMeasured && armedFloorHz > PARK_CEILING_FLOOR_HZ &&
+            kotlin.math.abs(phz - armedFloorHz) <= STUCK_MARGIN_HZ
+        stuckTicks = if (onOldFloor) stuckTicks + 1 else 0
+        val modeUnchanged = stuckTicks >= STUCK_TICKS
         // At the ceiling: content is saturating it, which is the demand the
         // armed rate exists for.
         val ceilingSaturated = parkedAndMeasured && !parkIgnored &&
@@ -322,7 +333,7 @@ class ArmWatchService : Service() {
         // 120 once more rather than concluding anything. This is the whole
         // difference between "the vendor refuses a lower vote" and "the vote
         // needed a second nudge on a screen that never redraws".
-        if (parkIgnored && parked.any { it !in parkRetried }) {
+        if ((parkIgnored || modeUnchanged) && parked.any { it !in parkRetried }) {
             val now = System.nanoTime()
             parked.forEach { pkg ->
                 if (parkRetried.add(pkg) && RateLock.arm(pkg, RateLock.RATE_120)) {
@@ -331,8 +342,23 @@ class ArmWatchService : Service() {
                 }
             }
             parkGraceUntilNs = now + PARK_GRACE_NS
+            stuckTicks = 0
             forgetPanel()
             return RESUME_TICK_MS
+        }
+
+        // Re-asserted once and still on the old mode's floor: the vendor is
+        // keeping the mode whatever we vote. Say so plainly and stop paying
+        // 50 ms ticks for it.
+        if (modeUnchanged) {
+            Log.i(TAG, ("park changed the vote but not the mode: panel=%d Hz, the %d Hz " +
+                "mode's own floor. Restoring the armed rate and backing off.")
+                .format(phz, armedFloorHz))
+            val now = System.nanoTime()
+            parked.forEach { parkBlockedUntilNs[it] = now + PARK_BACKOFF_NS }
+            stuckTicks = 0
+            restore(armedNow, focus, churn = false, extra = repair)
+            return INTERVAL_MS
         }
 
         if (busy) {
@@ -427,7 +453,7 @@ class ArmWatchService : Service() {
                 if (now < (parkBlockedUntilNs[pkg] ?: 0L)) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
-                if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
+                if (n >= LOW_TICKS && park(pkg, rateId)) {
                     parked += pkg
                     parkedAtNs[pkg] = now
                     // The ceiling just changed under the panel; nothing it did
@@ -553,6 +579,35 @@ class ArmWatchService : Service() {
         screenPkg = onScreen
         focusPkg = armedOnScreen
         focusSeenNs = System.nanoTime()
+    }
+
+    /**
+     * Writes the park, stepping out of the extreme mode where there is one.
+     *
+     * Measured on this build: from 144 the switch to 120 is clean and the
+     * panel ramps to 1 Hz. From 165 the same write is accepted and the panel
+     * stays on the 165 mode's own 55 Hz floor, so the vote changed and the
+     * mode did not. 165 is the vendor's extreme mode and it does not appear to
+     * be left for an arbitrary lower rate in one step.
+     *
+     * So a park from above 144 goes through 144 first, with a beat in between
+     * for the policy to act on it, and only then asks for 120. Both writes
+     * happen here rather than across two ticks: a half-parked package that the
+     * restore path knows nothing about would leak a 144 vote under an app
+     * armed at 165.
+     */
+    private fun park(pkg: String, rateId: Int): Boolean {
+        if (RateLock.hz(rateId) > RateLock.hz(RateLock.RATE_144)) {
+            if (!RateLock.arm(pkg, RateLock.RATE_144)) return false
+            Log.i(TAG, "%s stepping out of the %d Hz mode via 144"
+                .format(pkg, RateLock.hz(rateId)))
+            try { Thread.sleep(PARK_STEP_MS) } catch (_: InterruptedException) {}
+        }
+        if (RateLock.arm(pkg, RateLock.RATE_120)) return true
+        // The 120 did not take and the app is sitting on a rate it was not
+        // armed at; put it back rather than leave that behind.
+        RateLock.arm(pkg, rateId)
+        return false
     }
 
     /**
@@ -868,8 +923,23 @@ class ArmWatchService : Service() {
         private const val FOCUS_MEMORY_NS = 5_000_000_000L
 
         /**
+         * The beat between the two writes of a staged park. Long enough for
+         * the policy to act on the first, short enough that nobody sees it.
+         */
+        private const val PARK_STEP_MS = 140L
+
+        /** A mode whose floor is this low is the one the park is aiming for. */
+        private const val PARK_CEILING_FLOOR_HZ = 8
+
+        /** How close to the old mode's floor counts as still being on it. */
+        private const val STUCK_MARGIN_HZ = 6
+
+        /** Parked ticks on that floor before the mode is called unchanged: ~1 s. */
+        private const val STUCK_TICKS = 20
+
+        /**
          * A park undone faster than this was the 120 mode's own entry churn
-         * reading as demand, not content — back that package off.
+         * reading as demand, not content. Back that package off.
          */
         private const val PARK_MIN_HOLD_NS = 3_000_000_000L
 

@@ -51,6 +51,42 @@ class FpsTestView @JvmOverloads constructor(
     }
     private val rect = RectF()
 
+    /** The frame-time strip: one series, so its own label names it, no legend. */
+    private val strip = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f * d
+        strokeJoin = Paint.Join.ROUND
+        color = context.getColor(R.color.accent)
+    }
+    private val stripFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = context.getColor(R.color.accent)
+        alpha = 38
+    }
+    /** A long frame is marked by weight and height, never by hue: the accent is
+     *  the system's under Material You, so a status colour could land on it. */
+    private val stripSpike = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3.5f * d
+        color = context.getColor(R.color.accent)
+    }
+    private val grid = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = 1f * d
+        color = context.getColor(R.color.outline_strong)
+    }
+    private val reference = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        strokeWidth = 1.5f * d
+        color = context.getColor(R.color.outline_strong)
+    }
+    private val path = android.graphics.Path()
+
+    /** Recent frame intervals in ms, oldest first once wrapped. */
+    private val history = FloatArray(HISTORY)
+    private var historyCount = 0
+    private var historyHead = 0
+
+    /** Frames that took much longer than the panel's own cadence. */
+    private var longFrames = 0
+
     private var startNs = 0L
     private var lastNs = 0L
     private var nowNs = 0L
@@ -89,8 +125,20 @@ class FpsTestView @JvmOverloads constructor(
     private var emaNs = 0L
     private var reportedAtNs = 0L
 
-    /** Called a few times a second with the measured panel Hz and frame time. */
-    var onMeasured: ((hz: Int, frameMs: Float) -> Unit)? = null
+    /**
+     * Called a few times a second with the measured panel Hz, its frame time,
+     * how much that frame time wanders, and how many frames have run long.
+     */
+    var onMeasured: ((hz: Int, frameMs: Float, jitterMs: Float, longFrames: Int) -> Unit)? = null
+
+    /** Mean absolute deviation from the smoothed interval, in ms. */
+    private fun jitterMs(): Float {
+        if (historyCount == 0 || emaNs <= 0L) return 0f
+        val mean = (emaNs / 1e6).toFloat()
+        var sum = 0f
+        for (i in 0 until historyCount) sum += kotlin.math.abs(history[i] - mean)
+        return sum / historyCount
+    }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -108,7 +156,13 @@ class FpsTestView @JvmOverloads constructor(
             val interval = frameTimeNanos - lastNs
             // A gap this long is the view being away, not a slow panel.
             if (interval in 1..500_000_000L) {
+                // A long frame is one that took half again as long as the
+                // panel's own cadence: the frame the compositor missed.
+                if (emaNs > 0L && interval > emaNs * 3 / 2) longFrames++
                 emaNs = if (emaNs == 0L) interval else (emaNs * 3 + interval) / 4
+                history[historyHead] = (interval / 1e6).toFloat()
+                historyHead = (historyHead + 1) % HISTORY
+                if (historyCount < HISTORY) historyCount++
             } else {
                 emaNs = 0L
             }
@@ -128,7 +182,12 @@ class FpsTestView @JvmOverloads constructor(
 
         if (emaNs > 0L && frameTimeNanos - reportedAtNs > REPORT_EVERY_NS) {
             reportedAtNs = frameTimeNanos
-            onMeasured?.invoke((1_000_000_000.0 / emaNs).roundToInt(), (emaNs / 1e6).toFloat())
+            onMeasured?.invoke(
+                (1_000_000_000.0 / emaNs).roundToInt(),
+                (emaNs / 1e6).toFloat(),
+                jitterMs(),
+                longFrames,
+            )
         }
 
         invalidate()
@@ -151,7 +210,12 @@ class FpsTestView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         val seconds = (nowNs - startNs) / 1e9
-        val laneH = height.toFloat() / lanes.size
+        // The strip only earns its space where there is space: a short view
+        // gives every pixel to the lanes.
+        val stripH = if (height > MIN_FOR_STRIP_DP * d) STRIP_DP * d else 0f
+        if (stripH > 0f) drawStrip(canvas, stripH)
+        val lanesTop = stripH
+        val laneH = (height - lanesTop) / lanes.size
         val blockW = 52f * d
         // The marker grows with the lane, within reason: a tall lane on a
         // landscape screen can carry a bar you can actually see stepping.
@@ -159,12 +223,25 @@ class FpsTestView @JvmOverloads constructor(
         val travel = width + blockW
         val radius = 5f * d
 
+        // The continuous position: where a block would be if its rate were
+        // unlimited. Every lane trails it by up to one of its own frames, so
+        // the gap between a block and this line IS that lane's latency, drawn
+        // at the size the eye sees it.
+        val refDist = seconds * SPEED_DP * speed * d
+        val refX = ((refDist % travel) - blockW + blockW / 2f).toFloat()
+        if (refX >= 0f) {
+            canvas.drawLine(refX, lanesTop, refX, height.toFloat(), reference)
+        }
+
         lanes.forEachIndexed { index, fps ->
-            val top = index * laneH
+            val top = lanesTop + index * laneH
             val textY = top + laneH * 0.34f
             val shown = shownRate[index]
+            // Step distance is the judder number: speed divided by rate. The
+            // rate alone does not tell anyone how far the thing jumps.
+            val stepDp = (SPEED_DP * speed / fps).roundToInt()
             canvas.drawText(
-                if (shown == 0) "$fps Hz" else "$fps Hz   ·   $shown drawn/s",
+                if (shown == 0) "$fps Hz" else "$fps Hz   ·   $shown drawn/s   ·   $stepDp dp per step",
                 0f, textY, label,
             )
 
@@ -176,11 +253,29 @@ class FpsTestView @JvmOverloads constructor(
             // lane's rate, so a slow lane teleports by a visible step while a
             // lane matching the panel moves a hair at a time.
             val stepped = floor(seconds * fps) / fps
-            val x = (((stepped * SPEED_DP * speed * d) % travel) - blockW).toFloat()
+            val dist = stepped * SPEED_DP * speed * d
+            val x = ((dist % travel) - blockW).toFloat()
             if (x != lastX[index]) {
                 drawn[index]++
                 lastX[index] = x
             }
+
+            // Where the block was on its previous few updates, fading out. The
+            // ghosts are one per update rather than one per drawn frame, so
+            // their spacing is exactly the step: a 60 lane leaves a ladder, a
+            // 165 lane a smear. This is the judder made spatial.
+            for (ghost in TRAIL downTo 1) {
+                val back = dist - ghost * (SPEED_DP * speed * d) / fps
+                if (back <= 0.0) continue
+                val gx = ((back % travel) - blockW).toFloat()
+                if (gx > x) continue // wrapped round; not this lane's past
+                block.alpha = 255 * (TRAIL - ghost + 1) / (TRAIL + 4)
+                detail.alpha = block.alpha
+                drawBlock(canvas, gx, trackY, blockW, blockH, radius)
+            }
+            block.alpha = 255
+            detail.alpha = 255
+
             drawBlock(canvas, x, trackY, blockW, blockH, radius)
             // Draw the wrap-around copy so a block never pops in at the edge.
             if (x + blockW > width) {
@@ -206,6 +301,57 @@ class FpsTestView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * Frame intervals over the last couple of seconds: one series, its own
+     * label, no legend. The recessive line across it is the panel's own
+     * cadence, so a spike above it is a frame that arrived late and the shape
+     * of the trace is the stutter you felt.
+     *
+     * Fixed scale rather than auto-fit: the ideal sits at a constant height,
+     * which is what makes two glances comparable. Outliers clamp to the top
+     * and are drawn heavier so a clipped spike still reads as a spike.
+     */
+    private fun drawStrip(canvas: Canvas, stripH: Float) {
+        val top = 4f * d
+        val bottom = stripH - 12f * d
+        val h = bottom - top
+        if (h <= 0f || historyCount < 2 || emaNs <= 0L) return
+
+        val ideal = (emaNs / 1e6).toFloat()
+        val full = ideal * SCALE_OF_IDEAL
+        val idealY = bottom - (ideal / full) * h
+        canvas.drawLine(0f, idealY, width.toFloat(), idealY, grid)
+
+        val step = width.toFloat() / (HISTORY - 1)
+        path.reset()
+        var maxMs = 0f
+        for (i in 0 until historyCount) {
+            // Oldest first, so the newest frame is always at the right edge.
+            val v = history[(historyHead - historyCount + i + HISTORY) % HISTORY]
+            if (v > maxMs) maxMs = v
+            val x = i * step
+            val y = bottom - (v.coerceAtMost(full) / full) * h
+            if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            if (v > ideal * 1.5f) canvas.drawLine(x, bottom, x, y, stripSpike)
+        }
+        canvas.drawPath(path, strip)
+        // A thin fill under the trace, closed along the baseline.
+        path.lineTo((historyCount - 1) * step, bottom)
+        path.lineTo(0f, bottom)
+        path.close()
+        canvas.drawPath(path, stripFill)
+
+        // Two direct labels, not a number per point: what this is, and the
+        // worst frame in the window.
+        canvas.drawText(
+            context.getString(R.string.fps_strip_label), 0f, stripH - 2f * d, label,
+        )
+        val worst = context.getString(R.string.fps_strip_worst, maxMs)
+        canvas.drawText(
+            worst, width - label.measureText(worst), stripH - 2f * d, label,
+        )
+    }
+
     private companion object {
         /** Lane height in dp: label above, track and block below. */
         const val LANE_DP = 54f
@@ -225,5 +371,18 @@ class FpsTestView @JvmOverloads constructor(
 
         /** How often the measured readout is pushed out: ~4 times a second. */
         const val REPORT_EVERY_NS = 250_000_000L
+
+        /** Frame intervals kept for the strip: about two seconds at 165 Hz. */
+        const val HISTORY = 330
+
+        /** Height of the frame-time strip, and the height below which it is dropped. */
+        const val STRIP_DP = 46f
+        const val MIN_FOR_STRIP_DP = 260f
+
+        /** The strip's top of scale, as a multiple of the panel's own interval. */
+        const val SCALE_OF_IDEAL = 2.5f
+
+        /** How many past updates of a lane are drawn behind it, fading out. */
+        const val TRAIL = 5
     }
 }

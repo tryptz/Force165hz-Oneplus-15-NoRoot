@@ -75,8 +75,8 @@ class FpsTestActivity : Activity() {
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
         findViewById<View>(R.id.row_hold).setOnClickListener { toggleHold() }
 
-        view.onMeasured = { hz, frameMs ->
-            readout.text = getString(R.string.fps_readout, hz, frameMs)
+        view.onMeasured = { hz, frameMs, jitterMs, longFrames ->
+            readout.text = getString(R.string.fps_readout, hz, frameMs, jitterMs, longFrames)
         }
 
         wireSpeed()
