@@ -29,7 +29,7 @@ class FpsTestActivity : Activity() {
     private lateinit var holdSub: TextView
     private lateinit var holdToggle: RateSwitch
     private lateinit var view: FpsTestView
-    private var speedSegments: List<Pair<TextView, Int>> = emptyList()
+    private var speedSegments: List<Pair<TextView, Float>> = emptyList()
 
     private val prefs by lazy { ArmedStore.open(this) }
 
@@ -75,16 +75,18 @@ class FpsTestActivity : Activity() {
 
     /**
      * Speed control, built here rather than in the layout so the choices stay
-     * in one place. 1x is a brisk sweep; 4x is where a 120 lane and a 165 lane
-     * stop looking alike.
+     * in one place. 1x is the default and matches what testufo.com sweeps at,
+     * which is fast enough for a 60 lane to look worse than a 120 one without
+     * touching anything. Half speed is for studying one lane; double is for
+     * separating 120 from 165, which are close enough to need it.
      */
     private fun wireSpeed() {
         val track = findViewById<LinearLayout>(R.id.speed_segments)
-        speedSegments = SPEEDS.map { multiplier ->
+        speedSegments = SPEEDS.map { (labelRes, multiplier) ->
             val segment = TextView(this, null, 0, R.style.Segment).apply {
                 // A style cannot carry layout params onto a view built in code.
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
-                text = getString(R.string.fps_speed_mul, multiplier)
+                setText(labelRes)
                 setOnClickListener { setSpeed(multiplier) }
             }
             track.addView(segment)
@@ -93,7 +95,7 @@ class FpsTestActivity : Activity() {
         setSpeed(view.speed)
     }
 
-    private fun setSpeed(multiplier: Int) {
+    private fun setSpeed(multiplier: Float) {
         view.speed = multiplier
         speedSegments.forEach { (segment, value) -> segment.isSelected = value == multiplier }
     }
@@ -125,8 +127,12 @@ class FpsTestActivity : Activity() {
     }
 
     private companion object {
-        /** Speed multipliers offered, in display order. */
-        val SPEEDS = listOf(1, 2, 4)
+        /** Label to multiplier, in display order; 1x is the default. */
+        val SPEEDS = listOf(
+            R.string.fps_speed_half to 0.5f,
+            R.string.fps_speed_one to 1f,
+            R.string.fps_speed_two to 2f,
+        )
     }
 
     private fun syncHold(animate: Boolean) {

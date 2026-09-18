@@ -39,6 +39,7 @@ class FpsTestView @JvmOverloads constructor(
 
     private val d = resources.displayMetrics.density
     private val block = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.accent) }
+    private val detail = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.on_accent) }
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.outline) }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = context.getColor(R.color.text_secondary)
@@ -60,7 +61,7 @@ class FpsTestView @JvmOverloads constructor(
      * difference — the judder is there either way, but a block that only moves
      * a couple of dp per step hides it.
      */
-    var speed = 1
+    var speed = 1f
         set(value) {
             field = value
             // Rebase the lane clock to now, so the sweep restarts from the
@@ -142,8 +143,8 @@ class FpsTestView @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         val seconds = (nowNs - startNs) / 1e9
         val laneH = LANE_DP * d
-        val blockW = 34f * d
-        val blockH = 18f * d
+        val blockW = 52f * d
+        val blockH = 24f * d
         val travel = width + blockW
         val radius = 5f * d
 
@@ -169,13 +170,28 @@ class FpsTestView @JvmOverloads constructor(
                 drawn[index]++
                 lastX[index] = x
             }
-            rect.set(x, trackY - blockH / 2f, x + blockW, trackY + blockH / 2f)
-            canvas.drawRoundRect(rect, radius, radius, block)
+            drawBlock(canvas, x, trackY, blockW, blockH, radius)
             // Draw the wrap-around copy so a block never pops in at the edge.
             if (x + blockW > width) {
-                rect.offset(-travel, 0f)
-                canvas.drawRoundRect(rect, radius, radius, block)
+                drawBlock(canvas, x - travel, trackY, blockW, blockH, radius)
             }
+        }
+    }
+
+    /**
+     * The moving marker: a bar with two stripes across it. The stripes are the
+     * point — a plain rectangle sliding along gives the eye almost nothing to
+     * lock onto, while a hard vertical edge inside the shape makes each jump
+     * legible.
+     */
+    private fun drawBlock(canvas: Canvas, x: Float, cy: Float, w: Float, h: Float, radius: Float) {
+        rect.set(x, cy - h / 2f, x + w, cy + h / 2f)
+        canvas.drawRoundRect(rect, radius, radius, block)
+        val stripeW = 3f * d
+        for (i in 1..2) {
+            val sx = x + w * i / 3f - stripeW / 2f
+            rect.set(sx, cy - h / 2f + 4f * d, sx + stripeW, cy + h / 2f - 4f * d)
+            canvas.drawRect(rect, detail)
         }
     }
 
@@ -183,8 +199,18 @@ class FpsTestView @JvmOverloads constructor(
         /** Lane height in dp: label above, track and block below. */
         const val LANE_DP = 54f
 
-        /** Travel speed in dp per second — brisk enough for a step to show. */
-        const val SPEED_DP = 420f
+        /**
+         * Base travel speed, dp per second.
+         *
+         * This is the number that decides whether the test works at all. What
+         * the eye reads as judder is the size of the jump between updates, and
+         * that jump is speed / rate: at 420 dp/s a 60 Hz lane steps 7 dp and
+         * looks perfectly smooth, which is why the lanes all looked alike. At
+         * 960 — testufo.com's own default, which in CSS pixels on a phone
+         * works out at roughly the same figure in dp — the same lane steps
+         * 16 dp against 5.8 dp for 165, and they stop looking alike.
+         */
+        const val SPEED_DP = 960f
 
         /** How often the measured readout is pushed out: ~4 times a second. */
         const val REPORT_EVERY_NS = 250_000_000L
