@@ -125,9 +125,10 @@ app window.
 
 ## Notes
 
-- An armed app must be foregrounded to receive its vote. Up to eight armed
-  apps every one of them is voted on each pass, so a single game — or a
-  handful — needs nothing else. Past eight only the app on screen is voted,
+- Usage access is needed only if you arm more than eight apps. An armed app
+  must be foregrounded to receive its vote, and up to eight armed apps every
+  one of them is voted on each pass, so a single game — or a handful — needs
+  nothing else. Above eight only the app on screen is voted,
   because a slice of hundreds ends the pass on a background package and drops
   the pin it just set, and identifying that app needs usage access: Settings ›
   Apps › Special app access › Usage access, or

@@ -75,7 +75,7 @@ class SettingsActivity : Activity() {
         val bound = ArmWatchService.FULL_SWEEP_MAX
         findViewById<RateSwitch>(R.id.usage_switch).setChecked(granted, animate = false)
         findViewById<TextView>(R.id.usage_sub).text = when {
-            granted -> getString(R.string.usage_on)
+            granted -> getString(R.string.usage_on, bound)
             armed > bound -> getString(R.string.usage_off_needed, armed, bound)
             else -> getString(R.string.usage_off, bound)
         }
