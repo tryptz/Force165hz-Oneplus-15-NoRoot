@@ -1,11 +1,15 @@
 package tf.arm165
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.view.WindowInsets
+import android.widget.TextView
+import android.widget.Toast
 
 /**
  * The app's own switches, and the way into the live log.
@@ -40,6 +44,11 @@ class SettingsActivity : Activity() {
 
         findViewById<View>(R.id.btn_back).setOnClickListener { finish() }
 
+        // Usage access cannot be granted from here — only asked for. The
+        // switch reports the state and the row opens the system page; onResume
+        // re-reads it, which is how the switch follows a grant made there.
+        findViewById<View>(R.id.row_usage).setOnClickListener { openUsageAccess() }
+
         findViewById<View>(R.id.row_fps).setOnClickListener {
             startActivity(Intent(this, FpsTestActivity::class.java))
         }
@@ -49,4 +58,33 @@ class SettingsActivity : Activity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        syncUsageRow()
+    }
+
+    private fun syncUsageRow() {
+        val granted = Foreground.hasAccess(this)
+        findViewById<RateSwitch>(R.id.usage_switch).setChecked(granted, animate = false)
+        findViewById<TextView>(R.id.usage_sub)
+            .setText(if (granted) R.string.usage_on else R.string.usage_off)
+    }
+
+    private fun openUsageAccess() {
+        // The per-app page is the one worth landing on; not every build
+        // resolves it, so fall back to the list and then to saying so.
+        val direct = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            .setData(android.net.Uri.fromParts("package", packageName, null))
+        try {
+            startActivity(direct)
+            return
+        } catch (t: ActivityNotFoundException) {
+            // fall through to the undirected list
+        }
+        try {
+            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        } catch (t: ActivityNotFoundException) {
+            Toast.makeText(this, R.string.usage_no_screen, Toast.LENGTH_LONG).show()
+        }
+    }
 }

@@ -106,6 +106,10 @@
     <string name="fps_hold_on">Holding %1$d Hz while this page is open, so the lanes can show it</string>
     <string name="fps_hold_off">Off. The panel runs at its default, nothing above 120 can differ</string>
 
+    <string name="usage_title">Usage access</string>
+    <string name="usage_no_screen">No usage-access screen on this build — grant it over adb: appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="usage_on">Granted. The watchdog can see which app is on screen, so it votes that one and parks only that one.</string>
+    <string name="usage_off">Not granted. Only a game the vendor tracks can be seen, everything else reads as no focus — tap to grant it.</string>
     <string name="log_title">Live log</string>
     <string name="log_open">Open</string>
     <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>

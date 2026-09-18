@@ -524,12 +524,21 @@ class ArmWatchService : Service() {
                     gpu > GPU_IDLE -> "gpu above idle"
                     else -> "counting"
                 }
+                // extreme and vendorGame are the two gates on 165 itself, as
+                // opposed to on the vote: the panel capping at 120 with a
+                // res=1 vote in the same second is either the master switch
+                // being off or the package not being one the vendor applies a
+                // game rate to. Cheap to print, and it is the difference
+                // between "our vote lost" and "our vote was never eligible".
                 Log.i(TAG, ("pinned hold: panel=%d Hz (floor %d, pin %d), gpu=%.2f, " +
-                    "fps=%d, gate=%s, quiet=%d/%d, focus=%s, %s")
+                    "fps=%d, gate=%s, quiet=%d/%d, focus=%s, extreme=%d, vendorGame=%b, %s")
                     .format(phz, floorHz, pinnedHz, gpu, focusFps,
                         if (gateBusy) "busy" else "quiet",
                         lowTicks[focus] ?: 0, LOW_TICKS,
-                        focus?.substringAfterLast('.') ?: "none", why))
+                        focus?.substringAfterLast('.') ?: "none",
+                        SecureSettings.getGlobalInt(this, SecureSettings.KEY_EXTREME_REFRESH, -1),
+                        focus?.let { inVendorGameList(it) } ?: false,
+                        why))
             }
         } else {
             pinnedTicks = 0
@@ -776,6 +785,17 @@ class ArmWatchService : Service() {
                 false // uninstalled mid-pass, or a package we cannot see
             }
         }
+    }
+
+    /**
+     * Whether the vendor itself lists [pkg] as a game. [isGame] folds this
+     * together with the package's own category; this asks the narrower
+     * question, because a game rate may only be applied to what the vendor
+     * recognizes — and that is not something the manifest can claim.
+     */
+    private fun inVendorGameList(pkg: String): Boolean {
+        isGame(pkg) // refreshes the cached list on its TTL
+        return pkg in systemGames
     }
 
     private fun clearParkState() {
