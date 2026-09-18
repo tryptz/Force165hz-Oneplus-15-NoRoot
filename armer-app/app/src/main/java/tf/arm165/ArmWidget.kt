@@ -100,9 +100,16 @@ class ArmWidget : AppWidgetProvider() {
                 val (rateId, rateHz) = rate
                 views.setViewVisibility(viewId, android.view.View.VISIBLE)
                 views.setTextViewText(viewId, rateHz.toString())
-                // The same selector the app's segments use, driven the only way
-                // RemoteViews can: setSelected is a remotable View method.
-                views.setBoolean(viewId, "setSelected", rateId == activeRate)
+                // Background and colour set outright, not through the app's
+                // state-list: a widget cannot drive a selector, because
+                // setSelected is not among the methods RemoteViews is
+                // guaranteed to be allowed to call. setBackgroundResource and
+                // setTextColor are.
+                val on = rateId == activeRate
+                views.setInt(viewId, "setBackgroundResource",
+                    if (on) R.drawable.segment_on else R.drawable.segment_off)
+                views.setTextColor(viewId,
+                    context.getColor(if (on) R.color.on_accent else R.color.text_secondary))
                 views.setOnClickPendingIntent(viewId, setRate(context, rateId))
             }
 

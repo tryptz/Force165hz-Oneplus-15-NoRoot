@@ -113,7 +113,7 @@
 
     <ProgressBar
         android:id="@+id/w_bar"
-        style="?android:attr/progressBarStyleHorizontal"
+        style="@android:style/Widget.ProgressBar.Horizontal"
         android:layout_width="match_parent"
         android:layout_height="5dp"
         android:layout_marginTop="10dp"
@@ -123,7 +123,10 @@
         android:progress="0"
         android:progressDrawable="@drawable/progress_armed" />
 
-    <View
+    <!-- A FrameLayout, not a View: RemoteViews inflates only a fixed list of
+         classes and plain View is not on it, which is what "An error occurred
+         when loading widget" was. -->
+    <FrameLayout
         android:id="@+id/w_divider"
         android:layout_width="match_parent"
         android:layout_height="1dp"
@@ -158,36 +161,36 @@
             <TextView android:id="@+id/w_rate_0"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:gravity="center"
-                android:background="@drawable/segment_states"
-                android:textColor="@color/segment_text"
+                android:background="@drawable/segment_off"
+                android:textColor="@color/text_secondary"
                 android:textSize="11.5sp" android:textStyle="bold" />
 
             <TextView android:id="@+id/w_rate_1"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:gravity="center"
-                android:background="@drawable/segment_states"
-                android:textColor="@color/segment_text"
+                android:background="@drawable/segment_off"
+                android:textColor="@color/text_secondary"
                 android:textSize="11.5sp" android:textStyle="bold" />
 
             <TextView android:id="@+id/w_rate_2"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:gravity="center"
-                android:background="@drawable/segment_states"
-                android:textColor="@color/segment_text"
+                android:background="@drawable/segment_off"
+                android:textColor="@color/text_secondary"
                 android:textSize="11.5sp" android:textStyle="bold" />
 
             <TextView android:id="@+id/w_rate_3"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:gravity="center"
-                android:background="@drawable/segment_states"
-                android:textColor="@color/segment_text"
+                android:background="@drawable/segment_off"
+                android:textColor="@color/text_secondary"
                 android:textSize="11.5sp" android:textStyle="bold" />
 
             <TextView android:id="@+id/w_rate_4"
                 android:layout_width="0dp" android:layout_height="match_parent"
                 android:layout_weight="1" android:gravity="center"
-                android:background="@drawable/segment_states"
-                android:textColor="@color/segment_text"
+                android:background="@drawable/segment_off"
+                android:textColor="@color/text_secondary"
                 android:textSize="11.5sp" android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
