@@ -57,6 +57,35 @@ object RateLock {
 
     fun isKnown(rateId: Int): Boolean = ALL.any { it.first == rateId }
 
+    /**
+     * Measured LTPO idle floor of the panel mode each rateId selects — the
+     * lowest the panel goes while that vote is held. From this build's
+     * measurements (README): 60 -> 30, 90 -> 30, 120 -> 1, 165 -> 55.
+     *
+     * 144 has never been measured. It takes the ratio the 90 and 165 modes
+     * share, a floor near a third of the mode's own rate, which errs on the
+     * safe side for the park gate: guessing the floor too LOW only makes a
+     * park slower to trigger, while guessing it too high would let the gate
+     * mistake real motion for the floor. Measure it and replace the estimate.
+     */
+    fun idleFloorHz(rateId: Int): Int = when (rateId) {
+        RATE_120 -> 1
+        RATE_60, RATE_90 -> 30
+        RATE_144 -> 48
+        RATE_165 -> 55
+        else -> hz(rateId) / 3
+    }
+
+    /**
+     * Packages no vote may ever name. `android` is the framework itself —
+     * `setrate.sh --all` has skipped it since the first sweep — and SystemUI's
+     * windows are composited alongside every app's, so a vote on them is a
+     * vote on the whole display rather than on one app. Neither is ever "the
+     * app you are looking at", which is the only thing a game-rate vote is
+     * meant to describe.
+     */
+    val NEVER_ARM = setOf("android", "com.android.systemui")
+
     private fun service(): IBinder? = try {
         Class.forName("android.os.ServiceManager")
             .getMethod("getService", String::class.java)
@@ -105,6 +134,26 @@ object RateLock {
         },
         fallback = false,
     )
+
+    /**
+     * Issues one vote per entry of [armed] and returns the packages whose vote
+     * the server took, with [last] — the app on screen, when anything can name
+     * it — left for the end.
+     *
+     * The order is why no caller writes this loop itself. The server writes
+     * the override onto the live windows of the package each call names, and
+     * the panel takes its mode from the write that landed last, so a sweep
+     * ending on a background package hands the display a vote for windows that
+     * do not exist and dissolves the pin the same sweep just set. That is what
+     * arming every app did to itself, once per watchdog tick, and why the
+     * panel could reach 1 Hz inside an app that was supposed to be pinned.
+     */
+    fun armEach(armed: Map<String, Int>, last: String? = null): List<String> {
+        val done = ArrayList<String>(armed.size)
+        armed.forEach { (pkg, rateId) -> if (pkg != last && arm(pkg, rateId)) done += pkg }
+        last?.let { pkg -> armed[pkg]?.let { rateId -> if (arm(pkg, rateId)) done += pkg } }
+        return done
+    }
 
     /**
      * Persistent per-app override via `setAppOverrideRefreshRate` — the same

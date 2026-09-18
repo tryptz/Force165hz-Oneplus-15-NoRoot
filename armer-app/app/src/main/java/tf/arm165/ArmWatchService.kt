@@ -15,18 +15,30 @@ import java.util.concurrent.Executors
 import kotlin.math.roundToInt
 
 /**
- * Watchdog: re-issues the requestGameRefreshRate vote for every armed app, at
- * that app's own rate, every few seconds while the screen is on. Games that pin
- * their own frame rate on focus (Unity/Unreal engines etc.) overwrite our
- * single-shot vote — re-arming continuously lands our vote after theirs and wins.
+ * Watchdog: re-issues the requestGameRefreshRate vote while the screen is on.
+ * Games that pin their own frame rate on focus (Unity/Unreal engines etc.)
+ * overwrite our single-shot vote — re-arming continuously lands our vote after
+ * theirs and wins.
  *
- * With the LTPO idle preference on, the watchdog additionally parks the panel
- * instead of pinning it: when the GPU has been quiet for a couple of ticks the
- * armed vote is downgraded to 120 Hz — the one vendor rate whose panel mode
- * spans 1–120, so the LTPO ramp reaches its 1 Hz idle floor on a still screen
- * — while the vote itself stays held, so game engines that pin their own rate
- * still lose to ours. Measured floors on this build: 60→30, 90→30, 120→1,
- * 165→55. Restore is rate starvation: the parked 120 ceiling serves every
+ * Every pass is ordered around the app on screen and ends on it. The server
+ * writes the override onto the live windows of the package each call names,
+ * and the panel takes its mode from the write that landed last, so a pass that
+ * ends on a background package hands the display a vote for windows that do
+ * not exist. That is what "Arm all" did every second: hundreds of votes in
+ * package order, the foreground app's pin dissolved by whatever sorted after
+ * it, and the panel free to fall back to its default 1-120 range — the LTPO
+ * idling to 1 Hz inside an app that was supposed to be pinned. Background
+ * votes are sticky in the vendor's map anyway (only a release takes one away),
+ * so they are refreshed a bounded slice at a time instead of all at once.
+ *
+ * The watchdog also parks the panel instead of pinning it: when the screen has
+ * been still for a couple of ticks the armed vote is downgraded to 120 Hz —
+ * the one vendor rate whose panel mode spans 1–120, so the LTPO ramp reaches
+ * its 1 Hz idle floor on a still screen — while the vote itself stays held, so
+ * game engines that pin their own rate still lose to ours. One rule says what
+ * may park: a vote whose ceiling is above that 120, which is 144 and 165.
+ * Measured floors on this build: 60→30, 90→30, 120→1, 165→55 (144 estimated
+ * at 48, see [RateLock.idleFloorHz]). Restore is rate starvation: the parked 120 ceiling serves every
  * cadence up to 120, and only content demanding more — seen as the panel
  * pinned near 120 — brings the armed rate back. Slower content is served by
  * the park and never triggers it, so the vote cannot oscillate. A parked
@@ -49,6 +61,20 @@ class ArmWatchService : Service() {
 
     /** Consecutive quiet ticks per armed package, leading up to a release. */
     private val lowTicks = HashMap<String, Int>()
+
+    /** When each parked package was parked; feeds the churn backoff. */
+    private val parkedAtNs = HashMap<String, Long>()
+
+    /** Packages the park must leave alone until this time — see [noteParkChurn]. */
+    private val parkBlockedUntilNs = HashMap<String, Long>()
+
+    /** The armed package we believe is on screen, and when we last saw it. */
+    private var focusPkg: String? = null
+    private var focusSeenNs = 0L
+
+    /** Pass counter and cursor for the bounded background repair. */
+    private var passes = 0
+    private var repairCursor = 0
 
     /*
      * Panel-rate motion detector. The oiface probes (gpuLoad, per-app fps)
@@ -163,6 +189,7 @@ class ArmWatchService : Service() {
      */
     private fun tickOnce(): Long {
         val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
+        passes++
 
         // The armed set can change under us (disarm, re-arm, rate change) while
         // this service keeps running. Park/quiet state for a package that is no
@@ -172,23 +199,30 @@ class ArmWatchService : Service() {
         // made the branch treat it as already parked. Prune to the live set.
         parked.retainAll(armedNow.keys)
         lowTicks.keys.retainAll(armedNow.keys)
+        parkedAtNs.keys.retainAll(parked)
+        parkBlockedUntilNs.keys.retainAll(armedNow.keys)
+
+        // Who is on screen, and which background votes this pass refreshes.
+        // Every vote below is ordered around these two.
+        val focus = focus(armedNow)
+        val repair = repairTargets(armedNow, focus)
 
         // Feature off, nothing armed, or no oiface to measure with: plain
-        // watchdog, every armed vote re-landed at its own rate.
+        // watchdog, votes out foreground-last, no park state to keep.
         if (armedNow.isEmpty() || !Oiface.isReachable()) {
-            if (parked.isNotEmpty() && armedNow.isNotEmpty()) {
-                Log.i(TAG, "restoring ${parked.size} parked vote(s)")
-            }
-            armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            parked.clear()
-            lowTicks.clear()
+            if (parked.isNotEmpty()) Log.i(TAG, "restoring ${parked.size} parked vote(s)")
+            voteSweep(armedNow, focus, parked + repair)
+            clearParkState()
             return INTERVAL_MS
         }
 
         val gpu = Oiface.gpuLoad()
-        // Per-app measured fps, computed once per tick: motion evidence for
-        // apps the vendor daemon tracks (it reads 0 forever for all others).
-        val fpsBusy = armedNow.any { Oiface.fps(it.key) >= ACTIVE_FPS }
+        // Measured fps for the app on screen. This used to probe every armed
+        // package — one binder call per armed app per tick, hundreds of them
+        // once "Arm all" had been pressed — and the daemon only answers for
+        // what it tracks, which is exactly what [focus] already names.
+        val focusFps = focus?.let { Oiface.fps(it) } ?: 0
+        val fpsBusy = focusFps >= ACTIVE_FPS
         // Busy = rate starvation first. The parked vote is a 120 ceiling: it
         // serves video, 30/60 fps apps, ordinary scrolling — everything up to
         // 120 — invisibly, so those never restore and never flap. The panel
@@ -210,15 +244,11 @@ class ArmWatchService : Service() {
                 // overlay pumps two fast pairs in with gpu at zero — versus
                 // real motion, which drags the EMA up with it.
                 Log.i(TAG, ("LTPO idle over (panel=%d Hz, gpu=%.2f, starve=%d, " +
-                    "pair=%.1f ms, ema=%.0f ms, fps=%s) — restoring armed rates")
+                    "pair=%.1f ms, ema=%.0f ms, focus=%s@%d fps) — restoring armed rates")
                     .format(phz, gpu, panelStarveRun, panelLastIntervalNs / 1e6,
-                        panelEmaNs / 1e6, armedNow.entries.joinToString(",") {
-                            (pkg, rateId) -> "${pkg.substringBeforeLast('.')}=" + Oiface.fps(pkg)
-                        }))
+                        panelEmaNs / 1e6, focus?.substringAfterLast('.') ?: "none", focusFps))
             }
-            armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-            parked.clear()
-            lowTicks.clear()
+            restore(armedNow, focus, churn = true, extra = repair)
             return INTERVAL_MS
         }
 
@@ -227,44 +257,63 @@ class ArmWatchService : Service() {
         // the quiet ticks counted so far and blocks new ones — symmetric with
         // the restore trigger. Only genuinely still content may park.
         //
-        // Except the panel cannot testify while a 165 vote is held: the 165
-        // mode's floor is 55 Hz, so on a perfectly still armed screen every
-        // frame pair reads "fast" and contentMoving() would hold the gate
-        // shut forever — a 165-armed app would never park while every other
-        // rate does. The detector would be reading its own pin, not the
-        // content. For a pinned 165 vote the gate instead asks whether the
-        // panel has climbed ABOVE the floor — a still screen idles at the
-        // floor (55 Hz), motion pushes it over it — plus the starvation run
-        // (only >120 Hz content produces it) and the vendor's fps counter,
-        // the one signal our own pin cannot fake. Once parked, the vote lives
-        // in the 120 mode whose floor is 1 Hz and the panel is honest again:
-        // the restore path uses starvation evidence only.
-        val panelPinned = armedNow.values.any { it > RateLock.RATE_144 }
-        val gateBusy = if (panelPinned) fpsBusy ||
-            panelStarveRun >= STARVED_RUN_FRAMES || phz >= PIN_FLOOR_HZ
+        // Except the panel cannot testify while a vote whose mode floor sits
+        // above the motion threshold is held: 165 idles at 55 Hz, 144 near 48,
+        // 60 and 90 at 30 — all of them faster than the 20 Hz contentMoving()
+        // reads as movement, so on a perfectly still armed screen every frame
+        // pair looks "fast" and the gate would stay shut forever. The detector
+        // would be reading our own pin, not the content. For those the gate
+        // asks instead whether the panel has climbed meaningfully ABOVE the
+        // mode's floor — a still screen idles AT it, motion pushes it over —
+        // plus the starvation run (only >120 Hz content produces it) and the
+        // vendor's fps counter, the one signal our own pin cannot fake. Only
+        // the 120 mode (floor 1 Hz) leaves the panel honest enough for
+        // contentMoving(); once parked there the restore path uses starvation
+        // evidence only.
+        //
+        // This used to test `any { it > RATE_144 }`, which is 165 alone — and
+        // 165 was also the one rate the park refused, so the two conditions
+        // cancelled out and nothing could ever park: 144 fell to the
+        // contentMoving() branch and read its own 48 Hz floor as motion.
+        // The vote in effect is the foreground app's, so its floor is the one
+        // the panel is sitting on. With no focus to go by, take the highest
+        // floor in the armed set: over-estimating it only delays a park,
+        // while under-estimating it would read the floor as motion.
+        val floorHz = focus?.let { armedNow[it] }?.let { RateLock.idleFloorHz(it) }
+            ?: armedNow.values.maxOfOrNull { RateLock.idleFloorHz(it) } ?: 0
+        val floorHidesContent = floorHz >= PANEL_MOTION_HZ
+        val gateBusy = if (floorHidesContent) fpsBusy ||
+            panelStarveRun >= STARVED_RUN_FRAMES || phz >= floorHz + FLOOR_MARGIN_HZ
             else contentMoving() || fpsBusy
         if (gateBusy) {
             lowTicks.clear()
         } else if (gpu in 0f..GPU_IDLE) {
-            armedNow.forEach { (pkg, rateId) ->
-                // 165 is parked never: the 165 mode's floor is 55 Hz, so a
-                // still 165 app just rests there — and parking it puts the
-                // whole panel into the 120 mode whose entry churn (every
-                // system renderer redrawing at the new ceiling) reads as
-                // demand and restores the vote ~0.9 s later, forever. The
-                // parked set only ever holds 144 votes.
-                if (pkg in parked || rateId <= RateLock.RATE_120 || rateId > RateLock.RATE_144) return@forEach
+            val now = System.nanoTime()
+            parkCandidates(armedNow, focus).forEach { (pkg, rateId) ->
+                // ONE rule for what may park: a vote is parkable when its own
+                // ceiling is above the 120 the park would put in its place.
+                // That is what makes the swap both worth making and invisible
+                // — 120's mode floor is 1 Hz against 144's 48 and 165's 55,
+                // and every cadence up to 120 is still served, so nothing the
+                // panel could already present is taken away. A 120 vote is
+                // already the park; 60 and 90 are ceilings the user picked to
+                // keep faster content OFF the panel (judder), and the park
+                // must never raise a ceiling.
+                if (pkg in parked || RateLock.hz(rateId) <= PARK_CEILING_HZ) return@forEach
+                if (now < (parkBlockedUntilNs[pkg] ?: 0L)) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
                 if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
                     parked += pkg
+                    parkedAtNs[pkg] = now
                     // Parking switches the panel into the 120 mode directly
                     // (no discrete 60/30 hop): it can present at up to 120 for
                     // a beat until the idle ramp takes over inside the mode's
                     // 1-120 range. Those fast frames are the transition, not
                     // motion — ignore them briefly.
-                    parkGraceUntilNs = System.nanoTime() + PARK_GRACE_NS
-                    Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, gpu=%.2f)".format(pkg, gpu))
+                    parkGraceUntilNs = now + PARK_GRACE_NS
+                    Log.i(TAG, "%s parked at 120 (mode floor 1 Hz, from %d Hz floor %d, gpu=%.2f)"
+                        .format(pkg, RateLock.hz(rateId), RateLock.idleFloorHz(rateId), gpu))
                     holdTicks = 0
                 }
             }
@@ -288,14 +337,141 @@ class ArmWatchService : Service() {
         }
 
         // Cadence by state: parked → 50 ms (resume within ~55 ms of motion);
-        // a 165 vote still held but not parked → 1 s, because every tick it
-        // holds the panel at its 55 Hz floor — the park countdown must not
+        // a 144 or 165 vote still held but not parked → 1 s, because every
+        // tick it holds the panel at that mode's floor (55 Hz for 165) — the park countdown must not
         // take 2 × 5 s when the cost of waiting is measured in burned Hz;
         // anything else → the plain 5 s watchdog tick.
         return when {
             parked.isNotEmpty() -> RESUME_TICK_MS
-            armedNow.any { (pkg, rateId) -> rateId > RateLock.RATE_144 && pkg !in parked } -> PINNED_TICK_MS
+            armedNow.any { (pkg, rateId) ->
+                pkg !in parked && RateLock.hz(rateId) > PARK_CEILING_HZ
+            } -> PINNED_TICK_MS
             else -> INTERVAL_MS
+        }
+    }
+
+    /**
+     * The armed package we believe is on screen — the only one whose vote a
+     * game engine can overwrite, and the one that must own the last write of
+     * every pass.
+     *
+     * oiface names the game it currently considers foreground. Nothing a
+     * rootless app can call names the foreground app in general, so when the
+     * daemon has nothing to say the last answer stands for [FOCUS_MEMORY_NS]
+     * (a momentary null between two screens must not reorder the sweep) and
+     * after that the pass simply has no focus: the votes still go out, just
+     * without a package to end on.
+     */
+    private fun focus(armedNow: Map<String, Int>): String? {
+        Oiface.currentGamePackage()?.takeIf { it in armedNow }?.let { pkg ->
+            if (pkg != focusPkg) Log.i(TAG, "focus: $pkg")
+            focusPkg = pkg
+            focusSeenNs = System.nanoTime()
+            return pkg
+        }
+        val remembered = focusPkg
+        if (remembered != null && remembered in armedNow &&
+            System.nanoTime() - focusSeenNs < FOCUS_MEMORY_NS
+        ) {
+            return remembered
+        }
+        focusPkg = null
+        return null
+    }
+
+    /**
+     * The armed entries a park may act on this pass.
+     *
+     * Only the vote in effect — the foreground app's — is worth parking: a
+     * park writes a 120 vote, and writing 300 of them is the same flood as a
+     * full sweep, at the moment the panel is trying to settle. With no focus
+     * to go by, a small armed set is still parked whole (the boot-list scale
+     * this feature was built at), and a large one waits until something
+     * identifies the app on screen.
+     */
+    private fun parkCandidates(armedNow: Map<String, Int>, focus: String?): Map<String, Int> {
+        if (focus != null) return armedNow[focus]?.let { mapOf(focus to it) }.orEmpty()
+        return if (armedNow.size <= FULL_SWEEP_MAX) armedNow else emptyMap()
+    }
+
+    /**
+     * Background packages to re-vote this pass.
+     *
+     * Their votes are sticky in the vendor's map — an arm writes one, only a
+     * release takes it away — so re-issuing them buys nothing except repair of
+     * a vote the server dropped. A handful per pass is what the boot list
+     * always did and it never cost the pin; the few hundred "Arm all" produced
+     * is what did. So a small set still goes out whole, and a large one is
+     * refreshed [REPAIR_SLICE] at a time, every [REPAIR_EVERY_PASSES] passes,
+     * cycling through the set.
+     */
+    private fun repairTargets(armedNow: Map<String, Int>, focus: String?): List<String> {
+        val keys = armedNow.keys.filter { it != focus }
+        if (keys.size <= FULL_SWEEP_MAX) return keys
+        if (passes % REPAIR_EVERY_PASSES != 0) return emptyList()
+        if (repairCursor >= keys.size) repairCursor = 0
+        val end = minOf(repairCursor + REPAIR_SLICE, keys.size)
+        val slice = ArrayList(keys.subList(repairCursor, end))
+        repairCursor = if (end >= keys.size) 0 else end
+        return slice
+    }
+
+    /**
+     * Issues one pass of votes, [focus] last.
+     *
+     * The order is the point: the server writes the override onto the live
+     * windows of the package each call names, and the panel takes its mode
+     * from the write that landed last. Ending a pass on a background package
+     * hands the display a vote for windows that do not exist, which is how
+     * arming every app dissolved the pin the same pass had just set.
+     */
+    private fun voteSweep(armedNow: Map<String, Int>, focus: String?, others: Collection<String>) {
+        val pass = LinkedHashMap<String, Int>(others.size + 1)
+        others.forEach { pkg -> armedNow[pkg]?.let { pass[pkg] = it } }
+        focus?.let { pkg -> armedNow[pkg]?.let { pass[pkg] = it } }
+        if (pass.isNotEmpty()) RateLock.armEach(pass, focus)
+    }
+
+    /**
+     * Puts every parked vote back at its armed rate, focus last, and drops the
+     * park state. Only the parked packages need the write — their vote is the
+     * only one this service changed — plus whatever [extra] repair the pass
+     * had already lined up.
+     */
+    private fun restore(
+        armedNow: Map<String, Int>,
+        focus: String?,
+        churn: Boolean,
+        extra: Collection<String> = emptySet(),
+    ) {
+        if (churn) noteParkChurn()
+        voteSweep(armedNow, focus, parked + extra)
+        clearParkState()
+    }
+
+    private fun clearParkState() {
+        parked.clear()
+        lowTicks.clear()
+        parkedAtNs.clear()
+    }
+
+    /**
+     * A park that content undoes within [PARK_MIN_HOLD_NS] was not idleness.
+     * Entering the 120 mode makes every system renderer redraw at the new
+     * ceiling, and that churn can read as demand and restore the vote about a
+     * second later — forever. That loop is why 165 used to be barred from
+     * parking outright; backing the offending package off for a while instead
+     * keeps the feature for the screens that do idle and costs one wasted park
+     * on the ones that never will.
+     */
+    private fun noteParkChurn() {
+        val now = System.nanoTime()
+        parked.forEach { pkg ->
+            val at = parkedAtNs[pkg] ?: return@forEach
+            if (now - at >= PARK_MIN_HOLD_NS) return@forEach
+            parkBlockedUntilNs[pkg] = now + PARK_BACKOFF_NS
+            Log.i(TAG, "%s un-parked after %.1f s — not idle, park backing off %d s"
+                .format(pkg, (now - at) / 1e9, PARK_BACKOFF_NS / 1_000_000_000L))
         }
     }
 
@@ -316,9 +492,9 @@ class ArmWatchService : Service() {
                         if (parked.isNotEmpty()) {
                             Log.i(TAG, "screen on — restoring ${parked.size} parked vote(s)")
                         }
-                        armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
-                        parked.clear()
-                        lowTicks.clear()
+                        // A wake is not park churn: the animation that undoes
+                        // the park here is the resume, not content demand.
+                        restore(armedNow, focus(armedNow), churn = false)
                     }
                 }
                 handler.postDelayed(tick, 1500)
@@ -332,6 +508,20 @@ class ArmWatchService : Service() {
         super.onCreate()
         running = true
         prefs = ArmedStore.open(this)
+        // An armed set written by a build whose "Arm all" included the
+        // framework and SystemUI still names them. Drop those entries and
+        // withdraw the votes they left live, before the first pass reads them.
+        prefs?.let { p ->
+            val unvotable = ArmedStore.dropUnvotable(p)
+            if (unvotable.isNotEmpty()) worker.execute {
+                synchronized(RateLock) {
+                    unvotable.forEach { (pkg, rateId) ->
+                        Log.i(TAG, "dropping unvotable $pkg")
+                        RateLock.release(pkg, rateId)
+                    }
+                }
+            }
+        }
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
         })
@@ -346,8 +536,10 @@ class ArmWatchService : Service() {
         // user asking for the armed rate NOW, so any park state from the
         // previous armed-set epoch is void — otherwise a package re-armed while
         // others keep the service alive stays skipped by the park branch.
-        parked.clear()
-        lowTicks.clear()
+        clearParkState()
+        // A fresh arm is a new epoch: a park the previous one had backed off
+        // is not this one's history either.
+        parkBlockedUntilNs.clear()
         // The armed count is baked into the notification text, so re-post it:
         // the service is re-started on every change to the armed set.
         getSystemService(android.app.NotificationManager::class.java)
@@ -440,6 +632,9 @@ class ArmWatchService : Service() {
          */
         private const val PANEL_BUSY_INTERVAL_NS = 50_000_000L
 
+        /** Below this the panel is slow enough to mean "still" — 1 / [PANEL_BUSY_INTERVAL_NS]. */
+        private const val PANEL_MOTION_HZ = 20
+
         /**
          * Panel EMA at or above this while parked = the panel is pinned near
          * the 120 ceiling = content demanding more than 120 = restore. Well
@@ -460,12 +655,45 @@ class ArmWatchService : Service() {
         private const val STARVED_RUN_FRAMES = 2
 
         /**
-         * The 165 mode's measured idle floor is 55 Hz — a still armed screen
-         * idles AT it. The park gate for a pinned 165 vote treats the panel
-         * climbing meaningfully above the floor as motion; 10 Hz of margin
-         * keeps the floor's own wobble below the line.
+         * A still armed screen idles AT its mode's floor
+         * ([RateLock.idleFloorHz]), so the park gate treats the panel climbing
+         * this far above the floor as motion. 10 Hz keeps the floor's own
+         * wobble below the line — for 165 that is the 65 Hz this was a
+         * hard-coded constant for before 144 needed the same treatment.
          */
-        private const val PIN_FLOOR_HZ = 65
+        private const val FLOOR_MARGIN_HZ = 10
+
+        /**
+         * The ceiling a park puts in place of the armed vote, and therefore
+         * the one rule for what may park: a vote above it, and nothing else.
+         * The 120 mode spans 1-120, so it serves every slower cadence while
+         * letting the LTPO ramp reach its 1 Hz floor.
+         */
+        private const val PARK_CEILING_HZ = 120
+
+        /** How long the last oiface focus answer stands after it stops answering. */
+        private const val FOCUS_MEMORY_NS = 5_000_000_000L
+
+        /**
+         * A park undone faster than this was the 120 mode's own entry churn
+         * reading as demand, not content — back that package off.
+         */
+        private const val PARK_MIN_HOLD_NS = 3_000_000_000L
+
+        /** How long a package that churned out of a park is left unparked. */
+        private const val PARK_BACKOFF_NS = 30_000_000_000L
+
+        /**
+         * An armed set this small is re-voted whole every pass: it is the
+         * scale the boot list has always run at, and it never cost the pin.
+         */
+        private const val FULL_SWEEP_MAX = 8
+
+        /** Background votes refreshed per repair pass, above [FULL_SWEEP_MAX]. */
+        private const val REPAIR_SLICE = 16
+
+        /** Passes between repair slices; every pass in between votes focus only. */
+        private const val REPAIR_EVERY_PASSES = 10
 
         /** How long after a park the 120-mode handover frames are ignored. */
         private const val PARK_GRACE_NS = 400_000_000L

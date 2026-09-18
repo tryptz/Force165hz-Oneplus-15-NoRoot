@@ -49,6 +49,18 @@ class MainActivity : ShellActivity() {
         super.onCreate(savedInstanceState)
         // No-op after the first process start; makes the Settings log view work.
         LogRing // touch so the object is initialized early
+        // An armed set written by a build whose "Arm all" swept in the
+        // framework and SystemUI still names them, and the watchdog would keep
+        // voting for packages whose windows sit next to every app's. Drop them
+        // and withdraw the votes they left live. Idempotent — the service does
+        // the same on its own start, and a clean set gets nothing back.
+        ArmedStore.dropUnvotable(prefs).takeIf { it.isNotEmpty() }?.let { unvotable ->
+            worker.execute {
+                synchronized(RateLock) {
+                    unvotable.forEach { (pkg, rateId) -> RateLock.release(pkg, rateId) }
+                }
+            }
+        }
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
@@ -309,9 +321,9 @@ class MainActivity : ShellActivity() {
             return
         }
         runBusy(getString(R.string.rearming)) {
-            var ok = 0
-            synchronized(RateLock) {
-                saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
+            // Foreground last, like every other sweep — see RateLock.armEach.
+            val ok = synchronized(RateLock) {
+                RateLock.armEach(saved, Oiface.currentGamePackage()).size
             }
             ui { snack(getString(R.string.rearmed, ok, saved.size)) }
         }
@@ -321,14 +333,18 @@ class MainActivity : ShellActivity() {
         if (all.isEmpty()) return
         confirmFirstTime {
             val rateId = activeRate
-            val targets = all.map { it.pkg }
+            // AppCatalog already keeps RateLock.NEVER_ARM out of the list;
+            // repeated here because this is the sweep that used to carry them.
+            val targets = all.map { it.pkg }.filter { it !in RateLock.NEVER_ARM }
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
-                val done = ArrayList<String>(targets.size)
                 // One vote per app, whatever it was pinned at before: the call
                 // is a set, so re-issuing an id an app already holds is free and
-                // repairs a vote the vendor dropped.
-                synchronized(RateLock) {
-                    targets.forEach { pkg -> if (RateLock.arm(pkg, rateId)) done.add(pkg) }
+                // repairs a vote the vendor dropped. The app on screen is voted
+                // last (see RateLock.armEach) — during this sweep that is the
+                // armer itself, which is never armed, so the watchdog's next
+                // pass is what lands the pin on whatever you open next.
+                val done = synchronized(RateLock) {
+                    RateLock.armEach(targets.associateWith { rateId }, Oiface.currentGamePackage())
                 }
                 main.post {
                     done.forEach { armed[it] = rateId }
@@ -375,7 +391,7 @@ class MainActivity : ShellActivity() {
         val saved = armed.toMap()
         if (saved.isEmpty()) return
         worker.execute {
-            synchronized(RateLock) { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+            synchronized(RateLock) { RateLock.armEach(saved, Oiface.currentGamePackage()) }
         }
     }
 

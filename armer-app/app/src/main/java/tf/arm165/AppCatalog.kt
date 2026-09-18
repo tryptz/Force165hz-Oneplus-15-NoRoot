@@ -51,7 +51,10 @@ object AppCatalog {
                 @Suppress("DEPRECATION")
                 pm.getInstalledApplications(0)
                     .asSequence()
-                    .filter { it.packageName != self }
+                    // Self, plus the packages a vote must never name: they
+                    // cannot be armed if they are never offered. See
+                    // RateLock.NEVER_ARM for why.
+                    .filter { it.packageName != self && it.packageName !in RateLock.NEVER_ARM }
                     .map {
                         AppEntry(
                             pkg = it.packageName,
