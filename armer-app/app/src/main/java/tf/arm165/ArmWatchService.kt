@@ -575,13 +575,40 @@ class ArmWatchService : Service() {
         // each package's ARMED rate, so including it would write the pinned
         // rate back over the 120 the park just set, which is the same trap
         // repairTargets documents.
-        if (System.nanoTime() - lastVoteNs >= HOLD_INTERVAL_NS) {
+        val focusIsGame = focus != null && isGame(focus)
+
+        // Our vote has to land ON TOP of the game's own. Engines re-request
+        // their frame rate on focus, on resume, after a loading screen — and
+        // the server takes the write that landed last, so whoever wrote most
+        // recently owns the panel. Waiting out the full interval hands the
+        // engine every second in between.
+        //
+        // The panel says who is winning. Our vote is min = max, so a panel
+        // that is rendering under it sits AT the pinned rate; a still one
+        // rests at the mode's idle floor. Anything BETWEEN the two is a rate
+        // neither end of our own vote asked for — the engine's request landed
+        // after ours. Re-vote on the spot instead of waiting, and cap the wait
+        // at one second for a focused game regardless.
+        val outvoted = focusIsGame && pinnedHz > 0 &&
+            phz >= floorHz + FLOOR_MARGIN_HZ && phz <= pinnedHz - PIN_MARGIN_HZ
+        val holdFor = if (focusIsGame) GAME_HOLD_INTERVAL_NS else HOLD_INTERVAL_NS
+        if (outvoted || System.nanoTime() - lastVoteNs >= holdFor) {
+            if (outvoted) {
+                Log.i(TAG, ("%s is on %d Hz, between our %d Hz floor and the %d Hz we vote , " +
+                    "its own request outlasted ours. Re-voting now")
+                    .format(focus?.substringAfterLast('.') ?: "focus", phz, floorHz, pinnedHz))
+            }
             voteSweep(armedNow, focus?.takeIf { it !in parked }, repair)
         }
 
         // anything else → the plain 5 s watchdog tick.
         return when {
             parked.isNotEmpty() -> RESUME_TICK_MS
+            // A game on screen is polled at the pinned cadence whatever it is
+            // armed at: the hold above can only re-vote as often as it runs,
+            // and a 120-armed game fighting us would otherwise be checked
+            // once every five seconds.
+            focusIsGame -> PINNED_TICK_MS
             armedNow.any { (pkg, rateId) ->
                 pkg !in parked && RateLock.hz(rateId) > PARK_CEILING_HZ
             } -> PINNED_TICK_MS
@@ -918,6 +945,13 @@ class ArmWatchService : Service() {
          * idle cadence.
          */
         private const val PINNED_TICK_MS = 1000L
+
+        /**
+         * Longest a focused game's vote may go unwritten. An engine that
+         * re-requests its own rate owns the panel until we write again, so
+         * this is the worst case for how long it keeps it.
+         */
+        private const val GAME_HOLD_INTERVAL_NS = PINNED_TICK_MS * 1_000_000L
 
         /**
          * Fast-pair stamp for [contentMoving] — the park gate for rates whose
