@@ -61,6 +61,9 @@ class ArmWatchService : Service() {
     /** Armed packages whose vote is currently parked at the idle rate. */
     private val parked = HashSet<String>()
 
+    /** When a vote pass last went out; paces the hold on the quiet path. */
+    private var lastVoteNs = 0L
+
     /** Game classification per package, and the vendor list it is read against. */
     private val gameCache = HashMap<String, Boolean>()
     private var systemGames: Set<String> = emptySet()
@@ -513,7 +516,7 @@ class ArmWatchService : Service() {
                 val focusRate = focus?.let { armedNow[it] }
                 val why = when {
                     focus == null -> "no focus, so no park candidate among ${armedNow.size} armed"
-                    focus != null && isGame(focus) ->
+                    isGame(focus) ->
                         "game package, never parked , holding ${focusRate?.let(RateLock::hz) ?: 0} Hz"
                     focusRate != null && !RateLock.parkable(focusRate) ->
                         "${RateLock.hz(focusRate)} Hz does not park on this build, " +
@@ -556,6 +559,26 @@ class ArmWatchService : Service() {
         // a 144 or 165 vote still held but not parked → 1 s, because every
         // tick it holds the panel at that mode's floor (55 Hz for 165) — the park countdown must not
         // take 2 × 5 s when the cost of waiting is measured in burned Hz;
+        // Nothing above this point voted. Every branch that issues a pass —
+        // the unreachable one, the restores — returns where it stands, so a
+        // pass that reaches here has decided only that there is nothing to
+        // restore and nothing yet to park. That is a decision about PARKING,
+        // and it must not double as a decision to stop holding the vote: a
+        // game the daemon does not track sits in exactly this state with
+        // gpu=0 and fps=0, and the first time its engine re-pins its own
+        // frame rate, ours is gone with nothing left to put it back.
+        //
+        // Re-landing it is what this service is for. Rate-limited to the
+        // watchdog's own interval, because this path ticks every second while
+        // a high vote is held and every 50 ms while something is parked.
+        // Focus is dropped from the pass while it is parked — voteSweep votes
+        // each package's ARMED rate, so including it would write the pinned
+        // rate back over the 120 the park just set, which is the same trap
+        // repairTargets documents.
+        if (System.nanoTime() - lastVoteNs >= HOLD_INTERVAL_NS) {
+            voteSweep(armedNow, focus?.takeIf { it !in parked }, repair)
+        }
+
         // anything else → the plain 5 s watchdog tick.
         return when {
             parked.isNotEmpty() -> RESUME_TICK_MS
@@ -651,7 +674,9 @@ class ArmWatchService : Service() {
         val pass = LinkedHashMap<String, Int>(others.size + 1)
         others.forEach { pkg -> armedNow[pkg]?.let { pass[pkg] = it } }
         focus?.let { pkg -> armedNow[pkg]?.let { pass[pkg] = it } }
-        if (pass.isNotEmpty()) RateLock.armEach(pass, focus)
+        if (pass.isEmpty()) return
+        RateLock.armEach(pass, focus)
+        lastVoteNs = System.nanoTime()
     }
 
     /**
@@ -848,6 +873,13 @@ class ArmWatchService : Service() {
     companion object {
         private const val TAG = "Arm165"
         private const val INTERVAL_MS = 5000L
+
+        /**
+         * Longest a held vote may go unwritten. The watchdog's own interval,
+         * so "re-issues the vote every 5 s" stays true whatever cadence the
+         * idle detector happens to be ticking at.
+         */
+        private const val HOLD_INTERVAL_NS = INTERVAL_MS * 1_000_000L
 
         /** How long a game classification is trusted before it is re-read. */
         private const val GAME_LIST_TTL_NS = 300_000_000_000L // 5 min
