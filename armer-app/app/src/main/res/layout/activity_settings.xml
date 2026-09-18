@@ -120,6 +120,57 @@
             android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- the display's own ceiling: global, not a per-app vote. The only
+         rootless knob that can reach a surface no app owns. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_pad"
+        android:layout_marginEnd="@dimen/screen_pad"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_card"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/peak_title"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/peak_body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btn_peak"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="10dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:gravity="center"
+            android:background="@drawable/bg_btn_primary"
+            android:text="@string/peak_raise"
+            android:textColor="@color/on_accent"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
     <!-- console -->
     <ScrollView
         android:id="@+id/log_scroll"

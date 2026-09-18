@@ -92,6 +92,21 @@
     <string name="systemui_body">Measured on this build: the shade does NOT follow the vote. It stays at 120. The call is accepted, but the panel takes its mode from the foreground app\'s window, and SystemUI\'s shade, quick settings and lock screen are system overlays with no activity in that stack — so nothing ever reads the override.\n\nThe switch is kept for builds that behave differently. Where such a vote does land it pins the display rather than one app, and holds the lock screen and always-on display there too. Arm all always skips this row.</string>
     <string name="systemui_yes">Arm it</string>
 
+    <!-- global display ceiling -->
+    <string name="peak_title">Display peak rate (global)</string>
+    <string name="peak_body">Ceiling %1$s · floor %2$s. The display\'s own limits, not a per-app vote — raising the ceiling covers the launcher, the shade and the lock screen as well as every unarmed app, and costs battery everywhere. OnePlus\'s own refresh-rate setting writes these too and will overwrite it.</string>
+    <string name="peak_unset">default</string>
+    <string name="peak_hz">%1$d Hz</string>
+    <string name="peak_raise">Raise</string>
+    <string name="peak_restore">Restore</string>
+    <string name="peak_grant">Grant</string>
+    <string name="peak_needs_grant">Needs "Modify system settings" — tap Grant, or long-press to copy an adb command instead.</string>
+    <string name="peak_done">Ceiling now %1$d Hz — pull the shade down and read the overlay</string>
+    <string name="peak_restored">Ceiling back to the system default</string>
+    <string name="peak_refused">The system refused the write. Long-press for the adb command.</string>
+    <string name="peak_adb_cmd">adb shell settings put system peak_refresh_rate 165.0</string>
+    <string name="peak_no_screen">This build has no "Modify system settings" screen</string>
+
     <!-- help screen -->
     <string name="help">How it works</string>
     <string name="help_title">How it works</string>
@@ -117,6 +132,9 @@
 
     <string name="help_optin_title">Arming the system UI or this app</string>
     <string name="help_optin_body">The notification shade, quick settings and lock screen are drawn by SystemUI rather than by the app you are in, so they keep their own rate — 120, and arming SystemUI does not change that on this build. The vote is accepted and has no effect: the panel takes its mode from the foreground app\'s window, and SystemUI\'s are system overlays that never consult it. The row is kept for builds that behave differently, and Arm all always skips it, because where such a vote does land it pins the display rather than one app.\n\nThis app\'s own row does work, and doubles as a self-test: if 165 Armer\'s own screen reaches the rate you armed it at, votes are landing — and if it will not, nothing else will either.</string>
+
+    <string name="help_peak_title">The global display ceiling</string>
+    <string name="help_peak_body">Settings has one control that is not a per-app vote: the display\'s own floor and ceiling, the AOSP min_refresh_rate and peak_refresh_rate. Because a vote only reaches windows an app owns, this is the only rootless way to lift a surface no app owns — the shade, the lock screen, the launcher. It is global: everything gets the higher ceiling, including apps you never armed, and the battery cost comes with it. OnePlus\'s own refresh-rate setting writes the same keys, so changing that will overwrite this. Restore puts the key back to unset rather than to a guessed number.</string>
 
     <string name="help_disarm_title">Disarming</string>
     <string name="help_disarm_body">Disarm withdraws the vote by asking for rate id 0, the vendor\'s own cancel — sending the rate again would only write the same pin back, which is why an older build could not disarm without a reboot. If an app ever stays pinned, that build refused the withdraw; a reboot always clears every vote, because the vendor keeps them in memory only.</string>

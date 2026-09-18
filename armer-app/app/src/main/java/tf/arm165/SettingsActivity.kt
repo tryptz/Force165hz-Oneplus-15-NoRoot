@@ -2,7 +2,9 @@ package tf.arm165
 
 import android.app.Activity
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Build
 import android.os.Handler
@@ -30,6 +32,9 @@ class SettingsActivity : Activity() {
     private lateinit var autoBtn: TextView
     private lateinit var fgBody: TextView
     private lateinit var fgBtn: TextView
+    private lateinit var peakBody: TextView
+    private lateinit var peakBtn: TextView
+    private lateinit var prefs: SharedPreferences
 
     /** Pulls the buffer and repaints; keeps the view pinned to the newest line. */
     private val refresh = object : Runnable {
@@ -78,6 +83,18 @@ class SettingsActivity : Activity() {
         fgBtn = findViewById(R.id.btn_fg_grant)
         fgBtn.setOnClickListener { openUsageAccess() }
 
+        prefs = ArmedStore.open(this)
+        peakBody = findViewById(R.id.peak_body)
+        peakBtn = findViewById(R.id.btn_peak)
+        peakBtn.setOnClickListener { onPeakTapped() }
+        // The adb route stays one long-press away: "Modify system settings" is
+        // itself a restricted setting on a sideloaded build, and a shell write
+        // does not care about that.
+        peakBtn.setOnLongClickListener {
+            copy(getString(R.string.peak_adb_cmd))
+            true
+        }
+
         findViewById<View>(R.id.btn_log_share).setOnClickListener {
             val text = LogRing.readText()
             val send = Intent(Intent.ACTION_SEND).apply {
@@ -100,6 +117,7 @@ class SettingsActivity : Activity() {
         // answer with it (same process, same object).
         Foreground.forget()
         syncFg()
+        syncPeak()
         handler.postDelayed(refresh, 100)
     }
 
@@ -113,6 +131,98 @@ class SettingsActivity : Activity() {
         )
         fgBtn.setTextColor(getColor(if (granted) R.color.text_primary else R.color.on_accent))
     }
+
+    /**
+     * Paints the ceiling card from the live settings values. Reads need no
+     * permission, so this is accurate whether or not the write is allowed.
+     */
+    private fun syncPeak() {
+        val peak = SecureSettings.getSystemFloat(this, SecureSettings.KEY_PEAK_REFRESH)
+        val min = SecureSettings.getSystemFloat(this, SecureSettings.KEY_MIN_REFRESH)
+        val body = StringBuilder(getString(R.string.peak_body, hz(peak), hz(min)))
+        if (!SecureSettings.canWriteSystem(this)) {
+            body.append("\n\n").append(getString(R.string.peak_needs_grant))
+        }
+        peakBody.text = body
+        peakBtn.setText(
+            when {
+                !SecureSettings.canWriteSystem(this) -> R.string.peak_grant
+                peak >= RAISED_HZ -> R.string.peak_restore
+                else -> R.string.peak_raise
+            }
+        )
+    }
+
+    /** "165 Hz", or "default" for a key that is not set at all. */
+    private fun hz(value: Float): String =
+        if (value <= 0f) getString(R.string.peak_unset)
+        else getString(R.string.peak_hz, value.toInt())
+
+    /**
+     * Raises the display ceiling to 165, or puts it back.
+     *
+     * Restore removes the key rather than writing a number: on a device where
+     * it had never been set, writing our guess of the default would leave a
+     * value behind that the system had been deciding for itself. The value
+     * that was there before a raise is remembered for the one case where there
+     * genuinely was one.
+     */
+    private fun onPeakTapped() {
+        if (!SecureSettings.canWriteSystem(this)) {
+            openWriteSettings()
+            return
+        }
+        val peak = SecureSettings.getSystemFloat(this, SecureSettings.KEY_PEAK_REFRESH)
+        val ok: Boolean
+        if (peak >= RAISED_HZ) {
+            val saved = prefs.getFloat(KEY_PEAK_SAVED, 0f)
+            ok = if (saved > 0f) {
+                SecureSettings.putSystemFloat(this, SecureSettings.KEY_PEAK_REFRESH, saved)
+            } else {
+                SecureSettings.clearSystem(this, SecureSettings.KEY_PEAK_REFRESH)
+            }
+            if (ok) {
+                prefs.edit().remove(KEY_PEAK_SAVED).apply()
+                toast(getString(R.string.peak_restored))
+            }
+        } else {
+            prefs.edit().putFloat(KEY_PEAK_SAVED, peak).apply()
+            ok = SecureSettings.putSystemFloat(this, SecureSettings.KEY_PEAK_REFRESH, RAISED_HZ)
+            if (ok) {
+                // Read back rather than echoing what was asked for: the vendor
+                // may clamp the ceiling to a mode the panel actually has.
+                val now = SecureSettings.getSystemFloat(this, SecureSettings.KEY_PEAK_REFRESH)
+                toast(getString(R.string.peak_done, now.toInt()))
+            }
+        }
+        if (!ok) toast(getString(R.string.peak_refused))
+        syncPeak()
+    }
+
+    /** The "Modify system settings" screen, per app where the build has it. */
+    private fun openWriteSettings() {
+        val intents = listOf(
+            Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, android.net.Uri.parse("package:$packageName")),
+            Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS),
+        )
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                return
+            } catch (_: Throwable) {
+                // try the next one
+            }
+        }
+        Toast.makeText(this, R.string.peak_no_screen, Toast.LENGTH_LONG).show()
+    }
+
+    private fun copy(text: String) {
+        getSystemService(ClipboardManager::class.java)
+            ?.setPrimaryClip(ClipData.newPlainText("cmd", text))
+        toast(getString(R.string.copied))
+    }
+
+    private fun toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     /**
      * Opens the usage-access list. There is no dialog to request this appop —
@@ -162,5 +272,11 @@ class SettingsActivity : Activity() {
 
     private companion object {
         const val REFRESH_MS = 2000L
+
+        /** The ceiling the Raise button asks for, and the test for "raised". */
+        const val RAISED_HZ = 165f
+
+        /** Remembers a ceiling that was genuinely set before a raise. */
+        const val KEY_PEAK_SAVED = "peak_saved"
     }
 }
