@@ -88,6 +88,9 @@ class ArmWatchService : Service() {
     /** Last pass's focus, so a switch INTO an armed app can be noticed. */
     private var lastPassFocus: String? = null
 
+    /** The missing-usage-access warning is worth saying once, not every pass. */
+    private var warnedNoFocusSignal = false
+
     /** Ticks in the pinned-but-unparked state; paces its diagnostic line. */
     private var pinnedTicks = 0
 
@@ -630,11 +633,31 @@ class ArmWatchService : Service() {
      * on.
      */
     private fun focus(armedNow: Map<String, Int>): String? {
-        Oiface.currentGamePackage()?.takeIf { it in armedNow }?.let { pkg ->
-            if (pkg != focusPkg) Log.i(TAG, "focus: $pkg")
-            focusPkg = pkg
+        // The game daemon first: it is a binder call away and names a game
+        // the instant one is on screen. It also names nothing else — every
+        // app it does not track, which is most of them and plenty of games,
+        // came back null, and a pass with no focus cannot aim. Usage access
+        // answers for anything.
+        val onScreen = Oiface.currentGamePackage() ?: Foreground.current(this)
+        if (onScreen == null && !warnedNoFocusSignal && !Foreground.hasAccess(this)) {
+            warnedNoFocusSignal = true
+            Log.w(TAG, "no usage access, so nothing but a tracked game can be seen on screen. " +
+                "Grant it with: adb shell appops set $packageName GET_USAGE_STATS allow")
+        }
+        if (onScreen != null) {
+            if (onScreen !in armedNow) {
+                // Positively something else in front. The memory below is for
+                // gaps in the signal, not for an app that is no longer there:
+                // holding a stale focus would vote and park against a package
+                // the panel is not showing.
+                if (focusPkg != null) Log.i(TAG, "focus: none ($onScreen is not armed)")
+                focusPkg = null
+                return null
+            }
+            if (onScreen != focusPkg) Log.i(TAG, "focus: $onScreen")
+            focusPkg = onScreen
             focusSeenNs = System.nanoTime()
-            return pkg
+            return onScreen
         }
         val remembered = focusPkg
         if (remembered != null && remembered in armedNow &&
@@ -678,6 +701,13 @@ class ArmWatchService : Service() {
         // put in place, leave the parked set still claiming it is parked, and
         // undo the park without anything in the log saying so. The focus is
         // excluded for a different reason: it is voted last, separately.
+        // Nothing identified on screen means there is no package to end the
+        // pass on, and a pass that ends on a background one hands the display
+        // a vote for windows that do not exist — the case this function's own
+        // note describes. Measured with 641 armed and no focus: the panel sat
+        // at 166 Hz, a repair burst went out, and the next reading was 120.
+        // Holding what is already there beats voting blind.
+        if (focus == null) return emptyList()
         val keys = armedNow.keys.filter { it != focus && it !in parked }
         if (keys.size <= FULL_SWEEP_MAX) return keys
         if (passes % REPAIR_EVERY_PASSES != 0) return emptyList()

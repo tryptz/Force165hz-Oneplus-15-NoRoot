@@ -125,7 +125,13 @@ app window.
 
 ## Notes
 
-- An armed app must be foregrounded to receive its vote.
+- An armed app must be foregrounded to receive its vote, so the watchdog has
+  to know what is on screen. Grant usage access — Settings › Apps › Special
+  app access › Usage access, or
+  `adb shell appops set tf.arm165 GET_USAGE_STATS allow`. Without it only a
+  game the vendor daemon tracks can be seen, everything else reads as "no
+  focus", and a pass with no focus cannot vote the right package last or park
+  the right one. `adb logcat -s Arm165` says so once at startup.
 - Video apps may judder. Disarm them, or pin at 60 Hz.
 - Battery and heat rise with the number of armed apps.
 - `android` is never armed. SystemUI and the armer itself are armable by hand
