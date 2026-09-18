@@ -158,6 +158,9 @@ class MainActivity : ShellActivity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
+        findViewById<View>(R.id.btn_help).setOnClickListener {
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
         findViewById<View>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
