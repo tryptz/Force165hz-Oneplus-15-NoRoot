@@ -21,8 +21,6 @@ unlock.
 - Arm all / Re-arm / Clear; the armed set survives reboots
 - Watchdog service re-issues votes while the screen is on, so a game that
   pins its own frame rate loses to yours
-- FPS overlay in the status bar: measured panel Hz, plus a tracked game's
-  rendered fps (needs "Display over other apps")
 - Smoothness test (five lanes, 165 to 60) and a live log page
 - Material You, edge to edge
 
