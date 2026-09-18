@@ -115,11 +115,15 @@ permission on first launch.
   has always skipped, and an armed set from an older build has it dropped and
   released on first launch. **SystemUI** (the notification shade, quick
   settings, lock screen and AOD) and **the armer itself** are listed and
-  armable by hand, but `Arm all` skips both: SystemUI's windows are
-  composited next to every app's, so arming it pins the display rather than
-  one app, and an app arming itself should be a decision rather than a side
-  effect. Arming this app is also the cheapest test that votes are landing at
-  all — if its own screen will not reach the armed rate, nothing else will.
+  armable by hand, but `Arm all` skips both. **Measured on CPH2749_16.0.9.400:
+  a vote on SystemUI has no effect** — the call is accepted, but the panel
+  takes its mode from the foreground app's window and the shade, quick
+  settings and lock screen are system overlays with no activity in that
+  stack, so the override is never read. Those surfaces stay at 120 and
+  nothing rootless found so far changes that. The row is kept for builds that
+  behave differently. Arming the armer itself does work, and is the cheapest
+  test that votes are landing at all — if its own screen will not reach the
+  armed rate, nothing else will.
 - A `SecurityException` after an OTA means the vendor patched the trick.
 - If an app stays pinned after a disarm, the vote withdraw was refused on
   that build — `adb logcat -s Arm165` logs it; a reboot always clears the
