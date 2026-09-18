@@ -90,6 +90,17 @@ class ArmWatchService : Service() {
     private var ceilingTicks = 0
 
     /**
+     * Parked packages whose vote has been withdrawn altogether.
+     *
+     * The last resort, and the only thing left when the vendor holds the panel
+     * AT the parked ceiling: a vote sets min and max to the same rate, so a
+     * 120 vote can be a pin at 120 rather than a 1-120 range, and no lower
+     * vote fixes that. An idle screen with no vote at all runs the default
+     * policy, which is the 1-120 range we were asking for.
+     */
+    private val unpinned = HashSet<String>()
+
+    /**
      * Packages whose park has already been re-asserted once in this park.
      *
      * A still screen gives the vendor no reason to re-evaluate its refresh
@@ -339,7 +350,12 @@ class ArmWatchService : Service() {
         // not gated by the grace.
         val atCeiling = parkedAndMeasured && !parkIgnored && phz >= STARVED_HZ
         ceilingTicks = if (atCeiling) ceilingTicks + 1 else 0
-        val ceilingSaturated = ceilingTicks >= CEILING_TICKS
+        // While our vote still names that ceiling, the panel sitting on it is
+        // the vote, so it means nothing and gets escalated below. Once the
+        // vote is withdrawn the same reading is the default policy answering
+        // something, and that IS content.
+        val ceilingSaturated = unpinned.isNotEmpty() && ceilingTicks >= CEILING_TICKS
+        val ceilingHeld = unpinned.isEmpty() && ceilingTicks >= UNPIN_AFTER_TICKS
         val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsBusy
         // The park did not take, and has not been re-asserted yet: write the
         // 120 once more rather than concluding anything. This is the whole
@@ -371,6 +387,27 @@ class ArmWatchService : Service() {
             stuckTicks = 0
             restore(armedNow, focus, churn = false, extra = repair)
             return INTERVAL_MS
+        }
+
+        // Parked, and the panel has held the ceiling for seconds with nothing
+        // rendering. A lower vote cannot help when the vote itself is the
+        // floor, so stop voting: the default policy idles from 120 to 1 on its
+        // own, which is exactly the ramp the park was after. The armed rate
+        // comes back on the first evidence of content, same as from a park.
+        if (ceilingHeld && gpu in 0f..GPU_IDLE && !fpsBusy) {
+            val heldFor = ceilingTicks * RESUME_TICK_MS / 1000
+            parked.forEach { pkg ->
+                val rate = armedNow[pkg] ?: return@forEach
+                if (unpinned.add(pkg) && RateLock.release(pkg, rate)) {
+                    Log.i(TAG, ("%s held the %d Hz ceiling for %d s with nothing " +
+                        "rendering. Withdrawing the vote so the default policy can idle.")
+                        .format(pkg, PARK_CEILING_HZ, heldFor))
+                }
+            }
+            ceilingTicks = 0
+            parkGraceUntilNs = System.nanoTime() + PARK_GRACE_NS
+            forgetPanel()
+            return RESUME_TICK_MS
         }
 
         if (busy) {
@@ -531,8 +568,13 @@ class ArmWatchService : Service() {
         // calls beyond the gpu probe the tick already made.
         if (parked.isNotEmpty() && System.nanoTime() >= parkGraceUntilNs) {
             if (++holdTicks % HOLD_LOG_TICKS == 1) {
-                Log.i(TAG, "parked hold: panel=%d Hz (pair=%.1f ms), gpu=%.2f, starve=%d"
-                    .format(panelHz(), panelLastIntervalNs / 1e6, gpu, panelStarveRun))
+                Log.i(TAG, "%s hold: panel=%d Hz (pair=%.1f ms), gpu=%.2f, ceiling=%d/%d"
+                    .format(
+                        if (unpinned.isEmpty()) "parked" else "unpinned",
+                        panelHz(), panelLastIntervalNs / 1e6, gpu,
+                        ceilingTicks,
+                        if (unpinned.isEmpty()) UNPIN_AFTER_TICKS else CEILING_TICKS,
+                    ))
             }
         }
 
@@ -707,6 +749,7 @@ class ArmWatchService : Service() {
     private fun clearParkState() {
         ceilingTicks = 0
         stuckTicks = 0
+        unpinned.clear()
         parked.clear()
         lowTicks.clear()
         parkedAtNs.clear()
@@ -914,12 +957,18 @@ class ArmWatchService : Service() {
          * near 120 by genuinely starved content.
          */
         /**
-         * Parked ticks at the ceiling before it counts as content saturating
-         * it: 3 s at the parked cadence, comfortably longer than the 120
-         * mode's entry ramp and short enough that an app which really does
-         * want more than 120 gets it back before anyone finishes a gesture.
+         * Ticks at the ceiling, with the vote withdrawn, before it counts as
+         * content: 1 s. With no vote of ours in the way the panel's rate is
+         * the system answering the app, so it is trustworthy again.
          */
-        private const val CEILING_TICKS = 60
+        private const val CEILING_TICKS = 20
+
+        /**
+         * Parked ticks at the ceiling before the vote is withdrawn instead:
+         * 3 s, comfortably longer than the 120 mode's entry ramp, so a panel
+         * that was going to idle has already started.
+         */
+        private const val UNPIN_AFTER_TICKS = 60
 
         /**
          * A still armed screen idles AT its mode's floor
