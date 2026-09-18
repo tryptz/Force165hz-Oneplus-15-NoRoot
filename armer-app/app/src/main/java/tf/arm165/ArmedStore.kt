@@ -84,6 +84,20 @@ object ArmedStore {
         return out
     }
 
+    /**
+     * Removes entries no sweep may vote for and hands them back so the caller
+     * can withdraw the votes an earlier build left live: "Arm all" used to
+     * include `android` and SystemUI, whose votes fight the foreground app's
+     * for the display's mode (see [RateLock.NEVER_ARM]). A no-op on an armed
+     * set that never had them, which is every set armed after this change.
+     */
+    fun dropUnvotable(prefs: SharedPreferences): Map<String, Int> {
+        val armed = read(prefs)
+        val unvotable = armed.filterKeys { it in RateLock.NEVER_ARM }
+        if (unvotable.isNotEmpty()) write(prefs, armed - unvotable.keys)
+        return unvotable
+    }
+
     fun write(prefs: SharedPreferences, armed: Map<String, Int>) {
         val encoded = armed.mapTo(HashSet(armed.size)) { "${it.key}$SEP${it.value}" }
         prefs.edit().putStringSet(KEY, encoded).apply()

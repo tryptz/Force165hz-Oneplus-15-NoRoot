@@ -273,6 +273,7 @@ abstract class ShellActivity : Activity() {
 
     protected companion object {
         const val KEY_WARNED = "warned"
+        const val KEY_WARNED_SYSTEM_UI = "warned_systemui"
         const val SNACK_MS = 2400L
     }
 }

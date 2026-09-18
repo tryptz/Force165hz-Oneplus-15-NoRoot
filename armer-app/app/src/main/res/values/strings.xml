@@ -50,21 +50,21 @@
         <item quantity="other">Disarmed %1$d apps</item>
     </plurals>
     <plurals name="clear_failed">
-        <item quantity="one">%1$d app wouldn\'t release — restart the phone to clear it</item>
-        <item quantity="other">%1$d apps wouldn\'t release — restart the phone to clear them</item>
+        <item quantity="one">%1$d app wouldn\'t release. Restart the phone to clear it</item>
+        <item quantity="other">%1$d apps wouldn\'t release. Restart the phone to clear them</item>
     </plurals>
     <string name="arm_failed">Couldn\'t arm %1$s</string>
-    <string name="disarm_failed">Couldn\'t release %1$s — restart the phone to clear it</string>
+    <string name="disarm_failed">Couldn\'t release %1$s. Restart the phone to clear it</string>
     <string name="nothing_saved">Nothing armed yet</string>
     <string name="rate_picker_disarm">Disarm</string>
     <string name="rate_set">%1$s at %2$d Hz</string>
-    <string name="rate_badge_desc">%1$s is armed at %2$d Hz — tap to change</string>
+    <string name="rate_badge_desc">%1$s is armed at %2$d Hz, tap to change</string>
 
-    <!-- Idle behaviour: the 165 mode's floor is 55 Hz (measured on this build), so
-         a 165 vote can never idle below it; every other mode reaches 1 Hz. The
-         watchdog's park (144 only now) swaps a still vote into the 120 mode and
-         back on motion — always on, no toggle. -->
-    <string name="idle_note">Idle: armed apps rest in the 120 mode and ramp to 1 Hz when still, returning to full speed on motion. Exception: 165 Hz — that mode\'s floor is 55 Hz, so a still 165-armed app rests at 55 Hz.</string>
+    <!-- Idle behaviour, always on, no toggle. The note gives outcomes only: what
+         a still screen actually rests at per vote. The why (the park, and why 165
+         is the one rate that does not take it) is on the help screen under
+         "Letting the panel idle" and "What may park". -->
+    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the 55 Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
@@ -75,14 +75,110 @@
     <string name="settings">Settings and logs</string>
     <string name="settings_title">Settings</string>
     <string name="back_desc">Back</string>
-    <string name="log_hint">Live log — Arm165 is the watchdog (park / restore / arm), RefreshRate is the vendor framework\'s own rate changes.</string>
+    <string name="log_hint">Live log. Arm165 is the watchdog (park / restore / arm), RefreshRate is the vendor framework\'s own rate changes.</string>
     <string name="log_loading">Loading log…</string>
     <string name="log_refresh">Refresh log</string>
     <string name="log_share">Share log</string>
     <string name="log_clear">Clear</string>
-    <string name="log_auto_on">Auto: on</string>
-    <string name="log_auto_off">Auto: off</string>
+    <!-- smoothness test -->
+    <string name="fps_title">Smoothness test</string>
+    <string name="fps_row_sub">Moving blocks, one lane per rate, and what the panel is really doing</string>
+    <string name="fps_open">Open</string>
+    <string name="fps_measuring">measuring…</string>
+    <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d long</string>
+    <string name="fps_strip_label">frame time, last 2 s</string>
+    <string name="fps_strip_worst">worst %1$.1f ms</string>
+    <string name="fps_color">Marker</string>
+    <string name="fps_color_desc">Marker colour: %1$s</string>
+    <string name="fps_color_accent">app accent</string>
+    <string name="fps_color_ink">ink</string>
+    <string name="fps_color_red">red</string>
+    <string name="fps_color_orange">orange</string>
+    <string name="fps_color_green">green</string>
+    <string name="fps_color_cyan">cyan</string>
+    <string name="fps_color_blue">blue</string>
+    <string name="fps_color_purple">purple</string>
+    <string name="fps_speed">Speed</string>
+    <string name="fps_speed_half">½×</string>
+    <string name="fps_speed_one">1×</string>
+    <string name="fps_speed_two">2×</string>
+    <string name="fps_hold">Hold %1$d Hz here</string>
+    <string name="fps_hold_on">Holding %1$d Hz while this page is open, so the lanes can show it</string>
+    <string name="fps_hold_off">Off. The panel runs at its default, nothing above 120 can differ</string>
+
+    <string name="log_title">Live log</string>
+    <string name="log_open">Open</string>
+    <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>
+    <string name="log_live">Live updates</string>
+    <string name="log_live_on">Following the log, repainting as lines arrive</string>
+    <string name="log_live_off">Paused. Lines are still collected, shown when you refresh</string>
     <string name="no_browser">No browser to open the link</string>
+
+    <!-- opt-in rows: SystemUI and the armer itself -->
+    <string name="row_display_wide">display-wide</string>
+    <string name="row_self">this app</string>
+    <string name="systemui_title">Arm the system UI?</string>
+    <string name="systemui_body">Measured on this build: the shade does NOT follow the vote. It stays at 120. The call is accepted, but the panel takes its mode from the foreground app\'s window, and SystemUI\'s shade, quick settings and lock screen are system overlays with no activity in that stack, so nothing ever reads the override.\n\nThe switch is kept for builds that behave differently. Where such a vote does land it pins the display rather than one app, and holds the lock screen and always-on display there too. Arm all always skips this row.</string>
+    <string name="systemui_yes">Arm it</string>
+
+
+    <!-- help screen -->
+    <string name="help">How it works</string>
+    <string name="help_title">How it works</string>
+    <string name="help_intro">A rootless per-app refresh-rate unlock for the OnePlus 15 on OxygenOS 16. What it does to your phone, in short pieces.</string>
+
+    <string name="help_what_title">What it does</string>
+    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144 or 165 Hz. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
+
+    <string name="help_sweeps_title">The three sweeps</string>
+    <string name="help_sweeps_body">Arm all sweeps the whole list. Re-arm re-sends the saved set. Clear withdraws everything. The armed set survives reboots.</string>
+
+    <string name="help_how_title">How a rate is forced</string>
+    <string name="help_how_body">OxygenOS carries a display service whose requestGameRefreshRate call has no permission check on the caller, so any app can ask for a rate on behalf of any package. It is the same request the system game mode uses, which is why no root is needed.</string>
+
+    <string name="help_ids_title">Why 60 and 90 were once swapped</string>
+    <string name="help_ids_body">The vendor rate ids are not in Hz order: id 1 is 90 Hz and id 2 is 60 Hz. An early build read them the other way round, so those two rates ran at the one you had not picked.</string>
+
+    <string name="help_pin_title">The vote is a pin</string>
+    <string name="help_pin_body">The request sets the panel minimum and maximum to the same rate. While an armed app is on screen the panel has no range left to move inside, so it is a pin rather than a ceiling.</string>
+
+    <string name="help_floors_title">What each rate can idle to</string>
+    <string name="help_floors_body">Every rate selects a panel mode with its own idle floor. Measured on this build: 165 rests at 55 Hz, 144 near 48, 60 and 90 at 30, and 120 goes all the way down to 1.</string>
+
+    <string name="help_watchdog_title">The watchdog</string>
+    <string name="help_watchdog_body">Game engines re-pin their own frame rate whenever they take focus, which overwrites a one-shot request. The watchdog re-issues the vote while the screen is on so ours lands last. Its notification says how many apps it is holding.</string>
+
+    <string name="help_focus_title">Why the app on screen decides the order</string>
+    <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every pass ends on the app you are using. A pass ending on a background app would vote for windows that do not exist and drop the pin it had just set.</string>
+
+
+    <string name="help_park_title">Letting the panel idle</string>
+    <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
+
+    <string name="help_park_rule_title">What may park</string>
+    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at 55 Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that 55. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
+
+    <string name="help_optin_title">The system UI row</string>
+    <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>
+
+    <string name="help_self_title">Arming this app</string>
+    <string name="help_self_body">That one does work, and doubles as a self test. If this app\'s own screen will not reach the rate you armed it at, no vote is landing at all. The smoothness test has its own switch for the same thing, and that one gives the hold back when you leave the page. Arm all skips both rows.</string>
+
+    <string name="help_fps_title">Seeing the rate</string>
+    <string name="help_fps_body">The smoothness test draws one lane of moving blocks per rate, each allowed to update only at its own rate. The lane matching the panel glides and the slower ones step. The readout is the panel measured from its own frame timing, and the marker colour is yours to pick: which colour shows a moving edge best is a property of the screen, not of the test.</string>
+
+    <string name="help_disarm_title">Disarming</string>
+    <string name="help_disarm_body">Disarm withdraws the vote by asking for rate id 0, the vendor cancel. Sending the rate again would only write the same pin back. A reboot clears every vote, because the vendor keeps them in memory only.</string>
+
+    <string name="help_limits_title">What it cannot do</string>
+    <string name="help_limits_body">The permanent per-app override is permission protected and closed to a rootless app, so a vote applies only while its app is in the foreground. Video can judder when forced above its own cadence: pin those at 60 or leave them unarmed. Battery and heat rise with the rate and with the number of armed apps.</string>
+
+    <string name="help_ota_title">After an update</string>
+    <string name="help_ota_body">An OTA can close the hole at any time. A SecurityException in the log is what that looks like.</string>
+
+    <string name="help_log_title">Reading the log</string>
+    <string name="help_log_body">Settings has a Live log page. Arm165 lines are this app: vote results, the app it sees on screen, parks and restores. RefreshRate lines are the vendor framework. Share sends the buffer for a bug report.</string>
+
 
     <!-- games page -->
     <string name="games_title">3D Games</string>
@@ -110,9 +206,9 @@
 
     <!-- game boost / secure-settings card -->
     <string name="boost_title">Game boost switch</string>
-    <string name="boost_on">On — OxygenOS high-refresh feature enabled</string>
-    <string name="boost_off">Off — tap to enable the high-refresh feature</string>
-    <string name="boost_locked">Needs a one-time permission — see below</string>
+    <string name="boost_on">On. OxygenOS high-refresh feature enabled</string>
+    <string name="boost_off">Off. Tap to enable the high-refresh feature</string>
+    <string name="boost_locked">Needs a one-time permission, see below</string>
     <string name="boost_grant_intro">Run this once over adb, then reopen. It survives reboots.</string>
     <string name="boost_grant_cmd">adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
     <string name="copied">Command copied</string>

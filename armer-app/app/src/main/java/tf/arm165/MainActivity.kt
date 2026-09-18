@@ -49,6 +49,18 @@ class MainActivity : ShellActivity() {
         super.onCreate(savedInstanceState)
         // No-op after the first process start; makes the Settings log view work.
         LogRing // touch so the object is initialized early
+        // An armed set written by a build whose "Arm all" swept in the
+        // framework and SystemUI still names them, and the watchdog would keep
+        // voting for packages whose windows sit next to every app's. Drop them
+        // and withdraw the votes they left live. Idempotent — the service does
+        // the same on its own start, and a clean set gets nothing back.
+        ArmedStore.dropUnvotable(prefs).takeIf { it.isNotEmpty() }?.let { unvotable ->
+            worker.execute {
+                synchronized(RateLock) {
+                    unvotable.forEach { (pkg, rateId) -> RateLock.release(pkg, rateId) }
+                }
+            }
+        }
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
@@ -93,7 +105,7 @@ class MainActivity : ShellActivity() {
         updateState()
 
         reArmSavedQuietly() // covers a reboot the boot receiver missed
-        AppCatalog.loadAsync(packageManager, packageName) { entries ->
+        AppCatalog.loadAsync(packageManager) { entries ->
             if (isFinishing || isDestroyed) return@loadAsync
             all = entries
             loading = false
@@ -146,6 +158,9 @@ class MainActivity : ShellActivity() {
         findViewById<View>(R.id.btn_rearm).setOnClickListener { reArmSaved() }
         findViewById<View>(R.id.btn_arm_all).setOnClickListener { armAll() }
         findViewById<View>(R.id.btn_clear).setOnClickListener { clearAll() }
+        findViewById<View>(R.id.btn_help).setOnClickListener {
+            startActivity(Intent(this, HelpActivity::class.java))
+        }
         findViewById<View>(R.id.btn_settings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -230,10 +245,30 @@ class MainActivity : ShellActivity() {
         if (rejectWhileBusy()) return
         when {
             entry.pkg in armed -> disarm(entry, toggle)
+            // Arming the shade is not like arming an app; say so once.
+            entry.pkg == RateLock.SYSTEM_UI && !prefs.getBoolean(KEY_WARNED_SYSTEM_UI, false) ->
+                confirmSystemUi { arm(entry, activeRate, null) }
             prefs.getBoolean(KEY_WARNED, false) -> arm(entry, activeRate, toggle)
             // behind the dialog the row repaints itself, so nothing to animate
             else -> confirmFirstTime { arm(entry, activeRate, null) }
         }
+    }
+
+    /**
+     * The SystemUI-specific warning, shown once. The generic first-run dialog
+     * is about the vendor IPC; this one is about what a vote on always-visible
+     * windows does to the rest of the display.
+     */
+    private fun confirmSystemUi(onYes: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.systemui_title)
+            .setMessage(R.string.systemui_body)
+            .setPositiveButton(R.string.systemui_yes) { _, _ ->
+                prefs.edit().putBoolean(KEY_WARNED_SYSTEM_UI, true).apply()
+                onYes()
+            }
+            .setNegativeButton(R.string.risk_no, null)
+            .show()
     }
 
     private fun arm(entry: AppEntry, rateId: Int, toggle: RateSwitch?) {
@@ -309,9 +344,9 @@ class MainActivity : ShellActivity() {
             return
         }
         runBusy(getString(R.string.rearming)) {
-            var ok = 0
-            synchronized(RateLock) {
-                saved.forEach { (pkg, rateId) -> if (RateLock.arm(pkg, rateId)) ok++ }
+            // Foreground last, like every other sweep — see RateLock.armEach.
+            val ok = synchronized(RateLock) {
+                RateLock.armEach(saved, Oiface.currentGamePackage()).size
             }
             ui { snack(getString(R.string.rearmed, ok, saved.size)) }
         }
@@ -321,14 +356,21 @@ class MainActivity : ShellActivity() {
         if (all.isEmpty()) return
         confirmFirstTime {
             val rateId = activeRate
-            val targets = all.map { it.pkg }
+            // The opt-in rows are skipped here by design: SystemUI because a
+            // vote on always-visible windows is display-wide, and this app
+            // because arming itself should be a decision, not a side effect of
+            // Arm all. Both are still one tap away in the list.
+            val skip = RateLock.optInOnly(packageName) + RateLock.NEVER_ARM
+            val targets = all.map { it.pkg }.filter { it !in skip }
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
-                val done = ArrayList<String>(targets.size)
                 // One vote per app, whatever it was pinned at before: the call
                 // is a set, so re-issuing an id an app already holds is free and
-                // repairs a vote the vendor dropped.
-                synchronized(RateLock) {
-                    targets.forEach { pkg -> if (RateLock.arm(pkg, rateId)) done.add(pkg) }
+                // repairs a vote the vendor dropped. The app on screen is voted
+                // last (see RateLock.armEach) — during this sweep that is the
+                // armer itself, which is never armed, so the watchdog's next
+                // pass is what lands the pin on whatever you open next.
+                val done = synchronized(RateLock) {
+                    RateLock.armEach(targets.associateWith { rateId }, Oiface.currentGamePackage())
                 }
                 main.post {
                     done.forEach { armed[it] = rateId }
@@ -375,7 +417,7 @@ class MainActivity : ShellActivity() {
         val saved = armed.toMap()
         if (saved.isEmpty()) return
         worker.execute {
-            synchronized(RateLock) { saved.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) } }
+            synchronized(RateLock) { RateLock.armEach(saved, Oiface.currentGamePackage()) }
         }
     }
 

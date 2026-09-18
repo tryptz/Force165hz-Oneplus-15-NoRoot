@@ -57,6 +57,67 @@ object RateLock {
 
     fun isKnown(rateId: Int): Boolean = ALL.any { it.first == rateId }
 
+    /**
+     * Measured LTPO idle floor of the panel mode each rateId selects — the
+     * lowest the panel goes while that vote is held. Measured on this build
+     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at 55.
+     *
+     * So 165 is the only mode that cannot idle, and the only reason the park
+     * exists. A still screen with 165 held ramps down to 55 and stops, which
+     * is confirmed on device.
+     *
+     * 144 has never been measured, because it is the one rate that parks and
+     * so always leaves its own mode before going quiet. The estimate is kept
+     * deliberately: a floor guessed too LOW only makes a park slower to
+     * trigger, while one guessed too high lets the gate mistake real motion
+     * for the floor. Now that 60, 90 and 120 all reach 1 it is likely 144
+     * does too, which would make the park pointless for it. Measure it.
+     */
+    fun idleFloorHz(rateId: Int): Int = when (rateId) {
+        RATE_60, RATE_90, RATE_120 -> 1
+        RATE_144 -> 48
+        RATE_165 -> 55
+        else -> hz(rateId) / 3
+    }
+
+    /**
+     * Packages no vote may ever name. `android` is the framework itself, which
+     * `setrate.sh --all` has skipped since the first sweep: it is not an app
+     * anyone looks at, and its windows belong to the system rather than to a
+     * screen.
+     */
+    val NEVER_ARM = setOf("android")
+
+    /**
+     * SystemUI — the notification shade, quick settings, the lock screen and
+     * the always-on display. Armable, but only on purpose: its windows are
+     * composited next to every app's, so the pin tends to apply display-wide
+     * instead of to one app, which is the opposite of what the per-app
+     * ordering is for.
+     */
+    const val SYSTEM_UI = "com.android.systemui"
+
+    /**
+     * Whether swapping this rate for 120 can idle LOWER than the rate's own
+     * mode does. Measured on this build, and the answer is 144 alone.
+     *
+     * From 144 the switch is clean and the panel ramps to 1 Hz. From 165 it is
+     * not: the extreme mode has to be left through 144 first, and the 120 that
+     * follows behaves as a pin at 120 rather than a 1-120 range, so the park
+     * lands ABOVE the 55 Hz the 165 mode idles to on its own. Parking 165
+     * therefore costs idle power instead of saving it, whatever the vote says.
+     * A still 165 screen rests at 55 and that is the floor on this build.
+     */
+    fun parkable(rateId: Int): Boolean = hz(rateId) in 121..144
+
+    /**
+     * Packages a bulk sweep must skip while a deliberate row tap may still arm
+     * them: SystemUI for the reason above, and [self] because an app arming
+     * itself is a choice (a useful one — it is the cheapest test of whether
+     * votes are landing at all) rather than something Arm all should decide.
+     */
+    fun optInOnly(self: String): Set<String> = setOf(SYSTEM_UI, self)
+
     private fun service(): IBinder? = try {
         Class.forName("android.os.ServiceManager")
             .getMethod("getService", String::class.java)
@@ -105,6 +166,26 @@ object RateLock {
         },
         fallback = false,
     )
+
+    /**
+     * Issues one vote per entry of [armed] and returns the packages whose vote
+     * the server took, with [last] — the app on screen, when anything can name
+     * it — left for the end.
+     *
+     * The order is why no caller writes this loop itself. The server writes
+     * the override onto the live windows of the package each call names, and
+     * the panel takes its mode from the write that landed last, so a sweep
+     * ending on a background package hands the display a vote for windows that
+     * do not exist and dissolves the pin the same sweep just set. That is what
+     * arming every app did to itself, once per watchdog tick, and why the
+     * panel could reach 1 Hz inside an app that was supposed to be pinned.
+     */
+    fun armEach(armed: Map<String, Int>, last: String? = null): List<String> {
+        val done = ArrayList<String>(armed.size)
+        armed.forEach { (pkg, rateId) -> if (pkg != last && arm(pkg, rateId)) done += pkg }
+        last?.let { pkg -> armed[pkg]?.let { rateId -> if (arm(pkg, rateId)) done += pkg } }
+        return done
+    }
 
     /**
      * Persistent per-app override via `setAppOverrideRefreshRate` — the same
@@ -158,7 +239,7 @@ object RateLock {
         if (ok) {
             Log.i(TAG, "$packageName released (vote -> id=$RATE_NONE)")
         } else {
-            Log.w(TAG, "$packageName release failed — vendor unreachable; a reboot clears every pin")
+            Log.w(TAG, "$packageName release failed , vendor unreachable; a reboot clears every pin")
         }
         return ok
     }
