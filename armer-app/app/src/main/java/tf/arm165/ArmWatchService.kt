@@ -20,9 +20,8 @@ import kotlin.math.roundToInt
  * overwrite our single-shot vote — re-arming continuously lands our vote after
  * theirs and wins.
  *
- * Every pass is ordered around the app on screen — from usage access where
- * the user has granted it, oiface's current game otherwise — and ends on it.
- * The server
+ * Every pass is ordered around the app on screen, as oiface's game daemon
+ * reports it, and ends on it. The server
  * writes the override onto the live windows of the package each call names,
  * and the panel takes its mode from the write that landed last, so a pass that
  * ends on a background package hands the display a vote for windows that do
@@ -75,9 +74,6 @@ class ArmWatchService : Service() {
     /** The armed package we believe is on screen, and when we last saw it. */
     private var focusPkg: String? = null
     private var focusSeenNs = 0L
-
-    /** The package on screen, armed or not — for the log line only. */
-    private var screenPkg: String? = null
 
     /** Last pass's focus, so a switch INTO an armed app can be noticed. */
     private var lastPassFocus: String? = null
@@ -251,19 +247,8 @@ class ArmWatchService : Service() {
 
         // Who is on screen, and which background votes this pass refreshes.
         // Every vote below is ordered around these two.
-        val screen = screen(armedNow)
-        val focus = screen.focus
+        val focus = focus(armedNow)
 
-        // The app on screen is identified and it is not armed, so no vote of
-        // ours is in effect: nothing to refresh, nothing to park. Issuing
-        // background votes here is how a pin leaks onto an app that was never
-        // armed — the write would land on windows that do exist, just not the
-        // ones we meant. Park state is kept: whatever is parked is off screen,
-        // and gets its rate back below when it comes forward again.
-        if (armedNow.isNotEmpty() && screen.known && focus == null) {
-            lastPassFocus = null
-            return if (parked.isEmpty()) INTERVAL_MS else PINNED_TICK_MS
-        }
 
         // Switching INTO an armed app is the user asking for its rate now: a
         // vote left parked at 120 from the last time it was on screen must not
@@ -559,52 +544,33 @@ class ArmWatchService : Service() {
     }
 
     /**
-     * What a pass knows about the app on screen: [focus] is the armed package
-     * whose vote the panel is actually following — the only one a game engine
-     * can overwrite, and the one that must own the last write of the pass —
-     * and [known] says whether anything positively identified what is in front
-     * of the user, as opposed to the pass falling back on memory.
-     */
-    private class Screen(val focus: String?, val known: Boolean)
-
-    /**
-     * Identifies the app on screen, best signal first.
+     * The armed package we believe is on screen: the only one whose vote a
+     * game engine can overwrite, and the one that must own the last write of
+     * every pass.
      *
-     * [Foreground] (usage access) names it whatever it is, which is the only
-     * way to learn that the app in front of the user is NOT armed — worth
-     * knowing, because then no vote of ours is in effect and the pass has
-     * nothing to do. oiface answers only for games its daemon tracks. With
-     * neither, the last answer stands for [FOCUS_MEMORY_NS] so a momentary
-     * null does not reorder the sweep, and after that the pass simply has no
-     * focus: votes still go out, just without a package to end on.
+     * oiface names the game its daemon currently considers foreground, and
+     * that is all there is. Nothing else a rootless app can call names the
+     * foreground app, so for an app the daemon does not track the answer is
+     * "don't know": the last answer stands for [FOCUS_MEMORY_NS] so a
+     * momentary null does not reorder the sweep, and after that the pass
+     * simply has no focus. Votes still go out, just without a package to end
+     * on.
      */
-    private fun screen(armedNow: Map<String, Int>): Screen {
-        Foreground.current(this)?.let { onScreen ->
-            val armedOnScreen = onScreen.takeIf { it in armedNow }
-            noteScreen(onScreen, armedOnScreen)
-            return Screen(armedOnScreen, known = true)
-        }
+    private fun focus(armedNow: Map<String, Int>): String? {
         Oiface.currentGamePackage()?.takeIf { it in armedNow }?.let { pkg ->
-            noteScreen(pkg, pkg)
-            return Screen(pkg, known = true)
+            if (pkg != focusPkg) Log.i(TAG, "focus: $pkg")
+            focusPkg = pkg
+            focusSeenNs = System.nanoTime()
+            return pkg
         }
         val remembered = focusPkg
         if (remembered != null && remembered in armedNow &&
             System.nanoTime() - focusSeenNs < FOCUS_MEMORY_NS
         ) {
-            return Screen(remembered, known = false)
+            return remembered
         }
         focusPkg = null
-        return Screen(null, known = false)
-    }
-
-    private fun noteScreen(onScreen: String, armedOnScreen: String?) {
-        if (onScreen != screenPkg) {
-            Log.i(TAG, "screen: $onScreen" + if (armedOnScreen == null) " (not armed)" else "")
-        }
-        screenPkg = onScreen
-        focusPkg = armedOnScreen
-        focusSeenNs = System.nanoTime()
+        return null
     }
 
     /**
@@ -731,7 +697,7 @@ class ArmWatchService : Service() {
                         }
                         // A wake is not park churn: the animation that undoes
                         // the park here is the resume, not content demand.
-                        restore(armedNow, screen(armedNow).focus, churn = false)
+                        restore(armedNow, focus(armedNow), churn = false)
                     }
                 }
                 handler.postDelayed(tick, 1500)
@@ -948,7 +914,7 @@ class ArmWatchService : Service() {
          * An armed set this small is re-voted whole every pass: it is the
          * scale the boot list has always run at, and it never cost the pin.
          */
-        const val FULL_SWEEP_MAX = 8
+        private const val FULL_SWEEP_MAX = 8
 
         /** Background votes refreshed per repair pass, above [FULL_SWEEP_MAX]. */
         private const val REPAIR_SLICE = 16

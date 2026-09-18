@@ -44,7 +44,6 @@
     <string name="rearmed">Re-armed %1$d of %2$d</string>
     <string name="arming_all">Arming %1$d apps at %2$d Hz…</string>
     <string name="armed_all">Armed %1$d of %2$d at %3$d Hz</string>
-    <string name="armed_all_no_fg">Armed %1$d of %2$d at %3$d Hz. Grant usage access in Settings so the watchdog knows which app is on screen</string>
     <string name="clearing">Disarming…</string>
     <plurals name="cleared">
         <item quantity="one">Disarmed %1$d app</item>
@@ -152,8 +151,6 @@
     <string name="help_focus_title">Why the app on screen decides the order</string>
     <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every pass ends on the app you are using. A pass ending on a background app would vote for windows that do not exist and drop the pin it had just set.</string>
 
-    <string name="help_usage_title">Usage access</string>
-    <string name="help_usage_body">This is what names the app on screen. Without it only games the vendor daemon tracks can be recognised, and on a phone whose daemon refuses ordinary apps, nothing is. Grant it in Settings.</string>
 
     <string name="help_park_title">Letting the panel idle</string>
     <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
@@ -182,13 +179,6 @@
     <string name="help_log_title">Reading the log</string>
     <string name="help_log_body">Settings has a Live log page. Arm165 lines are this app: vote results, the app it sees on screen, parks and restores. RefreshRate lines are the vendor framework. Share sends the buffer for a bug report.</string>
 
-    <!-- usage access: foreground detection for the watchdog -->
-    <string name="fg_title">Foreground detection</string>
-    <string name="fg_on">On. The watchdog knows which armed app is on screen, so its vote lands last</string>
-    <string name="fg_off">Off. With more than a handful of apps armed, the watchdog cannot tell which pin the panel is following</string>
-    <string name="fg_grant">Grant</string>
-    <string name="fg_manage">Manage</string>
-    <string name="fg_no_screen">This build has no usage-access screen</string>
 
     <!-- games page -->
     <string name="games_title">3D Games</string>
