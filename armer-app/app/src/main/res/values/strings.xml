@@ -60,11 +60,11 @@
     <string name="rate_set">%1$s at %2$d Hz</string>
     <string name="rate_badge_desc">%1$s is armed at %2$d Hz, tap to change</string>
 
-    <!-- Idle behaviour: the 165 mode's floor is 55 Hz (measured on this build), so
-         a 165 vote can never idle below it; every other mode reaches 1 Hz. The
-         watchdog's park (144 only now) swaps a still vote into the 120 mode and
-         back on motion. Always on, no toggle. -->
-    <string name="idle_note">Idle: armed apps rest in the 120 mode and ramp to 1 Hz when still, returning to full speed on motion. Exception: 165 Hz, whose mode floor is 55 Hz, so a still 165-armed app rests at 55 Hz.</string>
+    <!-- Idle behaviour, always on, no toggle. The note gives outcomes only: what
+         a still screen actually rests at per vote. The why (the park, and why 165
+         is the one rate that does not take it) is on the help screen under
+         "Letting the panel idle" and "What may park". -->
+    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. Resting rates: 60 and 90 reach 30 Hz, 120 and 144 reach 1 Hz, 165 reaches 55 Hz because that is its mode floor.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
