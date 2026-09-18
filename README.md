@@ -82,8 +82,12 @@ permission on first launch.
 - Battery and heat increase with the number of armed apps. The panel's LTPO
   floor depends on the mode the vote selects — measured on this build:
   60→30 Hz, 90→30 Hz, 120→1 Hz, 165→55 Hz (144 not measured yet; the code
-  estimates 48). **Confirmed: a still screen with 165 held does reach 55 Hz**,
-  so the ramp works, it simply stops at the mode's floor. What the park gate
+  estimates 48). **Confirmed: a still screen with 165 held reaches 55 Hz and
+  stays there**, so the ramp works, it simply stops at the mode's floor.
+  **A 120 vote written from 165 is accepted and does not move the panel off
+  that floor**: the vote changes, the mode does not. From 144 the same write
+  switches cleanly and the panel ramps to 1 Hz, so a park from above 144
+  steps out through 144 first, waits a beat, and only then asks for 120. What the park gate
   must not do is read the panel at the TOP of that range: whenever the panel
   is at the armed rate it is reporting our own pin, and its 6 ms frame pairs
   also feed the rate-starvation counter, which counts anything above 100 Hz.
