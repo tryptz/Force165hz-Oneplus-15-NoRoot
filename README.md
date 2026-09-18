@@ -130,19 +130,6 @@ this was written on) plus live `service call` probes from an unprivileged uid:
 Between them: nothing rootless found so far reaches 165 outside a foreground
 app window.
 
-## Build and install
-
-```bash
-proot-distro login ubuntu -- bash -lc '
-  export ANDROID_HOME=/root/android-sdk
-  cd /data/data/com.termux/files/home/Force165hz-Oneplus-15-NoRoot/armer-app
-  ./gradlew assembleDebug --offline'
-cp app/build/outputs/apk/debug/app-debug.apk ~/storage/downloads/arm165-debug.apk
-```
-
-Debug-signed, package `tf.arm165`. Tap to install from Downloads and grant the
-notification permission on first launch.
-
 ## Notes
 
 - An armed app must be foregrounded to receive its vote.
