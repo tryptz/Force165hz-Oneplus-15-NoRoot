@@ -110,10 +110,6 @@ class ArmWatchService : Service() {
      */
     private val parkRetried = HashSet<String>()
 
-    /** Pass counter and cursor for the bounded background repair. */
-    private var passes = 0
-    private var repairCursor = 0
-
     /*
      * Panel-rate motion detector. The oiface probes (gpuLoad, per-app fps)
      * only track apps the vendor game daemon knows — for everything else they
@@ -244,7 +240,6 @@ class ArmWatchService : Service() {
      */
     private fun tickOnce(): Long {
         val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
-        passes++
 
         // The armed set can change under us (disarm, re-arm, rate change) while
         // this service keeps running. Park/quiet state for a package that is no
@@ -688,12 +683,23 @@ class ArmWatchService : Service() {
      * Background packages to re-vote this pass.
      *
      * Their votes are sticky in the vendor's map — an arm writes one, only a
-     * release takes it away — so re-issuing them buys nothing except repair of
-     * a vote the server dropped. A handful per pass is what the boot list
-     * always did and it never cost the pin; the few hundred "Arm all" produced
-     * is what did. So a small set still goes out whole, and a large one is
-     * refreshed [REPAIR_SLICE] at a time, every [REPAIR_EVERY_PASSES] passes,
-     * cycling through the set.
+     * release takes it away — so re-issuing one buys nothing at all unless the
+     * server dropped it, and a background package cannot be showing a dropped
+     * vote because a vote only applies while its package is in front. The one
+     * that can be dropped is the app on screen, and that one is voted every
+     * pass anyway, last, by name.
+     *
+     * So above a handful, none. Cycling slices through a large set was the
+     * compromise, and it is what "Arm all" broke on: sixteen background votes
+     * every tenth pass is about seven minutes to come round to the game the
+     * user actually armed, and each burst ends the pass on a package with no
+     * live windows. Measured with 641 armed: panel at 166 Hz, a burst goes
+     * out, next reading 120.
+     *
+     * A small set still goes out whole. That is the boot-list scale this was
+     * built at, it never cost the pin, and with one app armed it is the only
+     * thing voting it at all while nothing identifies the screen — which is
+     * exactly why arming one app worked while arming everything did not.
      */
     private fun repairTargets(armedNow: Map<String, Int>, focus: String?): List<String> {
         // Never a parked package: voteSweep issues each package's ARMED rate,
@@ -701,21 +707,8 @@ class ArmWatchService : Service() {
         // put in place, leave the parked set still claiming it is parked, and
         // undo the park without anything in the log saying so. The focus is
         // excluded for a different reason: it is voted last, separately.
-        // Nothing identified on screen means there is no package to end the
-        // pass on, and a pass that ends on a background one hands the display
-        // a vote for windows that do not exist — the case this function's own
-        // note describes. Measured with 641 armed and no focus: the panel sat
-        // at 166 Hz, a repair burst went out, and the next reading was 120.
-        // Holding what is already there beats voting blind.
-        if (focus == null) return emptyList()
         val keys = armedNow.keys.filter { it != focus && it !in parked }
-        if (keys.size <= FULL_SWEEP_MAX) return keys
-        if (passes % REPAIR_EVERY_PASSES != 0) return emptyList()
-        if (repairCursor >= keys.size) repairCursor = 0
-        val end = minOf(repairCursor + REPAIR_SLICE, keys.size)
-        val slice = ArrayList(keys.subList(repairCursor, end))
-        repairCursor = if (end >= keys.size) 0 else end
-        return slice
+        return if (keys.size <= FULL_SWEEP_MAX) keys else emptyList()
     }
 
     /**
@@ -1068,12 +1061,6 @@ class ArmWatchService : Service() {
          * scale the boot list has always run at, and it never cost the pin.
          */
         private const val FULL_SWEEP_MAX = 8
-
-        /** Background votes refreshed per repair pass, above [FULL_SWEEP_MAX]. */
-        private const val REPAIR_SLICE = 16
-
-        /** Passes between repair slices; every pass in between votes focus only. */
-        private const val REPAIR_EVERY_PASSES = 10
 
         /**
          * How long after a park the panel is not asked about itself.
