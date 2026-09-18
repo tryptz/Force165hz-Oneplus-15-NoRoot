@@ -83,6 +83,16 @@ class ArmWatchService : Service() {
     /** Ticks in the pinned-but-unparked state; paces its diagnostic line. */
     private var pinnedTicks = 0
 
+    /**
+     * Packages whose park has already been re-asserted once in this park.
+     *
+     * A still screen gives the vendor no reason to re-evaluate its refresh
+     * policy, so a vote that lands on a window nothing is redrawing can sit
+     * there without taking effect. One more write, a beat later, is the cheap
+     * test of that; a second failure is taken as the answer.
+     */
+    private val parkRetried = HashSet<String>()
+
     /** Pass counter and cursor for the bounded background repair. */
     private var passes = 0
     private var repairCursor = 0
@@ -226,6 +236,7 @@ class ArmWatchService : Service() {
         // ("stops switching to 120 after re-enabling"), because its stale entry
         // made the branch treat it as already parked. Prune to the live set.
         parked.retainAll(armedNow.keys)
+        parkRetried.retainAll(parked)
         lowTicks.keys.retainAll(armedNow.keys)
         parkedAtNs.keys.retainAll(parked)
         parkBlockedUntilNs.keys.retainAll(armedNow.keys)
@@ -307,10 +318,27 @@ class ArmWatchService : Service() {
         val ceilingSaturated = parkedAndMeasured && !parkIgnored &&
             (phz >= STARVED_HZ || panelStarveRun >= STARVED_RUN_FRAMES)
         val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsBusy
+        // The park did not take, and has not been re-asserted yet: write the
+        // 120 once more rather than concluding anything. This is the whole
+        // difference between "the vendor refuses a lower vote" and "the vote
+        // needed a second nudge on a screen that never redraws".
+        if (parkIgnored && parked.any { it !in parkRetried }) {
+            val now = System.nanoTime()
+            parked.forEach { pkg ->
+                if (parkRetried.add(pkg) && RateLock.arm(pkg, RateLock.RATE_120)) {
+                    Log.i(TAG, "%s still at %d Hz after the park. Re-asserting 120."
+                        .format(pkg, phz))
+                }
+            }
+            parkGraceUntilNs = now + PARK_GRACE_NS
+            forgetPanel()
+            return RESUME_TICK_MS
+        }
+
         if (busy) {
             if (parkIgnored) {
                 Log.i(TAG, ("park had no effect: panel=%d Hz, above the %d it was given " +
-                    "(pair=%.1f ms, gpu=%.2f). Restoring the armed rate and backing off.")
+                    "twice (pair=%.1f ms, gpu=%.2f). Restoring the armed rate and backing off.")
                     .format(phz, PARK_CEILING_HZ, panelLastIntervalNs / 1e6, gpu))
                 val now = System.nanoTime()
                 parked.forEach { parkBlockedUntilNs[it] = now + PARK_BACKOFF_NS }
@@ -551,7 +579,12 @@ class ArmWatchService : Service() {
      * cycling through the set.
      */
     private fun repairTargets(armedNow: Map<String, Int>, focus: String?): List<String> {
-        val keys = armedNow.keys.filter { it != focus }
+        // Never a parked package: voteSweep issues each package's ARMED rate,
+        // so including one here would write 165 back over the 120 a park just
+        // put in place, leave the parked set still claiming it is parked, and
+        // undo the park without anything in the log saying so. The focus is
+        // excluded for a different reason: it is voted last, separately.
+        val keys = armedNow.keys.filter { it != focus && it !in parked }
         if (keys.size <= FULL_SWEEP_MAX) return keys
         if (passes % REPAIR_EVERY_PASSES != 0) return emptyList()
         if (repairCursor >= keys.size) repairCursor = 0
@@ -599,6 +632,7 @@ class ArmWatchService : Service() {
         parked.clear()
         lowTicks.clear()
         parkedAtNs.clear()
+        parkRetried.clear()
     }
 
     /**
