@@ -59,20 +59,22 @@ object RateLock {
 
     /**
      * Measured LTPO idle floor of the panel mode each rateId selects — the
-     * lowest the panel goes while that vote is held. From this build's
-     * measurements (README): 60 -> 30, 90 -> 30, 120 -> 1, 165 -> 55. The 55
-     * is confirmed on device: a still screen with 165 held ramps down to it
-     * and stops there, which is the whole reason the park swaps in 120.
+     * lowest the panel goes while that vote is held. Measured on this build
+     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at 55.
      *
-     * 144 has never been measured. It takes the ratio the 90 and 165 modes
-     * share, a floor near a third of the mode's own rate, which errs on the
-     * safe side for the park gate: guessing the floor too LOW only makes a
-     * park slower to trigger, while guessing it too high would let the gate
-     * mistake real motion for the floor. Measure it and replace the estimate.
+     * So 165 is the only mode that cannot idle, and the only reason the park
+     * exists. A still screen with 165 held ramps down to 55 and stops, which
+     * is confirmed on device.
+     *
+     * 144 has never been measured, because it is the one rate that parks and
+     * so always leaves its own mode before going quiet. The estimate is kept
+     * deliberately: a floor guessed too LOW only makes a park slower to
+     * trigger, while one guessed too high lets the gate mistake real motion
+     * for the floor. Now that 60, 90 and 120 all reach 1 it is likely 144
+     * does too, which would make the park pointless for it. Measure it.
      */
     fun idleFloorHz(rateId: Int): Int = when (rateId) {
-        RATE_120 -> 1
-        RATE_60, RATE_90 -> 30
+        RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
         RATE_165 -> 55
         else -> hz(rateId) / 3

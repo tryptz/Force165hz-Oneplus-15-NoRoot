@@ -44,7 +44,6 @@
     <string name="rearmed">Re-armed %1$d of %2$d</string>
     <string name="arming_all">Arming %1$d apps at %2$d Hz…</string>
     <string name="armed_all">Armed %1$d of %2$d at %3$d Hz</string>
-    <string name="armed_all_no_fg">Armed %1$d of %2$d at %3$d Hz. Grant usage access in Settings so the watchdog knows which app is on screen</string>
     <string name="clearing">Disarming…</string>
     <plurals name="cleared">
         <item quantity="one">Disarmed %1$d app</item>
@@ -61,11 +60,11 @@
     <string name="rate_set">%1$s at %2$d Hz</string>
     <string name="rate_badge_desc">%1$s is armed at %2$d Hz, tap to change</string>
 
-    <!-- Idle behaviour: the 165 mode's floor is 55 Hz (measured on this build), so
-         a 165 vote can never idle below it; every other mode reaches 1 Hz. The
-         watchdog's park (144 only now) swaps a still vote into the 120 mode and
-         back on motion. Always on, no toggle. -->
-    <string name="idle_note">Idle: armed apps rest in the 120 mode and ramp to 1 Hz when still, returning to full speed on motion. Exception: 165 Hz, whose mode floor is 55 Hz, so a still 165-armed app rests at 55 Hz.</string>
+    <!-- Idle behaviour, always on, no toggle. The note gives outcomes only: what
+         a still screen actually rests at per vote. The why (the park, and why 165
+         is the one rate that does not take it) is on the help screen under
+         "Letting the panel idle" and "What may park". -->
+    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the 55 Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
@@ -152,14 +151,12 @@
     <string name="help_focus_title">Why the app on screen decides the order</string>
     <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every pass ends on the app you are using. A pass ending on a background app would vote for windows that do not exist and drop the pin it had just set.</string>
 
-    <string name="help_usage_title">Usage access</string>
-    <string name="help_usage_body">This is what names the app on screen. Without it only games the vendor daemon tracks can be recognised, and on a phone whose daemon refuses ordinary apps, nothing is. Grant it in Settings.</string>
 
     <string name="help_park_title">Letting the panel idle</string>
     <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
 
     <string name="help_park_rule_title">What may park</string>
-    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. From 144 the switch to 120 is clean and the panel ramps to 1 Hz. From 165 it lands on a pinned 120, higher than the 55 Hz that mode idles to on its own, so parking it would cost power. A still 165 screen rests at 55 Hz and that is the floor here. 120 already is the park, and 60 or 90 are ceilings you picked to keep faster content off the panel.</string>
+    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at 55 Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that 55. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
 
     <string name="help_optin_title">The system UI row</string>
     <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>
@@ -182,13 +179,6 @@
     <string name="help_log_title">Reading the log</string>
     <string name="help_log_body">Settings has a Live log page. Arm165 lines are this app: vote results, the app it sees on screen, parks and restores. RefreshRate lines are the vendor framework. Share sends the buffer for a bug report.</string>
 
-    <!-- usage access: foreground detection for the watchdog -->
-    <string name="fg_title">Foreground detection</string>
-    <string name="fg_on">On. The watchdog knows which armed app is on screen, so its vote lands last</string>
-    <string name="fg_off">Off. With more than a handful of apps armed, the watchdog cannot tell which pin the panel is following</string>
-    <string name="fg_grant">Grant</string>
-    <string name="fg_manage">Manage</string>
-    <string name="fg_no_screen">This build has no usage-access screen</string>
 
     <!-- games page -->
     <string name="games_title">3D Games</string>

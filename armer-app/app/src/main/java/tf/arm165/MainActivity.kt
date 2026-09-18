@@ -376,16 +376,7 @@ class MainActivity : ShellActivity() {
                     done.forEach { armed[it] = rateId }
                     onArmedChanged()
                     ArmWatchService.start(this)
-                    // Above a handful of armed apps the watchdog needs to know
-                    // which one is on screen to order its votes; without usage
-                    // access it cannot, so say so here rather than silently
-                    // doing the weaker thing.
-                    val needsFg = done.size > ArmWatchService.FULL_SWEEP_MAX &&
-                        !Foreground.hasAccess(this)
-                    snack(getString(
-                        if (needsFg) R.string.armed_all_no_fg else R.string.armed_all,
-                        done.size, targets.size, RateLock.hz(rateId),
-                    ))
+                    snack(getString(R.string.armed_all, done.size, targets.size, RateLock.hz(rateId)))
                 }
             }
         }
