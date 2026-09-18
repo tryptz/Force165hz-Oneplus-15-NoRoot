@@ -63,11 +63,22 @@ class SettingsActivity : Activity() {
         syncUsageRow()
     }
 
+    /**
+     * The grant only changes anything past [ArmWatchService.FULL_SWEEP_MAX]
+     * armed apps: at or under it every armed app is voted on every pass, so a
+     * single game needs nothing. The row says which of those two the user is
+     * actually in rather than asking for a permission they may never need.
+     */
     private fun syncUsageRow() {
         val granted = Foreground.hasAccess(this)
+        val armed = ArmedStore.read(ArmedStore.open(this)).size
+        val bound = ArmWatchService.FULL_SWEEP_MAX
         findViewById<RateSwitch>(R.id.usage_switch).setChecked(granted, animate = false)
-        findViewById<TextView>(R.id.usage_sub)
-            .setText(if (granted) R.string.usage_on else R.string.usage_off)
+        findViewById<TextView>(R.id.usage_sub).text = when {
+            granted -> getString(R.string.usage_on)
+            armed > bound -> getString(R.string.usage_off_needed, armed, bound)
+            else -> getString(R.string.usage_off, bound)
+        }
     }
 
     private fun openUsageAccess() {

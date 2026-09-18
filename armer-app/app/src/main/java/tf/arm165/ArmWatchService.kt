@@ -657,9 +657,16 @@ class ArmWatchService : Service() {
         // came back null, and a pass with no focus cannot aim. Usage access
         // answers for anything.
         val onScreen = Oiface.currentGamePackage() ?: Foreground.current(this)
-        if (onScreen == null && !warnedNoFocusSignal && !Foreground.hasAccess(this)) {
+        if (onScreen == null && !warnedNoFocusSignal && armedNow.size > FULL_SWEEP_MAX &&
+            !Foreground.hasAccess(this)
+        ) {
+            // Only past the bound. At or under it the whole armed set is voted
+            // and parked every pass whether or not anything is identified on
+            // screen, so a single armed game needs no grant and should not be
+            // told it does.
             warnedNoFocusSignal = true
-            Log.w(TAG, "no usage access, so nothing but a tracked game can be seen on screen. " +
+            Log.w(TAG, "${armedNow.size} armed and no usage access, so nothing but a tracked game " +
+                "can be seen on screen and a set this size cannot be voted blind. " +
                 "Grant it with: adb shell appops set $packageName GET_USAGE_STATS allow")
         }
         if (onScreen != null) {
@@ -1167,7 +1174,7 @@ class ArmWatchService : Service() {
          * An armed set this small is re-voted whole every pass: it is the
          * scale the boot list has always run at, and it never cost the pin.
          */
-        private const val FULL_SWEEP_MAX = 8
+        const val FULL_SWEEP_MAX = 8
 
         /**
          * How long after a park the panel is not asked about itself.
