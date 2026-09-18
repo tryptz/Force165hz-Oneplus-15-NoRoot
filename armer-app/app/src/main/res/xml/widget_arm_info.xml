@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resizable both ways. targetCell* is the size it lands at (4x2, the whole hero
+  card); minResize* is how far down the user may drag it, at which point the
+  selector and the bar are the parts that go.
+
+  updatePeriodMillis is 0 on purpose: the system's own widget refresh is
+  half-hourly at best, which is useless for a rate readout. The watchdog pushes
+  an update when the number changes instead.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="60dp"
+    android:maxResizeWidth="400dp"
+    android:maxResizeHeight="220dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_arm"
+    android:previewLayout="@layout/widget_arm"
+    android:resizeMode="horizontal|vertical"
+    android:description="@string/widget_description"
+    android:widgetCategory="home_screen" />

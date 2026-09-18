@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launcher shapes widget cells with this radius; matching it is what
+    keeps the widget from looking pasted onto the home screen.
+-->
+<resources>
+    <dimen name="widget_radius">@android:dimen/system_app_widget_background_radius</dimen>
+</resources>

@@ -228,7 +228,20 @@ class ArmWatchService : Service() {
                 // Read the armed set here, not when the tick was posted:
                 // a disarm that lands in between has already taken the
                 // app out, and replaying it would pin it straight back.
-                val n = synchronized(RateLock) { tickOnce() }
+                // A pass that throws must not end the watchdog: the re-post
+                // below lives after this call, so an uncaught exception here
+                // kills the executor task and nothing ever schedules the tick
+                // again — the service sits in the shade holding nothing.
+                val n = try {
+                    synchronized(RateLock) { tickOnce() }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "watchdog pass failed", t)
+                    INTERVAL_MS
+                }
+                // The widget has no window of its own to time, so the rate it
+                // shows is the one measured here. publishHz only re-renders
+                // when the number changes; this runs as often as every 50 ms.
+                ArmWidget.publishHz(this@ArmWatchService, panelHz())
                 // Schedule from HERE, with the interval this pass just
                 // computed. Scheduling on the main thread before the worker
                 // ran would read the previous pass's interval — one tick of
@@ -855,6 +868,31 @@ class ArmWatchService : Service() {
         }
     }
 
+    /** Runs a widget sweep on the worker, then puts the result on the widget. */
+    private fun widgetSweep(action: String) {
+        worker.execute {
+            when (action) {
+                ArmWidget.ACTION_ARM_ALL -> {
+                    val (done, total) = Sweeps.armAll(this)
+                    Log.i(TAG, "widget: armed $done of $total")
+                }
+                ArmWidget.ACTION_CLEAR -> {
+                    val stuck = Sweeps.clearAll(this)
+                    Log.i(TAG, "widget: cleared" + if (stuck > 0) ", $stuck refused to release" else "")
+                }
+            }
+            // A sweep changes the armed set, which both of these read.
+            ArmWidget.refresh(this)
+            handler.post {
+                getSystemService(android.app.NotificationManager::class.java)
+                    ?.notify(NOTIFY_ID, buildNotification())
+                // Nothing armed and nothing to hold: the watchdog the sweep
+                // just started has no reason to stay running.
+                if (action == ArmWidget.ACTION_CLEAR) stopIfIdle(this)
+            }
+        }
+    }
+
     private fun saveRegistered() {
         prefs?.edit()?.putStringSet(KEY_REGISTERED, HashSet(registered))?.apply()
     }
@@ -957,6 +995,17 @@ class ArmWatchService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // The widget's buttons start the service rather than doing the work in
+        // their own receiver: a broadcast gets about ten seconds before the
+        // system may kill it, and Arm all is one binder call per installed
+        // package. Here it runs on the worker, where nothing is watching a
+        // clock.
+        intent?.action?.let { action ->
+            if (action == ArmWidget.ACTION_ARM_ALL || action == ArmWidget.ACTION_CLEAR) {
+                widgetSweep(action)
+                return START_STICKY
+            }
+        }
         // Every arm/re-arm/rate change restarts the command. A fresh arm is the
         // user asking for the armed rate NOW, so any park state from the
         // previous armed-set epoch is void — otherwise a package re-armed while

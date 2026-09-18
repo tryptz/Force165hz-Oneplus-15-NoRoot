@@ -106,6 +106,19 @@
     <string name="fps_hold_on">Holding %1$d Hz while this page is open, so the lanes can show it</string>
     <string name="fps_hold_off">Off. The panel runs at its default, nothing above 120 can differ</string>
 
+    <!-- home-screen widget -->
+    <string name="widget_description">Panel rate, with Arm all and Clear.</string>
+    <string name="widget_hz">%1$d Hz</string>
+    <string name="widget_hz_none">— Hz</string>
+    <string name="widget_arm_all">Arm all</string>
+    <string name="widget_clear">Clear</string>
+    <plurals name="widget_armed">
+        <item quantity="one">%1$d app armed</item>
+        <item quantity="other">%1$d apps armed</item>
+    </plurals>
+    <string name="widget_arming">Arming every app…</string>
+    <string name="widget_clearing">Disarming…</string>
+
     <string name="usage_title">Usage access</string>
     <string name="usage_no_screen">No usage-access screen on this build — grant it over adb: appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="usage_on">Granted. Needed only above %1$d armed apps, where the watchdog votes just the app on screen — it can see which one that is.</string>

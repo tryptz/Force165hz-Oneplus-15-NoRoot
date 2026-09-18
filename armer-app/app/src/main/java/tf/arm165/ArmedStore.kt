@@ -17,6 +17,13 @@ object ArmedStore {
     /** The rate a plain row tap arms at, written by the hero's rate selector. */
     const val KEY_RATE = "rate"
 
+    /**
+     * How many packages a sweep would target. Only used to give the widget's
+     * fill bar a denominator without making it enumerate every installed app
+     * on each render.
+     */
+    const val KEY_TOTAL = "sweep_total"
+
     private const val KEY = "armed"
     private const val KEY_SCHEMA = "schema"
     private const val SEP = '|'

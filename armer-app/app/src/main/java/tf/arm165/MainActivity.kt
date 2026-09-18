@@ -108,6 +108,9 @@ class MainActivity : ShellActivity() {
         AppCatalog.loadAsync(packageManager) { entries ->
             if (isFinishing || isDestroyed) return@loadAsync
             all = entries
+            // The widget's bar needs a denominator and cannot afford to list
+            // every installed package itself.
+            prefs.edit().putInt(ArmedStore.KEY_TOTAL, entries.size).apply()
             loading = false
             applyFilter()
             refreshStatus()
@@ -360,7 +363,7 @@ class MainActivity : ShellActivity() {
             // vote on always-visible windows is display-wide, and this app
             // because arming itself should be a decision, not a side effect of
             // Arm all. Both are still one tap away in the list.
-            val skip = RateLock.optInOnly(packageName) + RateLock.NEVER_ARM
+            val skip = Sweeps.skip(packageName)
             val targets = all.map { it.pkg }.filter { it !in skip }
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
                 // One vote per app, whatever it was pinned at before: the call

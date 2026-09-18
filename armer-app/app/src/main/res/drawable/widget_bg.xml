@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The hero card's gradient, on the home screen. Same wallpaper-derived tokens
+  the app uses (values-v31 maps them to the system_* palette), so the widget
+  recolours with the wallpaper exactly as the card it mirrors does.
+
+  Its own radius rather than the card's: values-v31 swaps this for the system
+  widget radius, which is what the launcher shapes its cells with.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="@color/hero_start"
+        android:endColor="@color/hero_end" />
+    <corners android:radius="@dimen/widget_radius" />
+    <stroke android:width="1dp" android:color="@color/outline" />
+</shape>

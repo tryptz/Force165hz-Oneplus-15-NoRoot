@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The hero card from the app, on the home screen: the armed count and its rate
+  breakdown, the fill bar, and the rate selector. The two sweeps sit top left,
+  where the app's header buttons are, with the measured panel rate opposite.
+
+  Everything below the button row is marked to disappear as the widget is made
+  smaller, in the order you would give it up: the selector first, then the
+  divider and bar, then the breakdown. At its shortest it is the buttons and
+  the count.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/w_arm_all"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:paddingStart="13dp"
+            android:paddingEnd="13dp"
+            android:gravity="center"
+            android:background="@drawable/bg_btn_primary"
+            android:text="@string/widget_arm_all"
+            android:textColor="@color/on_accent"
+            android:textSize="12.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/w_clear"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
+            android:paddingStart="13dp"
+            android:paddingEnd="13dp"
+            android:gravity="center"
+            android:background="@drawable/bg_btn_tonal"
+            android:text="@string/widget_clear"
+            android:textColor="@color/text_primary"
+            android:textSize="12.5sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/w_panel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:text="@string/widget_hz_none"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/w_count_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:gravity="bottom">
+
+        <TextView
+            android:id="@+id/w_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0"
+            android:textColor="@color/accent"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:letterSpacing="-0.05"
+            android:includeFontPadding="false" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="10dp"
+            android:layout_marginBottom="2dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/hero_unit"
+                android:textColor="@color/text_primary"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/w_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="1dp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:textColor="@color/text_secondary"
+                android:textSize="11.5sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/w_bar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="5dp"
+        android:layout_marginTop="10dp"
+        android:minHeight="5dp"
+        android:maxHeight="5dp"
+        android:max="100"
+        android:progress="0"
+        android:progressDrawable="@drawable/progress_armed" />
+
+    <View
+        android:id="@+id/w_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:background="@color/outline" />
+
+    <LinearLayout
+        android:id="@+id/w_rate_row"
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginTop="9dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="10dp"
+            android:text="@string/rate_label"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/bg_segment_track"
+            android:orientation="horizontal"
+            android:padding="2dp">
+
+            <TextView android:id="@+id/w_rate_0"
+                android:layout_width="0dp" android:layout_height="match_parent"
+                android:layout_weight="1" android:gravity="center"
+                android:background="@drawable/segment_states"
+                android:textColor="@color/segment_text"
+                android:textSize="11.5sp" android:textStyle="bold" />
+
+            <TextView android:id="@+id/w_rate_1"
+                android:layout_width="0dp" android:layout_height="match_parent"
+                android:layout_weight="1" android:gravity="center"
+                android:background="@drawable/segment_states"
+                android:textColor="@color/segment_text"
+                android:textSize="11.5sp" android:textStyle="bold" />
+
+            <TextView android:id="@+id/w_rate_2"
+                android:layout_width="0dp" android:layout_height="match_parent"
+                android:layout_weight="1" android:gravity="center"
+                android:background="@drawable/segment_states"
+                android:textColor="@color/segment_text"
+                android:textSize="11.5sp" android:textStyle="bold" />
+
+            <TextView android:id="@+id/w_rate_3"
+                android:layout_width="0dp" android:layout_height="match_parent"
+                android:layout_weight="1" android:gravity="center"
+                android:background="@drawable/segment_states"
+                android:textColor="@color/segment_text"
+                android:textSize="11.5sp" android:textStyle="bold" />
+
+            <TextView android:id="@+id/w_rate_4"
+                android:layout_width="0dp" android:layout_height="match_parent"
+                android:layout_weight="1" android:gravity="center"
+                android:background="@drawable/segment_states"
+                android:textColor="@color/segment_text"
+                android:textSize="11.5sp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

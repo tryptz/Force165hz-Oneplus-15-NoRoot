@@ -6,4 +6,6 @@
     <dimen name="chip_height">34dp</dimen>
     <dimen name="action_bar_height">62dp</dimen>
     <dimen name="action_bar_margin">12dp</dimen>
+    <!-- Home-screen widget corner. values-v31 takes the launcher's own. -->
+    <dimen name="widget_radius">20dp</dimen>
 </resources>

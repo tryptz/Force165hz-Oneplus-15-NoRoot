@@ -50,6 +50,18 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                       android:value="re-applies 165Hz display votes for armed apps"/>
         </service>
+        <!-- Exported because the system, not this app, sends APPWIDGET_UPDATE.
+             The buttons carry no custom broadcast: they start the service. -->
+        <receiver android:name=".ArmWidget" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider"
+                       android:resource="@xml/widget_arm_info"/>
+        </receiver>
+
+        <receiver android:name=".WidgetRate" android:exported="false"/>
+
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
