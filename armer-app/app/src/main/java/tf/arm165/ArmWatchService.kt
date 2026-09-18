@@ -421,11 +421,24 @@ class ArmWatchService : Service() {
         // keeps vetoing it".
         if (parked.isEmpty() && floorHidesContent) {
             if (++pinnedTicks % HOLD_LOG_PINNED == 1) {
+                // Why the countdown is where it is, because "quiet=0/2" on a
+                // still screen has three different causes and they are not
+                // distinguishable from the outside.
+                val blockedFor = ((parkBlockedUntilNs[focus] ?: 0L) - System.nanoTime())
+                    .coerceAtLeast(0L) / 1_000_000_000L
+                val why = when {
+                    focus == null -> "no focus, so no park candidate among ${armedNow.size} armed"
+                    blockedFor > 0L -> "backing off for ${blockedFor}s"
+                    gateBusy -> "gate says busy"
+                    gpu > GPU_IDLE -> "gpu above idle"
+                    else -> "counting"
+                }
                 Log.i(TAG, ("pinned hold: panel=%d Hz (floor %d, pin %d), gpu=%.2f, " +
-                    "fps=%d, gate=%s, quiet=%d/%d")
+                    "fps=%d, gate=%s, quiet=%d/%d, focus=%s, %s")
                     .format(phz, floorHz, pinnedHz, gpu, focusFps,
                         if (gateBusy) "busy" else "quiet",
-                        lowTicks[focus] ?: 0, LOW_TICKS))
+                        lowTicks[focus] ?: 0, LOW_TICKS,
+                        focus?.substringAfterLast('.') ?: "none", why))
             }
         } else {
             pinnedTicks = 0

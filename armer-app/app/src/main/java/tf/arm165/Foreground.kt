@@ -3,6 +3,7 @@ package tf.arm165
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.app.usage.UsageStats
 import android.content.Context
 import android.os.Process
 import android.util.Log
@@ -37,8 +38,17 @@ object Foreground {
     /** How long the appop check is reused — it changes only in Settings. */
     private const val ACCESS_CACHE_MS = 5_000L
 
-    /** Window of the first query. Later queries only cover what is new. */
-    private const val LOOKBACK_MS = 120_000L
+    /**
+     * Window of the first query. Later queries only cover what is new.
+     *
+     * A day, not the two minutes this started as. Events only exist where
+     * something was resumed, so a phone that has sat in one app for longer
+     * than the window produces none at all, and the answer came back "don't
+     * know" for the whole session. That was not a corner case: it disabled the
+     * park outright, because a large armed set has no park candidate without a
+     * focus to name.
+     */
+    private const val LOOKBACK_MS = 86_400_000L
 
     /**
      * Overlap between consecutive queries. Usage events are written by the
@@ -116,8 +126,23 @@ object Foreground {
         } catch (t: Throwable) {
             Log.w(TAG, "usage query failed", t)
         }
+        // Still nothing on the very first pass: fall back to the aggregated
+        // stats, whose most recently used package is a fair answer even where
+        // no resume event survives. Only worth doing while we have no answer
+        // at all, since it is coarser and more work than the event walk.
+        if (cachedPkg == null) cachedPkg = lastUsed(usm, now)
         cachedAtMs = now
         return cachedPkg
+    }
+
+    /** The most recently used package over the last day, or null. */
+    private fun lastUsed(usm: UsageStatsManager, now: Long): String? = try {
+        usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, now - LOOKBACK_MS, now)
+            ?.maxByOrNull(UsageStats::getLastTimeUsed)
+            ?.packageName
+            ?.takeIf { it.isNotEmpty() }
+    } catch (t: Throwable) {
+        null
     }
 
     /** Drops every cached answer, so the next call asks the system again. */
