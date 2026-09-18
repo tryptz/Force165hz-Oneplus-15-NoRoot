@@ -13,8 +13,9 @@ unlock.
 - Per-app rate pinning with a searchable app list (All / Armed / Games /
   User / System filters) and arm-at-rate selector
 - **Arm all / Re-arm / Clear** sweeps; armed set persists across reboots
-- **Watchdog service** re-issues every vote every 5 s while the screen is on,
-  beating games that pin their own frame rate
+- **Watchdog service** re-issues every vote at least every 5 s while the
+  screen is on, beating games that pin their own frame rate. A vote parked by
+  LTPO idle is the one exception — it is held down at 120 deliberately.
 - **FPS overlay** in the status bar: real panel Hz plus a foreground game's
   rendered fps (needs "Display over other apps")
 - Follows the system theme and wallpaper (Material You), edge to edge

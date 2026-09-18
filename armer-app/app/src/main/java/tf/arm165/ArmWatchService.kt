@@ -47,6 +47,9 @@ class ArmWatchService : Service() {
     /** Ticks since the last park; paces the parked-hold diagnostic line. */
     private var holdTicks = 0
 
+    /** When the unparked votes were last re-landed; paces [tickOnce]'s hold. */
+    private var lastHoldNs = 0L
+
     /** Consecutive quiet ticks per armed package, leading up to a release. */
     private val lowTicks = HashMap<String, Int>()
 
@@ -141,7 +144,18 @@ class ArmWatchService : Service() {
                 // Read the armed set here, not when the tick was posted:
                 // a disarm that lands in between has already taken the
                 // app out, and replaying it would pin it straight back.
-                val n = synchronized(RateLock) { tickOnce() }
+                //
+                // One pass that throws must not be the end of the watchdog: an
+                // uncaught exception here kills this executor task, the line
+                // below never runs, and nothing ever re-posts the tick — the
+                // pin quietly stops being held for the rest of the session with
+                // the service still sitting in the notification shade.
+                val n = try {
+                    synchronized(RateLock) { tickOnce() }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "watchdog pass failed", t)
+                    INTERVAL_MS
+                }
                 // Schedule from HERE, with the interval this pass just
                 // computed. Scheduling on the main thread before the worker
                 // ran would read the previous pass's interval — one tick of
@@ -180,6 +194,7 @@ class ArmWatchService : Service() {
                 Log.i(TAG, "restoring ${parked.size} parked vote(s)")
             }
             armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+            lastHoldNs = System.nanoTime()
             parked.clear()
             lowTicks.clear()
             return INTERVAL_MS
@@ -217,6 +232,7 @@ class ArmWatchService : Service() {
                         }))
             }
             armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+            lastHoldNs = System.nanoTime()
             parked.clear()
             lowTicks.clear()
             return INTERVAL_MS
@@ -270,6 +286,26 @@ class ArmWatchService : Service() {
             }
         }
 
+        // Hold every vote that is not parked. Re-landing the vote IS the
+        // watchdog: a game that pins its own frame rate overwrites ours, and
+        // only re-issuing takes the panel back. The branches above return
+        // having armed everything, so this is the quiet path — where the idle
+        // detector decided neither to restore nor to park. That is a decision
+        // about PARKING, and it was being read as a reason to stop holding the
+        // pin as well: an app the vendor daemon does not track reads gpu=0 and
+        // fps=0 forever, so busy stayed false, nothing re-armed, and the game's
+        // own request stood unopposed after the first time it overwrote ours.
+        // A vote we deliberately parked is the one thing left alone here.
+        //
+        // Rate-limited to the watchdog's own interval: while parked the tick
+        // runs every 50 ms, and re-landing every unparked vote at that cadence
+        // would be twenty binder calls a second per armed app.
+        val nowNs = System.nanoTime()
+        if (nowNs - lastHoldNs >= HOLD_INTERVAL_NS) {
+            lastHoldNs = nowNs
+            armedNow.forEach { (pkg, rateId) -> if (pkg !in parked) RateLock.arm(pkg, rateId) }
+        }
+
         // While parked, periodically report what the panel is actually doing.
         // This is the diagnostic that separates the three parked outcomes:
         //   panel → 1 Hz   the idle ramp engaged (a park behaving as designed)
@@ -317,6 +353,7 @@ class ArmWatchService : Service() {
                             Log.i(TAG, "screen on — restoring ${parked.size} parked vote(s)")
                         }
                         armedNow.forEach { (pkg, rateId) -> RateLock.arm(pkg, rateId) }
+                        lastHoldNs = System.nanoTime()
                         parked.clear()
                         lowTicks.clear()
                     }
@@ -346,8 +383,20 @@ class ArmWatchService : Service() {
         // user asking for the armed rate NOW, so any park state from the
         // previous armed-set epoch is void — otherwise a package re-armed while
         // others keep the service alive stays skipped by the park branch.
-        parked.clear()
-        lowTicks.clear()
+        //
+        // On the worker, because that is the thread that owns these two
+        // collections. Clearing them from the main thread while a pass is
+        // iterating them is a ConcurrentModificationException inside the
+        // executor — which, before the catch above, ended the tick loop for
+        // good: arming an app could stop the watchdog that was about to hold
+        // it. It also re-lands every vote, which is what a fresh arm asks for.
+        worker.execute {
+            synchronized(RateLock) {
+                parked.clear()
+                lowTicks.clear()
+                lastHoldNs = 0L
+            }
+        }
         // The armed count is baked into the notification text, so re-post it:
         // the service is re-started on every change to the armed set.
         getSystemService(android.app.NotificationManager::class.java)
@@ -419,6 +468,13 @@ class ArmWatchService : Service() {
          * that a live probe authorized.
          */
         private const val RESUME_TICK_MS = 50L
+
+        /**
+         * Longest an unparked vote may go without being re-landed. Matches the
+         * watchdog's own interval, so the "re-issues every vote every 5 s"
+         * guarantee holds whatever cadence the idle detector is ticking at.
+         */
+        private const val HOLD_INTERVAL_NS = INTERVAL_MS * 1_000_000L
 
         /** Parked-hold diagnostic cadence: 100 parked ticks × 50 ms = one line per 5 s. */
         private const val HOLD_LOG_TICKS = 100
