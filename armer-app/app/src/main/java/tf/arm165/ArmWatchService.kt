@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -59,6 +60,11 @@ class ArmWatchService : Service() {
 
     /** Armed packages whose vote is currently parked at the idle rate. */
     private val parked = HashSet<String>()
+
+    /** Game classification per package, and the vendor list it is read against. */
+    private val gameCache = HashMap<String, Boolean>()
+    private var systemGames: Set<String> = emptySet()
+    private var gamesStampNs = 0L
 
     /** Ticks since the last park; paces the parked-hold diagnostic line. */
     private var holdTicks = 0
@@ -453,6 +459,18 @@ class ArmWatchService : Service() {
                 // faster content OFF the panel (judder), and raising one to 120
                 // would defeat the point of choosing it.
                 if (pkg in parked || !RateLock.parkable(rateId)) return@forEach
+                // A game never ramps. Every other armed app can afford to be
+                // walked down to 120 and back on motion, because a missed
+                // frame while it climbs costs nothing anyone can see. A game
+                // renders continuously and is the reason this app exists: the
+                // rate the user picked for it is the whole point, and a park
+                // is a downgrade of exactly that rate — a 144-armed game is
+                // measurably NOT idle, the vendor's own counters just cannot
+                // always say so (they read 0 for anything the daemon does not
+                // track). Deciding by the vendor's game list and the package's
+                // own category is the one signal that does not depend on a
+                // probe answering.
+                if (isGame(pkg)) return@forEach
                 if (now < (parkBlockedUntilNs[pkg] ?: 0L)) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
@@ -495,6 +513,8 @@ class ArmWatchService : Service() {
                 val focusRate = focus?.let { armedNow[it] }
                 val why = when {
                     focus == null -> "no focus, so no park candidate among ${armedNow.size} armed"
+                    focus != null && isGame(focus) ->
+                        "game package, never parked , holding ${focusRate?.let(RateLock::hz) ?: 0} Hz"
                     focusRate != null && !RateLock.parkable(focusRate) ->
                         "${RateLock.hz(focusRate)} Hz does not park on this build, " +
                             "so it rests at its own $floorHz Hz floor"
@@ -652,6 +672,37 @@ class ArmWatchService : Service() {
         clearParkState()
     }
 
+    /**
+     * Whether [pkg] is a game, by the same three signals the app's own Games
+     * filter uses: the vendor's recognized-game list, the manifest category
+     * and the legacy game flag. Cached — this runs on the park path, which
+     * ticks every second while a high vote is held, and both lookups are IPC.
+     *
+     * The list is re-read on a TTL rather than once: installing a game, or the
+     * vendor deciding an installed one is a game, both happen while the
+     * service is running, and a package cached as "not a game" would otherwise
+     * stay parkable until the next arm.
+     */
+    private fun isGame(pkg: String): Boolean {
+        val now = System.nanoTime()
+        if (now - gamesStampNs >= GAME_LIST_TTL_NS) {
+            gamesStampNs = now
+            systemGames = RateLock.systemGameList()
+            gameCache.clear()
+        }
+        return gameCache.getOrPut(pkg) {
+            if (pkg in systemGames) return@getOrPut true
+            try {
+                val info = packageManager.getApplicationInfo(pkg, 0)
+                @Suppress("DEPRECATION") // still set by older game APKs
+                info.category == ApplicationInfo.CATEGORY_GAME ||
+                    info.flags and ApplicationInfo.FLAG_IS_GAME != 0
+            } catch (t: Throwable) {
+                false // uninstalled mid-pass, or a package we cannot see
+            }
+        }
+    }
+
     private fun clearParkState() {
         ceilingTicks = 0
         stuckTicks = 0
@@ -797,6 +848,9 @@ class ArmWatchService : Service() {
     companion object {
         private const val TAG = "Arm165"
         private const val INTERVAL_MS = 5000L
+
+        /** How long a game classification is trusted before it is re-read. */
+        private const val GAME_LIST_TTL_NS = 300_000_000_000L // 5 min
         private const val NOTIFY_ID = 165
 
         /**
