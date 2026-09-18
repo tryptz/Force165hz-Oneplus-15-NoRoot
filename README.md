@@ -12,7 +12,9 @@ OnePlus 15 (CPH2747/CPH2749, OxygenOS 16). No root, no Magisk, no bootloader
 unlock.
 
 <p align="center">
-  <img src="screenshot.png" width="320" alt="165 Armer screenshot">
+  <img src="screenshot.png" width="320" alt="165 Armer app screenshot">
+  <br>
+  <img src="widget.png" width="320" alt="165 Armer home-screen widget">
 </p>
 
 ## Features
