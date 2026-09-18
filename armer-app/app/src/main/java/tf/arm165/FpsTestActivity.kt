@@ -5,7 +5,9 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
+import android.view.ViewGroup
 import android.view.WindowManager
+import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
@@ -27,6 +29,7 @@ class FpsTestActivity : Activity() {
     private lateinit var holdSub: TextView
     private lateinit var holdToggle: RateSwitch
     private lateinit var view: FpsTestView
+    private var speedSegments: List<Pair<TextView, Int>> = emptyList()
 
     private val prefs by lazy { ArmedStore.open(this) }
 
@@ -66,6 +69,33 @@ class FpsTestActivity : Activity() {
         view.onMeasured = { hz, frameMs ->
             readout.text = getString(R.string.fps_readout, hz, frameMs)
         }
+
+        wireSpeed()
+    }
+
+    /**
+     * Speed control, built here rather than in the layout so the choices stay
+     * in one place. 1x is a brisk sweep; 4x is where a 120 lane and a 165 lane
+     * stop looking alike.
+     */
+    private fun wireSpeed() {
+        val track = findViewById<LinearLayout>(R.id.speed_segments)
+        speedSegments = SPEEDS.map { multiplier ->
+            val segment = TextView(this, null, 0, R.style.Segment).apply {
+                // A style cannot carry layout params onto a view built in code.
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                text = getString(R.string.fps_speed_mul, multiplier)
+                setOnClickListener { setSpeed(multiplier) }
+            }
+            track.addView(segment)
+            segment to multiplier
+        }
+        setSpeed(view.speed)
+    }
+
+    private fun setSpeed(multiplier: Int) {
+        view.speed = multiplier
+        speedSegments.forEach { (segment, value) -> segment.isSelected = value == multiplier }
     }
 
     override fun onResume() {
@@ -92,6 +122,11 @@ class FpsTestActivity : Activity() {
             ArmWatchService.start(this)
         }
         syncHold(animate = true)
+    }
+
+    private companion object {
+        /** Speed multipliers offered, in display order. */
+        val SPEEDS = listOf(1, 2, 4)
     }
 
     private fun syncHold(animate: Boolean) {

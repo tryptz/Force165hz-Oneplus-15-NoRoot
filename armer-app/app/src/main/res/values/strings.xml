@@ -87,7 +87,9 @@
     <string name="fps_open">Open</string>
     <string name="fps_measuring">measuring…</string>
     <string name="fps_readout">%1$d Hz · %2$.1f ms</string>
-    <string name="fps_hint">Each lane moves at the same speed but may only update at its own rate, so the lane that matches the panel glides and the slower ones step. No lane can beat the panel: above the rate the panel is running, the lanes look identical.</string>
+    <string name="fps_hint">Each lane moves at the same speed but may only update at its own rate, so the lane that matches the panel glides and the slower ones step. The number beside each lane is how many distinct positions it actually drew in the last second — capped by the panel, so a lane above the panel\'s rate reads the panel\'s. Raise the speed if two lanes look alike: the gap per step grows with it.</string>
+    <string name="fps_speed">Speed</string>
+    <string name="fps_speed_mul">%1$d×</string>
     <string name="fps_hold">Hold %1$d Hz here</string>
     <string name="fps_hold_on">Holding — this app is armed at %1$d Hz, so the lanes can show it</string>
     <string name="fps_hold_off">Off — the panel runs at its default, so nothing above 120 will differ. Change the rate on the main screen.</string>

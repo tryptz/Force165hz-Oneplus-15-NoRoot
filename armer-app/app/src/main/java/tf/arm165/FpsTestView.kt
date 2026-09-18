@@ -54,6 +54,36 @@ class FpsTestView @JvmOverloads constructor(
     private var lastNs = 0L
     private var nowNs = 0L
 
+    /**
+     * Speed multiplier. A bigger gap per step is easier to see, so this is the
+     * control that turns "these two lanes look the same" into a visible
+     * difference — the judder is there either way, but a block that only moves
+     * a couple of dp per step hides it.
+     */
+    var speed = 1
+        set(value) {
+            field = value
+            // Rebase the lane clock to now, so the sweep restarts from the
+            // left instead of teleporting to wherever the new speed would
+            // have put it. The vsync chain behind the readout is left alone.
+            startNs = nowNs
+            invalidate()
+        }
+
+    /**
+     * Distinct positions each lane actually DREW in the last second.
+     *
+     * This is the lane's effective rate, and it is capped by the panel for
+     * free: a position can only change on a frame we are asked to draw, so a
+     * 165 lane on a 120 Hz panel counts 120. That makes the number the answer
+     * to "is this lane really slower, or does it just look that way" —
+     * and to "is the panel keeping up at all".
+     */
+    private val drawn = IntArray(lanes.size)
+    private val shownRate = IntArray(lanes.size)
+    private val lastX = FloatArray(lanes.size) { Float.NaN }
+    private var windowStartNs = 0L
+
     /** Smoothed vsync interval — the panel's real rate while this view draws. */
     private var emaNs = 0L
     private var reportedAtNs = 0L
@@ -85,6 +115,16 @@ class FpsTestView @JvmOverloads constructor(
         lastNs = frameTimeNanos
         nowNs = frameTimeNanos
 
+        if (windowStartNs == 0L) windowStartNs = frameTimeNanos
+        if (frameTimeNanos - windowStartNs >= 1_000_000_000L) {
+            // One second of counting; publish and start the next window.
+            for (i in lanes.indices) {
+                shownRate[i] = drawn[i]
+                drawn[i] = 0
+            }
+            windowStartNs = frameTimeNanos
+        }
+
         if (emaNs > 0L && frameTimeNanos - reportedAtNs > REPORT_EVERY_NS) {
             reportedAtNs = frameTimeNanos
             onMeasured?.invoke((1_000_000_000.0 / emaNs).roundToInt(), (emaNs / 1e6).toFloat())
@@ -110,7 +150,11 @@ class FpsTestView @JvmOverloads constructor(
         lanes.forEachIndexed { index, fps ->
             val top = index * laneH
             val textY = top + 13f * d
-            canvas.drawText("$fps Hz", 0f, textY, label)
+            val shown = shownRate[index]
+            canvas.drawText(
+                if (shown == 0) "$fps Hz" else "$fps Hz   ·   $shown drawn/s",
+                0f, textY, label,
+            )
 
             val trackY = top + laneH - blockH / 2f - 6f * d
             rect.set(0f, trackY - 0.5f * d, width.toFloat(), trackY + 0.5f * d)
@@ -120,7 +164,11 @@ class FpsTestView @JvmOverloads constructor(
             // lane's rate, so a slow lane teleports by a visible step while a
             // lane matching the panel moves a hair at a time.
             val stepped = floor(seconds * fps) / fps
-            val x = (((stepped * SPEED_DP * d) % travel) - blockW).toFloat()
+            val x = (((stepped * SPEED_DP * speed * d) % travel) - blockW).toFloat()
+            if (x != lastX[index]) {
+                drawn[index]++
+                lastX[index] = x
+            }
             rect.set(x, trackY - blockH / 2f, x + blockW, trackY + blockH / 2f)
             canvas.drawRoundRect(rect, radius, radius, block)
             // Draw the wrap-around copy so a block never pops in at the edge.
