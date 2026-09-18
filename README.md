@@ -60,19 +60,14 @@ always works; it just stops at the floor of whatever mode you asked for.
 
 | vote | mode floor | a still screen rests at |
 |-----:|-----------:|:------------------------|
-|   60 |         1  | 1 Hz |
-|   90 |         1  | 1 Hz |
+|   60 |         30 | 1 Hz, by parking into 120 |
+|   90 |         30 | 1 Hz, by parking into 120 |
 |  120 |         1  | 1 Hz |
-|  144 |      48\*  | 1 Hz, by parking into 120 |
+|  144 |        60  | 1 Hz, by parking into 120 |
 |  165 |        55  | 55 Hz |
 
-\* estimated, never measured, because 144 is the one rate that parks and so
-always leaves its own mode before the screen goes quiet. Given that 60, 90 and
-120 all reach 1, it is likely 144 does too, which would make the park
-pointless for it as well. Worth measuring with the park disabled.
 
-**165 is the only mode that cannot idle**, and the only reason the park
-exists.
+**165 is the only mode that cannot idle**
 
 **The park** swaps a still app's vote for 120, so the panel ramps down while a
 vote stays held. Only 144 takes it, and that is a measurement rather than a
