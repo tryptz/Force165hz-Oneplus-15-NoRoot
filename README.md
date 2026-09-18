@@ -16,8 +16,6 @@ unlock.
 - **Watchdog service** re-issues every vote at least every 5 s while the
   screen is on, beating games that pin their own frame rate. A vote parked by
   LTPO idle is the one exception — it is held down at 120 deliberately.
-- **FPS overlay** in the status bar: real panel Hz plus a foreground game's
-  rendered fps (needs "Display over other apps")
 - Follows the system theme and wallpaper (Material You), edge to edge
 
 ## How it works
@@ -80,15 +78,14 @@ permission on first launch.
 - Battery and heat increase with the number of armed apps. The panel's LTPO
   floor depends on the mode the vote selects — measured on this build:
   60→30 Hz, 90→30 Hz, 120→1 Hz, 165→55 Hz — so a held 165 vote can never
-  idle below 55 even on a still screen. With **LTPO idle** on (the chip next
-  to FPS), the watchdog watches GPU load and the vendor's measured fps:
-  after a couple of quiet ticks it downgrades the vote to 120 Hz, the one
+  idle below 55 even on a still screen. **LTPO idle** works the panel back
+  down: the watchdog watches GPU load and the vendor's measured fps, and
+  after a couple of quiet ticks downgrades the vote to 120 Hz — the one
   rate whose mode spans 1–120, so a parked screen ramps to 1 Hz while the
   vote itself stays held (game-engine self-pins still lose to ours). A
   `GPU_ACTIVE` load (or ≥45 measured fps) puts the armed rate back within
   ~1.5 s; the hysteresis band between the two thresholds holds state so a
-  loading burst cannot flap the vote. Turn it off to hold the armed rate
-  permanently.
+  loading burst cannot flap the vote.
 - A `SecurityException` after an OTA means the vendor patched the trick.
 - If an app stays pinned after a disarm, the vote withdraw was refused on
   that build — `adb logcat -s Arm165` logs it; a reboot always clears the
