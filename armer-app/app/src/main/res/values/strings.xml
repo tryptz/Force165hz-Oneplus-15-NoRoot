@@ -89,6 +89,16 @@
     <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d long</string>
     <string name="fps_strip_label">frame time, last 2 s</string>
     <string name="fps_strip_worst">worst %1$.1f ms</string>
+    <string name="fps_color">Marker</string>
+    <string name="fps_color_desc">Marker colour: %1$s</string>
+    <string name="fps_color_accent">app accent</string>
+    <string name="fps_color_ink">ink</string>
+    <string name="fps_color_red">red</string>
+    <string name="fps_color_orange">orange</string>
+    <string name="fps_color_green">green</string>
+    <string name="fps_color_cyan">cyan</string>
+    <string name="fps_color_blue">blue</string>
+    <string name="fps_color_purple">purple</string>
     <string name="fps_speed">Speed</string>
     <string name="fps_speed_half">½×</string>
     <string name="fps_speed_one">1×</string>
@@ -158,7 +168,7 @@
     <string name="help_self_body">That one does work, and doubles as a self test. If this app\'s own screen will not reach the rate you armed it at, no vote is landing at all. The smoothness test has its own switch for the same thing, and that one gives the hold back when you leave the page. Arm all skips both rows.</string>
 
     <string name="help_fps_title">Seeing the rate</string>
-    <string name="help_fps_body">The smoothness test draws one lane of moving blocks per rate, each allowed to update only at its own rate. The lane matching the panel glides and the slower ones step. The readout is the panel measured from its own frame timing.</string>
+    <string name="help_fps_body">The smoothness test draws one lane of moving blocks per rate, each allowed to update only at its own rate. The lane matching the panel glides and the slower ones step. The readout is the panel measured from its own frame timing, and the marker colour is yours to pick: which colour shows a moving edge best is a property of the screen, not of the test.</string>
 
     <string name="help_disarm_title">Disarming</string>
     <string name="help_disarm_body">Disarm withdraws the vote by asking for rate id 0, the vendor cancel. Sending the rate again would only write the same pin back. A reboot clears every vote, because the vendor keeps them in memory only.</string>

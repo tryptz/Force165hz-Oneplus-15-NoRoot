@@ -1,6 +1,7 @@
 package tf.arm165
 
 import android.app.Activity
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -30,6 +31,7 @@ class FpsTestActivity : Activity() {
     private lateinit var holdToggle: RateSwitch
     private lateinit var view: FpsTestView
     private var speedSegments: List<Pair<TextView, Float>> = emptyList()
+    private var colorSwatches: List<Pair<View, Int>> = emptyList()
 
     /**
      * True when the hold switch on this page is what armed this app, as
@@ -80,7 +82,60 @@ class FpsTestActivity : Activity() {
         }
 
         wireSpeed()
+        wireColors()
     }
+
+    /**
+     * Marker colours, remembered between visits. Which colour shows a moving
+     * edge best is a property of the panel rather than of the test, so it is
+     * the sort of thing to hand over rather than decide: 0 is the app accent,
+     * which is the system's own under Material You.
+     */
+    private fun wireColors() {
+        val track = findViewById<LinearLayout>(R.id.color_swatches)
+        val size = dp(24)
+        val chosen = prefs.getInt(KEY_COLOR, FOLLOW_ACCENT)
+        colorSwatches = COLORS.map { (nameRes, choice) ->
+            val dot = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(size, size).apply { marginEnd = dp(7) }
+                contentDescription = getString(R.string.fps_color_desc, getString(nameRes))
+                setOnClickListener { setColor(choice) }
+            }
+            track.addView(dot)
+            dot to choice
+        }
+        setColor(chosen)
+    }
+
+    /**
+     * [choice] is what gets stored: either a literal colour or one of the two
+     * sentinels that mean "whatever the theme says", which cannot be stored as
+     * a colour because they change with the theme and with Material You.
+     */
+    private fun resolve(choice: Int): Int = when (choice) {
+        FOLLOW_ACCENT -> getColor(R.color.accent)
+        FOLLOW_INK -> getColor(R.color.text_primary)
+        else -> choice
+    }
+
+    private fun setColor(choice: Int) {
+        prefs.edit().putInt(KEY_COLOR, choice).apply()
+        view.blockColor = resolve(choice)
+        val ring = dp(2)
+        val ink = getColor(R.color.text_primary)
+        colorSwatches.forEach { (dot, value) ->
+            dot.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(resolve(value))
+                // The selected one wears a ring rather than a tick: at 24 dp a
+                // tick is a smudge, and the ring reads at a glance.
+                if (value == choice) setStroke(ring, ink)
+            }
+            dot.isSelected = value == choice
+        }
+    }
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     /**
      * Speed control, built here rather than in the layout so the choices stay
@@ -161,6 +216,33 @@ class FpsTestActivity : Activity() {
             R.string.fps_speed_one to 1f,
             R.string.fps_speed_two to 2f,
         )
+
+        /**
+         * Two sentinels for the colours that are not fixed: they follow the
+         * theme, and under Material You the accent follows the wallpaper, so
+         * there is no literal value to store. Neither is a valid colour int
+         * (both are fully transparent), so they cannot collide with a pick.
+         */
+        const val FOLLOW_ACCENT = 0
+        const val FOLLOW_INK = 1
+
+        /**
+         * Name to choice, in display order. The fixed ones are mid tones that
+         * stay visible against both the light and the dark page; ink is the
+         * theme's own text colour, the highest contrast on either.
+         */
+        val COLORS = listOf(
+            R.string.fps_color_accent to FOLLOW_ACCENT,
+            R.string.fps_color_ink to FOLLOW_INK,
+            R.string.fps_color_red to 0xFFE53935.toInt(),
+            R.string.fps_color_orange to 0xFFF57C00.toInt(),
+            R.string.fps_color_green to 0xFF2E7D32.toInt(),
+            R.string.fps_color_cyan to 0xFF00838F.toInt(),
+            R.string.fps_color_blue to 0xFF1565C0.toInt(),
+            R.string.fps_color_purple to 0xFF6A1B9A.toInt(),
+        )
+
+        const val KEY_COLOR = "fps_marker_color"
     }
 
     private fun syncHold(animate: Boolean) {

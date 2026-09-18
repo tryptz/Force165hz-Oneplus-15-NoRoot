@@ -40,6 +40,26 @@ class FpsTestView @JvmOverloads constructor(
     private val d = resources.displayMetrics.density
     private val block = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.accent) }
     private val detail = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.on_accent) }
+
+    /**
+     * The marker's colour, as a resolved colour int. The page picks it; this
+     * view only draws it, so nothing here has to know about theme attributes
+     * or which entry in a list was chosen.
+     *
+     * Worth being able to change: what a moving edge looks like depends on the
+     * panel as much as on the rate, and a colour that smears on one screen can
+     * be crisp on another. The stripes inside the marker follow it, taking
+     * black or white by its luminance, or they would vanish into a pale pick.
+     */
+    var blockColor: Int = context.getColor(R.color.accent)
+        set(value) {
+            field = value
+            block.color = value
+            detail.color =
+                if (android.graphics.Color.luminance(value) > 0.5f) android.graphics.Color.BLACK
+                else android.graphics.Color.WHITE
+            invalidate()
+        }
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.outline) }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = context.getColor(R.color.text_secondary)
@@ -260,22 +280,6 @@ class FpsTestView @JvmOverloads constructor(
                 lastX[index] = x
             }
 
-            // Where the block was on its previous few updates, fading out. The
-            // ghosts are one per update rather than one per drawn frame, so
-            // their spacing is exactly the step: a 60 lane leaves a ladder, a
-            // 165 lane a smear. This is the judder made spatial.
-            for (ghost in TRAIL downTo 1) {
-                val back = dist - ghost * (SPEED_DP * speed * d) / fps
-                if (back <= 0.0) continue
-                val gx = ((back % travel) - blockW).toFloat()
-                if (gx > x) continue // wrapped round; not this lane's past
-                block.alpha = 255 * (TRAIL - ghost + 1) / (TRAIL + 4)
-                detail.alpha = block.alpha
-                drawBlock(canvas, gx, trackY, blockW, blockH, radius)
-            }
-            block.alpha = 255
-            detail.alpha = 255
-
             drawBlock(canvas, x, trackY, blockW, blockH, radius)
             // Draw the wrap-around copy so a block never pops in at the edge.
             if (x + blockW > width) {
@@ -382,7 +386,5 @@ class FpsTestView @JvmOverloads constructor(
         /** The strip's top of scale, as a multiple of the panel's own interval. */
         const val SCALE_OF_IDEAL = 2.5f
 
-        /** How many past updates of a lane are drawn behind it, fading out. */
-        const val TRAIL = 5
     }
 }
