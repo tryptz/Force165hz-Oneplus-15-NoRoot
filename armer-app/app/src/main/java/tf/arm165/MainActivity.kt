@@ -105,7 +105,7 @@ class MainActivity : ShellActivity() {
         updateState()
 
         reArmSavedQuietly() // covers a reboot the boot receiver missed
-        AppCatalog.loadAsync(packageManager, packageName) { entries ->
+        AppCatalog.loadAsync(packageManager) { entries ->
             if (isFinishing || isDestroyed) return@loadAsync
             all = entries
             loading = false
@@ -245,10 +245,30 @@ class MainActivity : ShellActivity() {
         if (rejectWhileBusy()) return
         when {
             entry.pkg in armed -> disarm(entry, toggle)
+            // Arming the shade is not like arming an app; say so once.
+            entry.pkg == RateLock.SYSTEM_UI && !prefs.getBoolean(KEY_WARNED_SYSTEM_UI, false) ->
+                confirmSystemUi { arm(entry, activeRate, null) }
             prefs.getBoolean(KEY_WARNED, false) -> arm(entry, activeRate, toggle)
             // behind the dialog the row repaints itself, so nothing to animate
             else -> confirmFirstTime { arm(entry, activeRate, null) }
         }
+    }
+
+    /**
+     * The SystemUI-specific warning, shown once. The generic first-run dialog
+     * is about the vendor IPC; this one is about what a vote on always-visible
+     * windows does to the rest of the display.
+     */
+    private fun confirmSystemUi(onYes: () -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.systemui_title)
+            .setMessage(R.string.systemui_body)
+            .setPositiveButton(R.string.systemui_yes) { _, _ ->
+                prefs.edit().putBoolean(KEY_WARNED_SYSTEM_UI, true).apply()
+                onYes()
+            }
+            .setNegativeButton(R.string.risk_no, null)
+            .show()
     }
 
     private fun arm(entry: AppEntry, rateId: Int, toggle: RateSwitch?) {
@@ -336,9 +356,12 @@ class MainActivity : ShellActivity() {
         if (all.isEmpty()) return
         confirmFirstTime {
             val rateId = activeRate
-            // AppCatalog already keeps RateLock.NEVER_ARM out of the list;
-            // repeated here because this is the sweep that used to carry them.
-            val targets = all.map { it.pkg }.filter { it !in RateLock.NEVER_ARM }
+            // The opt-in rows are skipped here by design: SystemUI because a
+            // vote on always-visible windows is display-wide, and this app
+            // because arming itself should be a decision, not a side effect of
+            // Arm all. Both are still one tap away in the list.
+            val skip = RateLock.optInOnly(packageName) + RateLock.NEVER_ARM
+            val targets = all.map { it.pkg }.filter { it !in skip }
             runBusy(getString(R.string.arming_all, targets.size, RateLock.hz(rateId))) {
                 // One vote per app, whatever it was pinned at before: the call
                 // is a set, so re-issuing an id an app already holds is free and

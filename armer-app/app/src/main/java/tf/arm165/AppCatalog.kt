@@ -41,7 +41,6 @@ object AppCatalog {
      */
     fun loadAsync(
         pm: PackageManager,
-        self: String,
         userGames: Set<String> = emptySet(),
         onReady: (List<AppEntry>) -> Unit,
     ) {
@@ -51,10 +50,10 @@ object AppCatalog {
                 @Suppress("DEPRECATION")
                 pm.getInstalledApplications(0)
                     .asSequence()
-                    // Self, plus the packages a vote must never name: they
-                    // cannot be armed if they are never offered. See
-                    // RateLock.NEVER_ARM for why.
-                    .filter { it.packageName != self && it.packageName !in RateLock.NEVER_ARM }
+                    // Only what a vote must never name is withheld. Self and
+                    // SystemUI are listed and armable by hand; the sweeps skip
+                    // them instead (RateLock.optInOnly).
+                    .filter { it.packageName !in RateLock.NEVER_ARM }
                     .map {
                         AppEntry(
                             pkg = it.packageName,

@@ -77,14 +77,29 @@ object RateLock {
     }
 
     /**
-     * Packages no vote may ever name. `android` is the framework itself —
-     * `setrate.sh --all` has skipped it since the first sweep — and SystemUI's
-     * windows are composited alongside every app's, so a vote on them is a
-     * vote on the whole display rather than on one app. Neither is ever "the
-     * app you are looking at", which is the only thing a game-rate vote is
-     * meant to describe.
+     * Packages no vote may ever name. `android` is the framework itself, which
+     * `setrate.sh --all` has skipped since the first sweep: it is not an app
+     * anyone looks at, and its windows belong to the system rather than to a
+     * screen.
      */
-    val NEVER_ARM = setOf("android", "com.android.systemui")
+    val NEVER_ARM = setOf("android")
+
+    /**
+     * SystemUI — the notification shade, quick settings, the lock screen and
+     * the always-on display. Armable, but only on purpose: its windows are
+     * composited next to every app's, so the pin tends to apply display-wide
+     * instead of to one app, which is the opposite of what the per-app
+     * ordering is for.
+     */
+    const val SYSTEM_UI = "com.android.systemui"
+
+    /**
+     * Packages a bulk sweep must skip while a deliberate row tap may still arm
+     * them: SystemUI for the reason above, and [self] because an app arming
+     * itself is a choice (a useful one — it is the cheapest test of whether
+     * votes are landing at all) rather than something Arm all should decide.
+     */
+    fun optInOnly(self: String): Set<String> = setOf(SYSTEM_UI, self)
 
     private fun service(): IBinder? = try {
         Class.forName("android.os.ServiceManager")

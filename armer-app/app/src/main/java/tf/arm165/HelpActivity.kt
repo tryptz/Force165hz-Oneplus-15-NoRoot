@@ -83,6 +83,7 @@ class HelpActivity : Activity() {
             R.string.help_watchdog_title to R.string.help_watchdog_body,
             R.string.help_focus_title to R.string.help_focus_body,
             R.string.help_park_title to R.string.help_park_body,
+            R.string.help_optin_title to R.string.help_optin_body,
             R.string.help_disarm_title to R.string.help_disarm_body,
             R.string.help_limits_title to R.string.help_limits_body,
             R.string.help_log_title to R.string.help_log_body,

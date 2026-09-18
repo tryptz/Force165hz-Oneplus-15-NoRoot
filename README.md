@@ -111,11 +111,15 @@ permission on first launch.
   watchdog unable to tell which pin the panel is following. Usage access also
   lets it see that the app in front of you is NOT armed, in which case it
   issues no votes at all, so a pin cannot leak onto an unarmed app.
-- `android` and `com.android.systemui` are never armed. The framework is the
-  package `setrate.sh --all` has always skipped, and SystemUI's windows are
-  composited alongside every app's, so a vote on either is a vote on the
-  whole display rather than on one app. An armed set from an older build has
-  them dropped and released on first launch.
+- `android` is never armed — the framework is the package `setrate.sh --all`
+  has always skipped, and an armed set from an older build has it dropped and
+  released on first launch. **SystemUI** (the notification shade, quick
+  settings, lock screen and AOD) and **the armer itself** are listed and
+  armable by hand, but `Arm all` skips both: SystemUI's windows are
+  composited next to every app's, so arming it pins the display rather than
+  one app, and an app arming itself should be a decision rather than a side
+  effect. Arming this app is also the cheapest test that votes are landing at
+  all — if its own screen will not reach the armed rate, nothing else will.
 - A `SecurityException` after an OTA means the vendor patched the trick.
 - If an app stays pinned after a disarm, the vote withdraw was refused on
   that build — `adb logcat -s Arm165` logs it; a reboot always clears the
