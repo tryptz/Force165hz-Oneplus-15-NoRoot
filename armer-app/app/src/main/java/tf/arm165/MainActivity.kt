@@ -49,6 +49,11 @@ class MainActivity : ShellActivity() {
         super.onCreate(savedInstanceState)
         // No-op after the first process start; makes the Settings log view work.
         LogRing // touch so the object is initialized early
+        // Which build this is decides what the vendor call is numbered with, so
+        // settle that first. On the worker, ahead of every withdrawal and
+        // re-arm below: they all post to the same single thread, so this runs
+        // before any of them sends anything.
+        worker.execute { RateLock.bind(packageName) }
         // An armed set written by a build whose "Arm all" swept in the
         // framework and SystemUI still names them, and the watchdog would keep
         // voting for packages whose windows sit next to every app's. Drop them

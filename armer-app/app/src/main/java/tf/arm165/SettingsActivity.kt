@@ -61,6 +61,26 @@ class SettingsActivity : Activity() {
     override fun onResume() {
         super.onResume()
         syncUsageRow()
+        syncBindingRow()
+    }
+
+    /**
+     * What the check at launch found. It is on the screen because on a build
+     * this app was not written on it separates "the vendor closed the call"
+     * from "this app is dialling the wrong number", and only the second is
+     * something a report can fix. [RateLock.bind] has run by the time this
+     * page can be opened — it is the first thing the main screen does.
+     */
+    private fun syncBindingRow() {
+        val code = RateLock.voteCode
+        findViewById<TextView>(R.id.binding_sub).text = when (RateLock.binding) {
+            RateLock.Binding.STUB -> getString(R.string.binding_stub, code)
+            RateLock.Binding.PROXY -> getString(R.string.binding_proxy)
+            RateLock.Binding.PROBED -> getString(R.string.binding_probed, code)
+            RateLock.Binding.ASSUMED -> getString(R.string.binding_assumed, code)
+            RateLock.Binding.ABSENT -> getString(R.string.binding_absent)
+            RateLock.Binding.NONE -> getString(R.string.binding_pending)
+        }
     }
 
     /**

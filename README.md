@@ -44,14 +44,27 @@ accepts.
 
 `0x0c` is one build's numbering, not the interface's. AIDL counts a method by
 its position, so a build declaring one method fewer ahead of the vote shifts
-it, and every code after it, down by one. The stub that dispatches is on the
-phone, so the app reads the number out of that build's own
-`IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate` — and `getGameList`
-and `setAppOverrideRefreshRate` with it — and falls back to the numbers above
-only when the field cannot be read. Where the argument list differs too, the
-vote goes through the proxy that build generates. Where neither works, the
-first rejected vote logs the device, the build and that build's whole
-transaction table, which is what a report from an unknown build has to carry.
+it, and every code after it, down by one. So which phone this is gets settled
+at launch, before anything is armed — by the app, the watchdog and the boot
+receiver alike, whichever starts first — and in this order:
+
+1. **What the build declares.** The stub that dispatches is on the phone, so
+   the app reads the number out of that build's own
+   `IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate`, and
+   `getGameList` and `setAppOverrideRefreshRate` with it.
+2. **What its own proxy sends**, for a build whose argument list differs too:
+   the vote is marshalled by the proxy that build generates rather than by us.
+3. **A probe of the codes the vote has been found at** — 12, then 11 — for a
+   build that will not name its own transactions. What it sends is a withdrawal
+   on this app's own package: the vendor's cancel on a package holding no vote
+   changes nothing, and a code whose method takes different arguments is
+   refused by `enforceNoDataAvail` before that method ever runs.
+4. **The numbers above**, and a log line naming the device, the build and that
+   build's whole transaction table, which is what a report from an unknown
+   build has to carry.
+
+Settings names which of those four it was, so "the vendor closed the call" and
+"this app is dialling the wrong number" are not the same row.
 
 ## The Nord 6, from its own jar (CPH2793_16.0.5.1200)
 

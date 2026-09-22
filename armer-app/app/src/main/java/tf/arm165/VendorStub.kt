@@ -44,22 +44,22 @@ object VendorStub {
     }
 
     /**
-     * The code THIS build numbers [method] with, or [fallback] when the stub
-     * is not readable here. AIDL emits
+     * The code THIS build numbers [method] with, or null when the stub cannot
+     * be read here. AIDL emits
      * `static final int TRANSACTION_<method> = FIRST_CALL_TRANSACTION + n`,
-     * which survives into the dex as a field, so one read answers what a
-     * probe of the live service could only guess at.
+     * which survives into the dex as a field, so one read answers what a probe
+     * of the live service could only guess at.
+     *
+     * Null rather than a fallback on purpose: "this build says 12" and "this
+     * build would not say" are different answers, and only the caller knows
+     * what the second one is worth.
      */
-    fun transactionCode(iface: String, method: String, fallback: Int): Int {
-        val code = try {
-            stub(iface)?.getDeclaredField(PREFIX + method)
-                ?.apply { isAccessible = true }
-                ?.getInt(null)
-        } catch (t: Throwable) {
-            null
-        } ?: return fallback
-        if (code != fallback) Log.i(TAG, "$method is transaction $code on this build, not $fallback")
-        return code
+    fun transactionCode(iface: String, method: String): Int? = try {
+        stub(iface)?.getDeclaredField(PREFIX + method)
+            ?.apply { isAccessible = true }
+            ?.getInt(null)
+    } catch (t: Throwable) {
+        null
     }
 
     /**

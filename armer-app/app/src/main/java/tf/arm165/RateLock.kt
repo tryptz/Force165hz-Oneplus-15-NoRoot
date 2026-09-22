@@ -221,26 +221,160 @@ object RateLock {
     private var reported = false
 
     /**
-     * The transactions THIS build numbers these methods with, resolved once
-     * each from the stub the device itself carries and falling back to the
-     * OnePlus 15's numbering.
-     *
-     * The shift is whole-table, not one method: a OnePlus Nord 6 on
+     * How this build takes the vote. Worked out at launch, before anything is
+     * armed, because the alternative is a first tap that fails on a phone the
+     * app could have recognised on the way in.
+     */
+    enum class Binding {
+        /** Not worked out yet. */
+        NONE,
+
+        /** The code came out of this build's own stub: the answer, not a guess. */
+        STUB,
+
+        /** This build's own proxy marshals it, because its arguments differ too. */
+        PROXY,
+
+        /** The stub could not be read; a code seen in the wild answered a probe. */
+        PROBED,
+
+        /** Nothing could be established, so the OnePlus 15's numbering stands. */
+        ASSUMED,
+
+        /** No service of that name: not an OxygenOS build that has this at all. */
+        ABSENT,
+    }
+
+    @Volatile
+    var binding: Binding = Binding.NONE
+        private set
+
+    /**
+     * The transactions THIS build numbers these methods with. They start as the
+     * OnePlus 15's numbering and are replaced by whatever the device's own stub
+     * says. What moves is the table, not one method: a OnePlus Nord 6 on
      * CPH2793_16.0.5.1200 numbers the vote 11, `getGameList` 13 and
      * `setAppOverrideRefreshRate` 24 — each one less than here, because that
      * build's interface declares one method fewer ahead of them. So every code
      * this app sends is resolved by name, not just the vote.
      */
-    private val voteCode: Int by lazy {
-        VendorStub.transactionCode(IFACE, REQUEST_GAME_REFRESH_RATE, TX_REQUEST_GAME_REFRESH_RATE)
+    @Volatile
+    var voteCode: Int = TX_REQUEST_GAME_REFRESH_RATE
+        private set
+
+    @Volatile
+    private var gameListCode: Int = TX_GET_GAME_LIST
+
+    @Volatile
+    private var appOverrideCode: Int = TX_SET_APP_OVERRIDE
+
+    /**
+     * Codes the vote has actually been found at: 12 on the OnePlus 15
+     * (CPH2749_16.0.9.400), 11 on the OnePlus Nord 6 (CPH2793_16.0.5.1200).
+     * Tried in that order, and only when the build's own stub cannot be read —
+     * which is also the only case where there is nothing better than a guess.
+     */
+    private val KNOWN_VOTE_CODES = listOf(TX_REQUEST_GAME_REFRESH_RATE, 11)
+
+    /** This app's own package, for the probe. Set by [bind]. */
+    @Volatile
+    private var self: String? = null
+
+    /** Set once the codes have been looked up by name, which answers once. */
+    @Volatile
+    private var named = false
+
+    /**
+     * Works out how this build takes the vote and leaves the result in
+     * [binding] — called at launch from the app, the watchdog and the boot
+     * receiver, off the main thread where there is one.
+     *
+     * Idempotent and cheap once resolved. Everything that votes calls
+     * [ensureBound] anyway, so a vote that beats this to it is still sent at
+     * the right code; what calling it early buys is the probe (which needs a
+     * package to name), the log line, and the Settings row saying which build
+     * this is before anyone taps anything.
+     */
+    fun bind(self: String) {
+        this.self = self
+        ensureBound()
     }
 
-    private val gameListCode: Int by lazy {
-        VendorStub.transactionCode(IFACE, GET_GAME_LIST, TX_GET_GAME_LIST)
+    private fun ensureBound() {
+        if (binding != Binding.NONE) return
+        synchronized(this) {
+            if (binding != Binding.NONE) return
+            resolve()
+            if (binding != Binding.NONE) {
+                Log.i(
+                    TAG,
+                    "${Build.MODEL} / ${Build.DISPLAY}: vote at transaction $voteCode " +
+                        "(${binding.name.lowercase()}), getGameList $gameListCode, " +
+                        "setAppOverrideRefreshRate $appOverrideCode",
+                )
+            }
+        }
     }
 
-    private val appOverrideCode: Int by lazy {
-        VendorStub.transactionCode(IFACE, SET_APP_OVERRIDE_REFRESH_RATE, TX_SET_APP_OVERRIDE)
+    /**
+     * The ladder, best answer first: what the build declares, then what its own
+     * proxy will send for us, then the codes other builds were found at. Each
+     * step down is a worse kind of evidence, so none of them runs while a
+     * better one is available.
+     */
+    private fun resolve() {
+        if (!named) {
+            named = true
+            VendorStub.transactionCode(IFACE, GET_GAME_LIST)?.let { gameListCode = it }
+            VendorStub.transactionCode(IFACE, SET_APP_OVERRIDE_REFRESH_RATE)?.let { appOverrideCode = it }
+            VendorStub.transactionCode(IFACE, REQUEST_GAME_REFRESH_RATE)?.let {
+                voteCode = it
+                binding = Binding.STUB
+            }
+        }
+        if (binding != Binding.NONE) return
+        // Everything below names a package, so it waits for [bind].
+        val me = self ?: return
+        if (service() == null) {
+            binding = Binding.ABSENT
+            return
+        }
+        if (proxyVote(me, RATE_NONE) != null) {
+            viaProxy = true
+            binding = Binding.PROXY
+        } else {
+            val found = KNOWN_VOTE_CODES.firstOrNull { probeVote(it, me) }
+            voteCode = found ?: TX_REQUEST_GAME_REFRESH_RATE
+            binding = if (found != null) Binding.PROBED else Binding.ASSUMED
+        }
+        // None of that was a vote anyone asked for, so it leaves no verdict.
+        lastFault = Fault.NONE
+    }
+
+    /**
+     * Asks [code] to withdraw a vote on our own package, which is the safest
+     * thing to say to a transaction whose identity is in question. The vendor's
+     * cancel on a package holding no vote changes nothing, and a code whose
+     * method declares different arguments never runs at all: the stub rejects
+     * the parcel in `enforceNoDataAvail`, before the method behind it is
+     * called. True when something answered the way the vote does.
+     *
+     * Our own package rather than an invented one because a name nothing owns
+     * would tell us less on a build that checks: the one thing this can undo is
+     * a vote on the armer itself, which the watchdog re-issues on its next
+     * pass. And it only runs where the build would not name its own
+     * transactions, which is the one case with nothing better to go on.
+     */
+    private fun probeVote(code: Int, self: String): Boolean {
+        var answered = false
+        transact(
+            code,
+            write = { it.writeString(self); it.writeInt(RATE_NONE) },
+            read = { answered = it.readInt() == 1 },
+            fallback = Unit,
+        )
+        Log.i(TAG, "probe: transaction $code ${if (answered) "takes the vote" else "does not"}")
+        return answered
     }
 
     /**
@@ -257,6 +391,7 @@ object RateLock {
      * ([voteCode]), and the argument list it takes ([proxyVote]).
      */
     fun arm(packageName: String, rateId: Int = DEFAULT_RATE): Boolean {
+        ensureBound()
         if (viaProxy) return proxyVote(packageName, rateId) ?: false
         // No binder is the only way out of transact without an answer.
         var fault = Fault.UNREACHABLE
