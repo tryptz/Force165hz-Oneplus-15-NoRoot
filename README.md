@@ -36,8 +36,11 @@ iface:    com.oplus.screenmode.IOplusScreenMode
 transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 ```
 
-Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
-`7`=165. They are not in Hz order. `0` disarms.
+Rate ids: `1`=90, `2`=60, `3`=120, `4`=144, `7`=165. They are not in Hz order.
+`0` disarms. The framework names them in `OplusRefreshRateConstants`, which
+also carries `5`=72 and `6`=30 — real ids this app does not offer — and bounds
+the set at `1..7`, which is the range the server's `checkRefreshRateId`
+accepts.
 
 `0x0c` is one build's numbering, not the interface's. AIDL counts a method by
 its position, so a build declaring one method fewer ahead of the vote shifts
@@ -75,8 +78,19 @@ What is on the other side of the call is the same as here:
   has none either — the same `mOifaceRequestedRates` put / `remove` on rate 0,
   then `DisplayContent.forAllWindows` writing the override onto that package's
   live windows. So the cancel and the vote-last ordering both carry over.
-- `checkRefreshRateId` there accepts `1..7`, so the rate ids this app sends
-  are in range, id `7` included.
+- The rate ids are the same ids. `OplusRefreshRateConstants` on that build
+  reads `REFRESH_RATE_90 = 1`, `_60 = 2`, `_120 = 3`, `_144 = 4`, `_72 = 5`,
+  `_30 = 6`, `_165 = 7`, bounded `1..7` — so `7` means 165 Hz there as it does
+  here, and `checkRefreshRateId` accepts everything this app sends.
+- 165 is a mode that phone has, and a list it keeps. `my_product/build.prop`
+  has `persist.oplus.display.ogfr.exclusive=144,165`, and
+  `my_product/etc/refresh_rate_config.xml` gives 45 packages `rateId="7-1-2-7"`
+  — Call of Duty Mobile, Clash of Clans, Brawl Stars, Standoff 2, Minecraft,
+  Real Racing 3, Subway Surfers among them — each with `adfr="true"` and
+  `disableViewOverride="true"`. Four more get `4-0-0-4`, 144 Hz: Honor of
+  Kings, CrossFire, Mobile Legends. That list is what "165 in selected games"
+  means on the device, and it is per-package, which is exactly what the vote
+  writes.
 - `setAppOverrideRefreshRate` and `removeCustomizeRefreshRate` carry no
   permission check in either class on that build, unlike the OnePlus 15 where
   a live call answers `SecurityException`. Static read only; whether they are
