@@ -24,13 +24,16 @@ object RateLock {
     private const val SERVICE = "oplusscreenmode"
     private const val IFACE = "com.oplus.screenmode.IOplusScreenMode"
 
-    // Recovered transaction codes, as one build numbers them.
+    // Transaction codes as the OnePlus 15 numbers them, and the method names
+    // they belong to. The names are what a build's own stub can be asked about;
+    // the numbers are only the fallback for when it cannot be — see [voteCode].
     private const val TX_REQUEST_GAME_REFRESH_RATE = 12 // (String, int) -> boolean
     private const val TX_GET_GAME_LIST = 14 //             (Bundle) inout -> boolean
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
 
-    /** The vote by name, which is what a build's own stub can be asked about. */
     private const val REQUEST_GAME_REFRESH_RATE = "requestGameRefreshRate"
+    private const val GET_GAME_LIST = "getGameList"
+    private const val SET_APP_OVERRIDE_REFRESH_RATE = "setAppOverrideRefreshRate"
 
     // Vendor rateIds, same numbering as refresh_rate_config.xml. They are not
     // in Hz order: the vendor numbers 90 Hz as 1 and 60 Hz as 2. Builds that
@@ -188,7 +191,10 @@ object RateLock {
 
         /**
          * The server read a different argument list than we wrote, so this
-         * build numbers or declares the call differently (issue #17).
+         * build numbers or declares the call differently (issue #17: on
+         * CPH2793 transaction 12 is `requestRefreshRateWithToken`, which reads
+         * a boolean, an int and a binder — 8 bytes short of what the vote
+         * writes, which is the count the exception named).
          */
         SHAPE,
 
@@ -215,12 +221,26 @@ object RateLock {
     private var reported = false
 
     /**
-     * The transaction THIS build numbers the vote with, resolved once from the
-     * stub the device itself carries. Falls back to the code recovered on the
-     * OnePlus 15, which is also what every build that agrees with it returns.
+     * The transactions THIS build numbers these methods with, resolved once
+     * each from the stub the device itself carries and falling back to the
+     * OnePlus 15's numbering.
+     *
+     * The shift is whole-table, not one method: a OnePlus Nord 6 on
+     * CPH2793_16.0.5.1200 numbers the vote 11, `getGameList` 13 and
+     * `setAppOverrideRefreshRate` 24 — each one less than here, because that
+     * build's interface declares one method fewer ahead of them. So every code
+     * this app sends is resolved by name, not just the vote.
      */
     private val voteCode: Int by lazy {
         VendorStub.transactionCode(IFACE, REQUEST_GAME_REFRESH_RATE, TX_REQUEST_GAME_REFRESH_RATE)
+    }
+
+    private val gameListCode: Int by lazy {
+        VendorStub.transactionCode(IFACE, GET_GAME_LIST, TX_GET_GAME_LIST)
+    }
+
+    private val appOverrideCode: Int by lazy {
+        VendorStub.transactionCode(IFACE, SET_APP_OVERRIDE_REFRESH_RATE, TX_SET_APP_OVERRIDE)
     }
 
     /**
@@ -347,7 +367,7 @@ object RateLock {
      * on it.
      */
     fun setAppOverride(packageName: String, rateId: Int, mode: Int = 0): Boolean = transact(
-        TX_SET_APP_OVERRIDE,
+        appOverrideCode,
         write = { it.writeString(packageName); it.writeInt(mode); it.writeInt(rateId) },
         read = { it.readInt() != 0 },
         fallback = false,
@@ -400,7 +420,7 @@ object RateLock {
      * value out defensively rather than assuming a schema.
      */
     fun systemGameList(): Set<String> = transact(
-        TX_GET_GAME_LIST,
+        gameListCode,
         write = { },
         read = { reply ->
             reply.readBoolean()

@@ -40,20 +40,54 @@ Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
 `7`=165. They are not in Hz order. `0` disarms.
 
 `0x0c` is one build's numbering, not the interface's. AIDL counts a method by
-its position, so a build that adds, removes or reorders one shifts every code
-after it and `0x0c` lands somewhere else: the server reads a shorter argument
-list than was written, and rejects what is left of the parcel with
-`BadParcelableException: Parcel data not fully consumed` (#17, a Nord 6 on
-CPH2793_16.0.5.1200, 8 bytes over). The stub that throws is on the phone, so
-the app takes the number from that build's own
-`IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate` and falls back to
-`0x0c` only when it cannot be read. Where the argument list differs too, the
-vote goes out through the proxy the build generates, which writes whatever
-shape that build declares. Where neither works, the first rejected vote logs
-the device, the build and that build's whole transaction table — what a report
-from a device this was not written on has to carry. Whether the vote lands on
-such a build is unverified: everything measured here was measured on a
-OnePlus 15.
+its position, so a build declaring one method fewer ahead of the vote shifts
+it, and every code after it, down by one. The stub that dispatches is on the
+phone, so the app reads the number out of that build's own
+`IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate` — and `getGameList`
+and `setAppOverrideRefreshRate` with it — and falls back to the numbers above
+only when the field cannot be read. Where the argument list differs too, the
+vote goes through the proxy that build generates. Where neither works, the
+first rejected vote logs the device, the build and that build's whole
+transaction table, which is what a report from an unknown build has to carry.
+
+## The Nord 6, from its own jar (CPH2793_16.0.5.1200)
+
+Issue #17: every arm on a OnePlus Nord 6 failed with
+`BadParcelableException: Parcel data not fully consumed, unread size: 8`.
+Recovered from that exact build's `oplus-framework.jar` and `oplus-services.jar`
+(pulled out of the full OTA), the reason is the whole table sliding by one:
+
+| method | OnePlus 15 | Nord 6 |
+|:-------|-----------:|-------:|
+| `requestGameRefreshRate(String, int)` | 12 | **11** |
+| `getGameList(Bundle)` | 14 | 13 |
+| `setAppOverrideRefreshRate(String, int, int)` | 25 | 24 |
+
+Transaction 12 on the Nord 6 is
+`requestRefreshRateWithToken(boolean, int, IBinder)`. Handed the vote's parcel
+it reads an int, an int and a binder, then rejects the tail of the package name
+it never read — the 8 bytes the exception named.
+
+What is on the other side of the call is the same as here:
+
+- `OplusDisplayModeService.requestGameRefreshRate` has no caller check and
+  hands straight to `OplusRefreshRatePolicyImpl.requestGameRefreshRate`, which
+  has none either — the same `mOifaceRequestedRates` put / `remove` on rate 0,
+  then `DisplayContent.forAllWindows` writing the override onto that package's
+  live windows. So the cancel and the vote-last ordering both carry over.
+- `checkRefreshRateId` there accepts `1..7`, so the rate ids this app sends
+  are in range, id `7` included.
+- `setAppOverrideRefreshRate` and `removeCustomizeRefreshRate` carry no
+  permission check in either class on that build, unlike the OnePlus 15 where
+  a live call answers `SecurityException`. Static read only; whether they are
+  reachable from an unprivileged uid there is unprobed.
+
+Nothing here was measured on the device — it is what the build's own jars say.
+`tool/oplus_tx_table.py` is how they were read: it range-fetches one partition
+out of a published full OTA (650 MB of a 7.9 GB package for `system_ext`,
+600 MB for `system`), checks what it rebuilt against the sha256 in the
+payload's own manifest, and prints any AIDL interface's transaction table out
+of a jar. Point it at another device's OTA to answer the same question there.
 
 Two things about the call shape drive the whole design:
 

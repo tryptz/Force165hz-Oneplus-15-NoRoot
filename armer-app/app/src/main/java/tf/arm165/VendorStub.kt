@@ -9,11 +9,15 @@ import android.util.Log
  * Every transaction code in this app was recovered from ONE build's
  * `oplus-framework.jar` (CPH2749_16.0.9.400). AIDL numbers a method by its
  * position in the interface, so a build that adds, removes or reorders one
- * method shifts every code after it. The same `0x0c` that votes a game rate
- * here then lands on some other method there, which reads a shorter argument
- * list than we wrote and leaves the rest of the parcel behind — the server
- * answers `BadParcelableException: Parcel data not fully consumed` (#17, on a
- * OnePlus Nord 6, CPH2793_16.0.5.1200: unread size 8).
+ * method shifts every code after it, and the same `0x0c` that votes a game
+ * rate here lands on some other method there.
+ *
+ * Read out of CPH2793_16.0.5.1200's own `oplus-framework.jar` (#17, a OnePlus
+ * Nord 6), that build declares the vote at 11 and puts
+ * `requestRefreshRateWithToken(boolean, int, IBinder)` at 12. Handed the
+ * vote's parcel, that method reads an int, an int and a binder, and leaves
+ * the tail of the package name behind — `Parcel data not fully consumed,
+ * unread size: 8`, which is what every arm on that phone answered.
  *
  * The stub that threw is on the phone, on the boot classpath, and AIDL
  * generates it with its own numbering in `TRANSACTION_<method>` constants and
