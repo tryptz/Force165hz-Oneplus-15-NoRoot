@@ -54,6 +54,9 @@
         <item quantity="other">%1$d apps wouldn\'t release. Restart the phone to clear them</item>
     </plurals>
     <string name="arm_failed">Couldn\'t arm %1$s</string>
+    <string name="arm_wrong_build">Couldn\'t arm %1$s. This build takes a different call than this app makes — the log page has what a bug report needs</string>
+    <string name="arm_denied">Couldn\'t arm %1$s. This build refuses the vote: the vendor closed the interface</string>
+    <string name="arm_no_service">Couldn\'t arm %1$s. This build has no OxygenOS display-mode service</string>
     <string name="disarm_failed">Couldn\'t release %1$s. Restart the phone to clear it</string>
     <string name="nothing_saved">Nothing armed yet</string>
     <string name="rate_picker_disarm">Disarm</string>
@@ -124,6 +127,14 @@
     <string name="usage_on">Granted. Needed only above %1$d armed apps, where the watchdog votes just the app on screen — it can see which one that is.</string>
     <string name="usage_off">Needed if you arm more than %1$d apps. Up to %1$d, every armed app is voted on every pass, so what you have now works without it. Tap to grant anyway, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="usage_off_needed">Needed: %1$d apps armed, more than %2$d. Above that only the app on screen is voted, and this is what sees which one. Tap to grant, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="binding_title">Vendor interface</string>
+    <string name="binding_pending">Checking what this build numbers the call with\u2026</string>
+    <string name="binding_stub">Transaction %1$d, named by this build itself</string>
+    <string name="binding_proxy">Transaction resolved by this build\'s own proxy \u2014 its arguments differ from the ones this app was written against</string>
+    <string name="binding_probed">Transaction %1$d, found by probe. This build would not name it, but that code answers</string>
+    <string name="binding_scanned">Transaction %1$d, found by sweeping this build\'s display service. A numbering not seen before \u2014 worth reporting</string>
+    <string name="binding_assumed">Assumed transaction %1$d. This build would not name it and no known code answered, so arming may fail \u2014 the log page has what a report needs</string>
+    <string name="binding_absent">No OxygenOS display-mode service on this build. Nothing here can arm</string>
     <string name="log_title">Live log</string>
     <string name="log_open">Open</string>
     <string name="log_row_sub">Vote results, the app the watchdog sees on screen, parks and restores</string>

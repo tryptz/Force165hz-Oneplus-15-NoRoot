@@ -969,6 +969,10 @@ class ArmWatchService : Service() {
     override fun onCreate() {
         super.onCreate()
         running = true
+        // Before any pass, and before the withdrawals below: the watchdog can
+        // be started by the widget or by boot with no activity ever opened, so
+        // it cannot leave working out this build's numbering to the UI.
+        worker.execute { RateLock.bind(packageName) }
         prefs = ArmedStore.open(this)
         prefs?.getStringSet(KEY_REGISTERED, emptySet())?.let(registered::addAll)
         // An armed set written by a build whose "Arm all" included the

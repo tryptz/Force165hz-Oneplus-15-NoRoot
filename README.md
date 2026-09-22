@@ -36,8 +36,104 @@ iface:    com.oplus.screenmode.IOplusScreenMode
 transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 ```
 
-Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
-`7`=165. They are not in Hz order. `0` disarms.
+Rate ids: `1`=90, `2`=60, `3`=120, `4`=144, `7`=165. They are not in Hz order.
+`0` disarms. The framework names them in `OplusRefreshRateConstants`, which
+also carries `5`=72 and `6`=30 — real ids this app does not offer — and bounds
+the set at `1..7`, which is the range the server's `checkRefreshRateId`
+accepts.
+
+`0x0c` is one build's numbering, not the interface's. AIDL counts a method by
+its position, so a build declaring one method fewer ahead of the vote shifts
+it, and every code after it, down by one. So which phone this is gets settled
+at launch, before anything is armed — by the app, the watchdog and the boot
+receiver alike, whichever starts first — and in this order:
+
+1. **What the build declares.** The stub that dispatches is on the phone, so
+   the app reads the number out of that build's own
+   `IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate`, and
+   `getGameList` and `setAppOverrideRefreshRate` with it.
+2. **What its own proxy sends**, for a build whose argument list differs too:
+   the vote is marshalled by the proxy that build generates rather than by us.
+3. **A probe of the codes the vote has been found at** — 12, then 11 — for a
+   build that will not name its own transactions. What it sends is a withdrawal
+   on a package name nothing has installed: the vendor's cancel on a package
+   holding no vote changes nothing, and a code whose method takes different
+   arguments is refused by `enforceNoDataAvail` before that method ever runs.
+4. **A sweep of the interface**, for a build numbering the vote at neither of
+   those. A code declaring different arguments never runs — the stub refuses
+   the parcel first — so a sweep only reaches the few methods taking
+   `(String, int)`, and on this interface those are the vote and a handful of
+   queries. What separates them is that the vote refuses an empty package name
+   outright (`isEmpty` is its first line) and accepts a name nothing has
+   installed, while a query answers both the same, because what it reads is a
+   list neither name is in.
+5. **The numbers above**, and a log line naming the device, the build and that
+   build's whole transaction table, which is what a report from an unknown
+   build has to carry.
+
+Settings names which of those five it was, so "the vendor closed the call" and
+"this app is dialling the wrong number" are not the same row.
+
+**Measured, and not what rung 1 was written for.** On a OnePlus 15 running
+OxygenOS 16 the constant cannot be read: `oplus-framework.jar` is on the boot
+classpath (it is in `bootclasspath.pb`) and the class loads, but the field
+behind `TRANSACTION_requestGameRefreshRate` is a non-SDK member and the read is
+refused. The Settings row says `found by probe`, at 12, which is the right code
+there. So rung 3 is the one carrying this on OxygenOS 16, not the fallback it
+reads as — which is also why it probes a package nobody owns rather than this
+app's own, and why the lookup now logs the exception it failed with. A build
+numbering the vote at something other than 12 or 11 would land on rung 4, and
+that log line is what would make the next number knowable.
+
+## The Nord 6, from its own jar (CPH2793_16.0.5.1200)
+
+Issue #17: every arm on a OnePlus Nord 6 failed with
+`BadParcelableException: Parcel data not fully consumed, unread size: 8`.
+Recovered from that exact build's `oplus-framework.jar` and `oplus-services.jar`
+(pulled out of the full OTA), the reason is the whole table sliding by one:
+
+| method | OnePlus 15 | Nord 6 |
+|:-------|-----------:|-------:|
+| `requestGameRefreshRate(String, int)` | 12 | **11** |
+| `getGameList(Bundle)` | 14 | 13 |
+| `setAppOverrideRefreshRate(String, int, int)` | 25 | 24 |
+
+Transaction 12 on the Nord 6 is
+`requestRefreshRateWithToken(boolean, int, IBinder)`. Handed the vote's parcel
+it reads an int, an int and a binder, then rejects the tail of the package name
+it never read — the 8 bytes the exception named.
+
+What is on the other side of the call is the same as here:
+
+- `OplusDisplayModeService.requestGameRefreshRate` has no caller check and
+  hands straight to `OplusRefreshRatePolicyImpl.requestGameRefreshRate`, which
+  has none either — the same `mOifaceRequestedRates` put / `remove` on rate 0,
+  then `DisplayContent.forAllWindows` writing the override onto that package's
+  live windows. So the cancel and the vote-last ordering both carry over.
+- The rate ids are the same ids. `OplusRefreshRateConstants` on that build
+  reads `REFRESH_RATE_90 = 1`, `_60 = 2`, `_120 = 3`, `_144 = 4`, `_72 = 5`,
+  `_30 = 6`, `_165 = 7`, bounded `1..7` — so `7` means 165 Hz there as it does
+  here, and `checkRefreshRateId` accepts everything this app sends.
+- 165 is a mode that phone has, and a list it keeps. `my_product/build.prop`
+  has `persist.oplus.display.ogfr.exclusive=144,165`, and
+  `my_product/etc/refresh_rate_config.xml` gives 45 packages `rateId="7-1-2-7"`
+  — Call of Duty Mobile, Clash of Clans, Brawl Stars, Standoff 2, Minecraft,
+  Real Racing 3, Subway Surfers among them — each with `adfr="true"` and
+  `disableViewOverride="true"`. Four more get `4-0-0-4`, 144 Hz: Honor of
+  Kings, CrossFire, Mobile Legends. That list is what "165 in selected games"
+  means on the device, and it is per-package, which is exactly what the vote
+  writes.
+- `setAppOverrideRefreshRate` and `removeCustomizeRefreshRate` carry no
+  permission check in either class on that build, unlike the OnePlus 15 where
+  a live call answers `SecurityException`. Static read only; whether they are
+  reachable from an unprivileged uid there is unprobed.
+
+Nothing here was measured on the device — it is what the build's own jars say.
+`tool/oplus_tx_table.py` is how they were read: it range-fetches one partition
+out of a published full OTA (650 MB of a 7.9 GB package for `system_ext`,
+600 MB for `system`), checks what it rebuilt against the sha256 in the
+payload's own manifest, and prints any AIDL interface's transaction table out
+of a jar. Point it at another device's OTA to answer the same question there.
 
 Two things about the call shape drive the whole design:
 

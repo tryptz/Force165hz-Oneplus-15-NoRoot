@@ -9,6 +9,9 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val prefs = ArmedStore.open(context)
         val armed = ArmedStore.read(prefs)
+        // First vote of the boot: it has to go out at the code this build
+        // numbers the call with, not the one the OnePlus 15 does.
+        RateLock.bind(context.packageName)
         // Nothing is foregrounded yet at boot, so there is no app to vote
         // last; the watchdog re-orders every later pass around the one on
         // screen (see RateLock.armEach).
