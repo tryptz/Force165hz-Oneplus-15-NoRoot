@@ -37,9 +37,17 @@ object VendorStub {
     /** AIDL's own name for the constant holding a method's transaction code. */
     private const val PREFIX = "TRANSACTION_"
 
+    /** Said once, so several lookups behind one missing class print one line. */
+    @Volatile
+    private var classReported = false
+
     private fun stub(iface: String): Class<*>? = try {
         Class.forName("$iface\$Stub")
     } catch (t: Throwable) {
+        if (!classReported) {
+            classReported = true
+            Log.w(TAG, "$iface\$Stub will not load here: ${t.javaClass.simpleName}: ${t.message}")
+        }
         null
     }
 
@@ -54,12 +62,18 @@ object VendorStub {
      * build would not say" are different answers, and only the caller knows
      * what the second one is worth.
      */
-    fun transactionCode(iface: String, method: String): Int? = try {
-        stub(iface)?.getDeclaredField(PREFIX + method)
-            ?.apply { isAccessible = true }
-            ?.getInt(null)
-    } catch (t: Throwable) {
-        null
+    fun transactionCode(iface: String, method: String): Int? {
+        val stub = stub(iface) ?: return null
+        return try {
+            stub.getDeclaredField(PREFIX + method).apply { isAccessible = true }.getInt(null)
+        } catch (t: Throwable) {
+            // Which failure this is matters: a name the build does not declare
+            // is final, while a member the runtime hides is a different
+            // problem with a different answer. The exception says which, and
+            // this is the only place that knows.
+            Log.w(TAG, "$PREFIX$method is not readable here: ${t.javaClass.simpleName}: ${t.message}")
+            null
+        }
     }
 
     /**

@@ -56,15 +56,26 @@ receiver alike, whichever starts first — and in this order:
    the vote is marshalled by the proxy that build generates rather than by us.
 3. **A probe of the codes the vote has been found at** — 12, then 11 — for a
    build that will not name its own transactions. What it sends is a withdrawal
-   on this app's own package: the vendor's cancel on a package holding no vote
-   changes nothing, and a code whose method takes different arguments is
-   refused by `enforceNoDataAvail` before that method ever runs.
+   on a package name nothing has installed: the vendor's cancel on a package
+   holding no vote changes nothing, and a code whose method takes different
+   arguments is refused by `enforceNoDataAvail` before that method ever runs.
 4. **The numbers above**, and a log line naming the device, the build and that
    build's whole transaction table, which is what a report from an unknown
    build has to carry.
 
 Settings names which of those four it was, so "the vendor closed the call" and
 "this app is dialling the wrong number" are not the same row.
+
+**Measured, and not what rung 1 was written for.** On a OnePlus 15 running
+OxygenOS 16 the constant cannot be read: `oplus-framework.jar` is on the boot
+classpath (it is in `bootclasspath.pb`) and the class loads, but the field
+behind `TRANSACTION_requestGameRefreshRate` is a non-SDK member and the read is
+refused. The Settings row says `found by probe`, at 12, which is the right code
+there. So rung 3 is the one carrying this on OxygenOS 16, not the fallback it
+reads as — which is also why it probes a package nobody owns rather than this
+app's own, and why the lookup now logs the exception it failed with. A build
+numbering the vote at something other than 12 or 11 would land on rung 4, and
+that log line is what would make the next number knowable.
 
 ## The Nord 6, from its own jar (CPH2793_16.0.5.1200)
 

@@ -339,11 +339,17 @@ object RateLock {
             binding = Binding.ABSENT
             return
         }
-        if (proxyVote(me, RATE_NONE) != null) {
+        // Not our own package: a withdrawal for one nothing has installed
+        // cannot take down a vote that matters, and the server does not check
+        // that the name exists — on both builds read so far it removes an
+        // entry that was never there, then writes the override onto every
+        // window that package owns, of which there are none.
+        val nobody = "$me.probe"
+        if (proxyVote(nobody, RATE_NONE) != null) {
             viaProxy = true
             binding = Binding.PROXY
         } else {
-            val found = KNOWN_VOTE_CODES.firstOrNull { probeVote(it, me) }
+            val found = KNOWN_VOTE_CODES.firstOrNull { probeVote(it, nobody) }
             voteCode = found ?: TX_REQUEST_GAME_REFRESH_RATE
             binding = if (found != null) Binding.PROBED else Binding.ASSUMED
         }
@@ -359,11 +365,12 @@ object RateLock {
      * the parcel in `enforceNoDataAvail`, before the method behind it is
      * called. True when something answered the way the vote does.
      *
-     * Our own package rather than an invented one because a name nothing owns
-     * would tell us less on a build that checks: the one thing this can undo is
-     * a vote on the armer itself, which the watchdog re-issues on its next
-     * pass. And it only runs where the build would not name its own
-     * transactions, which is the one case with nothing better to go on.
+     * The package it names is one nothing has installed, so there is no vote
+     * anywhere for this to take down. That matters more than it looks: a
+     * OnePlus 15 on OxygenOS 16 will not name its own transactions, so this
+     * rung is not the rare fallback it was written as — it runs at every
+     * launch, and naming the armer itself would have dropped the armer's own
+     * pin every time the app was opened.
      */
     private fun probeVote(code: Int, self: String): Boolean {
         var answered = false
