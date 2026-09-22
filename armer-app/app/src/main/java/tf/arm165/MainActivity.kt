@@ -281,9 +281,22 @@ class MainActivity : ShellActivity() {
             armed[entry.pkg] = rateId
             ArmWatchService.start(this)
         } else {
-            snack(getString(R.string.arm_failed, entry.label))
+            snack(getString(armFailure(), entry.label))
         }
         onArmedChanged()
+    }
+
+    /**
+     * Why the vote did not land, in the one sentence a snackbar has room for.
+     * A build with no vendor service, one that has closed it, and one that
+     * takes a different call are three different answers — and only the last
+     * of those is worth a bug report.
+     */
+    private fun armFailure(): Int = when (RateLock.lastFault) {
+        RateLock.Fault.SHAPE -> R.string.arm_wrong_build
+        RateLock.Fault.DENIED -> R.string.arm_denied
+        RateLock.Fault.UNREACHABLE -> R.string.arm_no_service
+        else -> R.string.arm_failed
     }
 
     private fun disarm(entry: AppEntry, toggle: RateSwitch?) {
@@ -315,7 +328,7 @@ class MainActivity : ShellActivity() {
             // already had is still live, and only a release takes that down.
             armed.remove(entry.pkg)
             stale = current
-            snack(getString(R.string.arm_failed, entry.label))
+            snack(getString(armFailure(), entry.label))
         }
         onArmedChanged()
         stale?.let { rate -> worker.execute { synchronized(RateLock) { RateLock.release(entry.pkg, rate) } } }

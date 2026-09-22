@@ -39,6 +39,22 @@ transact: 0x0c   requestGameRefreshRate(String packageName, int rateId)
 Rate ids from `refresh_rate_config.xml`: `1`=90, `2`=60, `3`=120, `4`=144,
 `7`=165. They are not in Hz order. `0` disarms.
 
+`0x0c` is one build's numbering, not the interface's. AIDL counts a method by
+its position, so a build that adds, removes or reorders one shifts every code
+after it and `0x0c` lands somewhere else: the server reads a shorter argument
+list than was written, and rejects what is left of the parcel with
+`BadParcelableException: Parcel data not fully consumed` (#17, a Nord 6 on
+CPH2793_16.0.5.1200, 8 bytes over). The stub that throws is on the phone, so
+the app takes the number from that build's own
+`IOplusScreenMode$Stub.TRANSACTION_requestGameRefreshRate` and falls back to
+`0x0c` only when it cannot be read. Where the argument list differs too, the
+vote goes out through the proxy the build generates, which writes whatever
+shape that build declares. Where neither works, the first rejected vote logs
+the device, the build and that build's whole transaction table — what a report
+from a device this was not written on has to carry. Whether the vote lands on
+such a build is unverified: everything measured here was measured on a
+OnePlus 15.
+
 Two things about the call shape drive the whole design:
 
 1. **It is a plain set, and it sets min = max.** A vote is a pin at one rate,

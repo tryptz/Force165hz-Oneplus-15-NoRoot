@@ -1,5 +1,7 @@
 package tf.arm165
 
+import android.os.BadParcelableException
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.Parcel
@@ -12,16 +14,23 @@ import android.util.Log
  * Transaction codes and signatures were recovered from `oplus-framework.jar`
  * (`com.oplus.screenmode.IOplusScreenMode`); `requestGameRefreshRate = 12`
  * matches the `0x0c` this app has always used.
+ *
+ * That numbering is one build's, not the interface's: AIDL counts methods in
+ * declaration order. So the vote asks the device what it numbers the call
+ * with, through [VendorStub], and falls back to 12 — see [voteCode].
  */
 object RateLock {
     private const val TAG = "Arm165"
     private const val SERVICE = "oplusscreenmode"
     private const val IFACE = "com.oplus.screenmode.IOplusScreenMode"
 
-    // Recovered transaction codes.
+    // Recovered transaction codes, as one build numbers them.
     private const val TX_REQUEST_GAME_REFRESH_RATE = 12 // (String, int) -> boolean
     private const val TX_GET_GAME_LIST = 14 //             (Bundle) inout -> boolean
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
+
+    /** The vote by name, which is what a build's own stub can be asked about. */
+    private const val REQUEST_GAME_REFRESH_RATE = "requestGameRefreshRate"
 
     // Vendor rateIds, same numbering as refresh_rate_config.xml. They are not
     // in Hz order: the vendor numbers 90 Hz as 1 and 60 Hz as 2. Builds that
@@ -127,8 +136,18 @@ object RateLock {
         null
     }
 
-    /** Runs one transaction, always with the interface token written first. */
-    private inline fun <T> transact(code: Int, write: (Parcel) -> Unit, read: (Parcel) -> T, fallback: T): T {
+    /**
+     * Runs one transaction, always with the interface token written first.
+     * [onError] sees whatever the call threw, for the one caller that has to
+     * tell a refusal apart from a build that takes a different call.
+     */
+    private inline fun <T> transact(
+        code: Int,
+        write: (Parcel) -> Unit,
+        read: (Parcel) -> T,
+        fallback: T,
+        onError: (Throwable) -> Unit = {},
+    ): T {
         val binder = service() ?: return fallback
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
@@ -140,11 +159,68 @@ object RateLock {
             read(reply)
         } catch (t: Throwable) {
             Log.w(TAG, "transact $code failed", t)
+            onError(t)
             fallback
         } finally {
             data.recycle()
             reply.recycle()
         }
+    }
+
+    /**
+     * Why the last vote did not land. Advisory, and read by the UI: a build
+     * that never had the service, one that has closed it, and one that numbers
+     * it differently are three unrelated answers, and "couldn't arm" is none
+     * of them.
+     */
+    enum class Fault {
+        /** It landed. */
+        NONE,
+
+        /** No binder of that name: not a build with this vendor service. */
+        UNREACHABLE,
+
+        /** The server answered, and said no. */
+        REFUSED,
+
+        /** A permission an unprivileged uid cannot hold: an OTA closed it. */
+        DENIED,
+
+        /**
+         * The server read a different argument list than we wrote, so this
+         * build numbers or declares the call differently (issue #17).
+         */
+        SHAPE,
+
+        UNKNOWN,
+    }
+
+    @Volatile
+    var lastFault: Fault = Fault.NONE
+        private set
+
+    /** Set once a raw transaction is known to be the wrong shape on this build. */
+    @Volatile
+    private var viaProxy = false
+
+    /**
+     * Set once the build's own proxy has been asked for the vote. A build
+     * either declares that method or it does not, so asking twice can only
+     * add a reflection lookup and a log line to every pass the watchdog makes.
+     */
+    @Volatile
+    private var proxyTried = false
+
+    @Volatile
+    private var reported = false
+
+    /**
+     * The transaction THIS build numbers the vote with, resolved once from the
+     * stub the device itself carries. Falls back to the code recovered on the
+     * OnePlus 15, which is also what every build that agrees with it returns.
+     */
+    private val voteCode: Int by lazy {
+        VendorStub.transactionCode(IFACE, REQUEST_GAME_REFRESH_RATE, TX_REQUEST_GAME_REFRESH_RATE)
     }
 
     /**
@@ -155,17 +231,91 @@ object RateLock {
      * off, so handing the vendor an id it already holds can never be the way to
      * withdraw it — that is [release]'s job. The vote applies while the app is
      * foregrounded, which is why the watchdog exists.
+     *
+     * Two things can be different about the call on a build this was not
+     * written on, and they are answered in order: the code it is numbered with
+     * ([voteCode]), and the argument list it takes ([proxyVote]).
      */
-    fun arm(packageName: String, rateId: Int = DEFAULT_RATE): Boolean = transact(
-        TX_REQUEST_GAME_REFRESH_RATE,
-        write = { it.writeString(packageName); it.writeInt(rateId) },
-        read = { reply ->
-            val res = reply.readInt()
-            Log.i(TAG, "$packageName -> id=$rateId res=$res")
-            res == 1
-        },
-        fallback = false,
-    )
+    fun arm(packageName: String, rateId: Int = DEFAULT_RATE): Boolean {
+        if (viaProxy) return proxyVote(packageName, rateId) ?: false
+        // No binder is the only way out of transact without an answer.
+        var fault = Fault.UNREACHABLE
+        val ok = transact(
+            voteCode,
+            write = { it.writeString(packageName); it.writeInt(rateId) },
+            read = { reply ->
+                val res = reply.readInt()
+                Log.i(TAG, "$packageName -> id=$rateId res=$res")
+                fault = if (res == 1) Fault.NONE else Fault.REFUSED
+                res == 1
+            },
+            fallback = false,
+            onError = { fault = faultOf(it) },
+        )
+        if (!ok && fault == Fault.SHAPE && !proxyTried) {
+            proxyTried = true
+            reportBuildOnce()
+            // The code came from this build's own stub and the parcel still
+            // came back the wrong shape, so the argument list differs too.
+            // Hand the vote to the proxy the build generates, and keep using it
+            // for the rest of the process once it lands.
+            proxyVote(packageName, rateId)?.let { answered ->
+                viaProxy = true
+                return answered
+            }
+        }
+        lastFault = fault
+        return ok
+    }
+
+    /**
+     * The same vote, marshalled by the build's own proxy rather than by us, so
+     * the argument list is the one that build declares.
+     *
+     * Null means there was nothing of that name to call, which is not the same
+     * as a refusal: a vote that never went out must not read as a vote the
+     * server turned down.
+     */
+    private fun proxyVote(packageName: String, rateId: Int): Boolean? {
+        val binder = service() ?: run {
+            lastFault = Fault.UNREACHABLE
+            return null
+        }
+        val answer = VendorStub.callPackageRate(IFACE, binder, REQUEST_GAME_REFRESH_RATE, packageName, rateId)
+        Log.i(TAG, "$packageName -> id=$rateId via this build's own proxy: ${answer ?: "no such call"}")
+        lastFault = when (answer) {
+            null -> Fault.SHAPE
+            true -> Fault.NONE
+            else -> Fault.REFUSED
+        }
+        return answer
+    }
+
+    /** Which [Fault] a thrown transaction was. */
+    private fun faultOf(t: Throwable): Fault = when {
+        t is SecurityException -> Fault.DENIED
+        // The server read fewer arguments than we wrote: wrong call, not a
+        // refused one. `enforceNoDataAvail` names the bytes it was left with.
+        t is BadParcelableException -> Fault.SHAPE
+        t.message?.contains("not fully consumed") == true -> Fault.SHAPE
+        else -> Fault.UNKNOWN
+    }
+
+    /**
+     * What a report from a build this was not written on has to carry: the
+     * device, the build, and the transaction table that build's own stub
+     * declares. Logged once, the first time a vote comes back the wrong shape.
+     */
+    private fun reportBuildOnce() {
+        if (reported) return
+        reported = true
+        val table = VendorStub.transactionTable(IFACE).ifEmpty { "unreadable" }
+        Log.w(
+            TAG,
+            "vote rejected as the wrong shape on ${Build.MODEL} / ${Build.DISPLAY}; " +
+                "sent at transaction $voteCode; this build declares $table",
+        )
+    }
 
     /**
      * Issues one vote per entry of [armed] and returns the packages whose vote
