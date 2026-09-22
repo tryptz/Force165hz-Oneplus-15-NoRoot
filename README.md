@@ -59,11 +59,19 @@ receiver alike, whichever starts first — and in this order:
    on a package name nothing has installed: the vendor's cancel on a package
    holding no vote changes nothing, and a code whose method takes different
    arguments is refused by `enforceNoDataAvail` before that method ever runs.
-4. **The numbers above**, and a log line naming the device, the build and that
+4. **A sweep of the interface**, for a build numbering the vote at neither of
+   those. A code declaring different arguments never runs — the stub refuses
+   the parcel first — so a sweep only reaches the few methods taking
+   `(String, int)`, and on this interface those are the vote and a handful of
+   queries. What separates them is that the vote refuses an empty package name
+   outright (`isEmpty` is its first line) and accepts a name nothing has
+   installed, while a query answers both the same, because what it reads is a
+   list neither name is in.
+5. **The numbers above**, and a log line naming the device, the build and that
    build's whole transaction table, which is what a report from an unknown
    build has to carry.
 
-Settings names which of those four it was, so "the vendor closed the call" and
+Settings names which of those five it was, so "the vendor closed the call" and
 "this app is dialling the wrong number" are not the same row.
 
 **Measured, and not what rung 1 was written for.** On a OnePlus 15 running

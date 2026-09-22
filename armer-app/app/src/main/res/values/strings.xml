@@ -132,6 +132,7 @@
     <string name="binding_stub">Transaction %1$d, named by this build itself</string>
     <string name="binding_proxy">Transaction resolved by this build\'s own proxy \u2014 its arguments differ from the ones this app was written against</string>
     <string name="binding_probed">Transaction %1$d, found by probe. This build would not name it, but that code answers</string>
+    <string name="binding_scanned">Transaction %1$d, found by sweeping this build\'s display service. A numbering not seen before \u2014 worth reporting</string>
     <string name="binding_assumed">Assumed transaction %1$d. This build would not name it and no known code answered, so arming may fail \u2014 the log page has what a report needs</string>
     <string name="binding_absent">No OxygenOS display-mode service on this build. Nothing here can arm</string>
     <string name="log_title">Live log</string>

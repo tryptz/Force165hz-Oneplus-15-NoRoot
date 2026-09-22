@@ -238,6 +238,13 @@ object RateLock {
         /** The stub could not be read; a code seen in the wild answered a probe. */
         PROBED,
 
+        /**
+         * Neither, and none of the known codes: the interface was swept for a
+         * transaction that behaves the way the vote does. A build nobody has
+         * looked at yet, and the number worth adding to [KNOWN_VOTE_CODES].
+         */
+        SCANNED,
+
         /** Nothing could be established, so the OnePlus 15's numbering stands. */
         ASSUMED,
 
@@ -275,6 +282,13 @@ object RateLock {
      * which is also the only case where there is nothing better than a guess.
      */
     private val KNOWN_VOTE_CODES = listOf(TX_REQUEST_GAME_REFRESH_RATE, 11)
+
+    /**
+     * How far a sweep looks. The interface is 32 methods on CPH2793 and the
+     * vote is the 11th; a build would have to declare a dozen more ahead of it
+     * to fall outside this, and a code past the end answers nothing anyway.
+     */
+    private const val SCAN_MAX = 48
 
     /** This app's own package, for the probe. Set by [bind]. */
     @Volatile
@@ -349,9 +363,14 @@ object RateLock {
             viaProxy = true
             binding = Binding.PROXY
         } else {
-            val found = KNOWN_VOTE_CODES.firstOrNull { probeVote(it, nobody) }
-            voteCode = found ?: TX_REQUEST_GAME_REFRESH_RATE
-            binding = if (found != null) Binding.PROBED else Binding.ASSUMED
+            val known = KNOWN_VOTE_CODES.firstOrNull { probeVote(it, nobody) }
+            val swept = if (known == null) scanForVote(nobody) else null
+            voteCode = known ?: swept ?: TX_REQUEST_GAME_REFRESH_RATE
+            binding = when {
+                known != null -> Binding.PROBED
+                swept != null -> Binding.SCANNED
+                else -> Binding.ASSUMED
+            }
         }
         // None of that was a vote anyone asked for, so it leaves no verdict.
         lastFault = Fault.NONE
@@ -372,15 +391,14 @@ object RateLock {
      * launch, and naming the armer itself would have dropped the armer's own
      * pin every time the app was opened.
      */
-    private fun probeVote(code: Int, self: String): Boolean {
+    private fun probeVote(code: Int, packageName: String): Boolean {
         var answered = false
         transact(
             code,
-            write = { it.writeString(self); it.writeInt(RATE_NONE) },
+            write = { it.writeString(packageName); it.writeInt(RATE_NONE) },
             read = { answered = it.readInt() == 1 },
             fallback = Unit,
         )
-        Log.i(TAG, "probe: transaction $code ${if (answered) "takes the vote" else "does not"}")
         return answered
     }
 
@@ -452,6 +470,42 @@ object RateLock {
         }
         return answer
     }
+
+    /**
+     * Sweeps the interface for a transaction that behaves the way the vote
+     * does, for a build numbering it at neither of the codes we know.
+     *
+     * A code declaring different arguments never runs at all — the stub
+     * refuses the parcel in `enforceNoDataAvail` before the method behind it
+     * is called — so a sweep only ever reaches the few methods that take
+     * `(String, int)`, and on this interface those are the vote and a handful
+     * of queries. Telling them apart is [looksLikeVote]'s job, because a query
+     * that answers 1 would otherwise be latched onto and every vote after it
+     * would go nowhere.
+     */
+    private fun scanForVote(nobody: String): Int? {
+        val found = (1..SCAN_MAX).firstOrNull { it !in KNOWN_VOTE_CODES && looksLikeVote(it, nobody) }
+        Log.i(TAG, "swept 1..$SCAN_MAX for the vote: ${found?.toString() ?: "nothing behaves like it"}")
+        return found
+    }
+
+    /**
+     * Whether [code] behaves the way the vote does, rather than merely
+     * answering. Two calls, neither of which changes anything:
+     *
+     * - an empty package name, which the vote refuses outright — `isEmpty` is
+     *   the first line of `requestGameRefreshRate`, before it touches any
+     *   state;
+     * - a package nothing has installed, which the vote accepts: rate 0 takes
+     *   the remove branch on an entry that was never there and then writes the
+     *   override onto every window that package owns, of which there are none.
+     *
+     * A query answers those two the same way as each other, because what it
+     * reads is a list neither name is in. Only the vote refuses one and
+     * accepts the other.
+     */
+    private fun looksLikeVote(code: Int, nobody: String): Boolean =
+        !probeVote(code, "") && probeVote(code, nobody)
 
     /** Which [Fault] a thrown transaction was. */
     private fun faultOf(t: Throwable): Fault = when {

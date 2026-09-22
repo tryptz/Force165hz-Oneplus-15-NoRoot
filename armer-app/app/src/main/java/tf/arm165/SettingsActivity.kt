@@ -77,6 +77,7 @@ class SettingsActivity : Activity() {
             RateLock.Binding.STUB -> getString(R.string.binding_stub, code)
             RateLock.Binding.PROXY -> getString(R.string.binding_proxy)
             RateLock.Binding.PROBED -> getString(R.string.binding_probed, code)
+            RateLock.Binding.SCANNED -> getString(R.string.binding_scanned, code)
             RateLock.Binding.ASSUMED -> getString(R.string.binding_assumed, code)
             RateLock.Binding.ABSENT -> getString(R.string.binding_absent)
             RateLock.Binding.NONE -> getString(R.string.binding_pending)
