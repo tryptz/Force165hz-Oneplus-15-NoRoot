@@ -42,6 +42,21 @@ The app automatically detects vendor differences between OxygenOS builds, includ
 
 Other models may work if they expose the same "oplusscreenmode" service.
 
+### OnePlus Nord 6 / Turbo 6 (PLU110): stuck at 120 Hz
+
+These phones keep 144 and 165 Hz for "selected apps"
+(`persist.oplus.display.ogfr.exclusive=144,165`). If 60/90/120 work but
+144/165 don't, check two things:
+
+1. **Usage access.** With more than 8 apps armed, only the app on screen gets
+   the refresh rate, and the app needs usage access to know which one that is.
+   Without it, nothing gets the rate. Grant it in the app's Settings, or run
+   `adb shell appops set tf.arm165 GET_USAGE_STATS allow`, or arm 8 apps or fewer.
+2. **The extreme-refresh switch.** The log line `extreme=0` means OPlus's
+   `app_extreme_high_refresh_switch` is off. Let the app turn it on with
+   `adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS`,
+   or run `adb shell settings put global app_extreme_high_refresh_switch 1`.
+
 ## LTPO behavior
 
 Selected rate| Idle rate

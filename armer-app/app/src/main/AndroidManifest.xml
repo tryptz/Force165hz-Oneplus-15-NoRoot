@@ -11,8 +11,9 @@
          adb shell appops set tf.arm165 GET_USAGE_STATS allow -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
                      tools:ignore="ProtectedPermissions"/>
-    <!-- Granted once over adb (pm grant); inert until then. Gates the OPlus
-         app_extreme_high_refresh_switch toggle on the games screen. -->
+    <!-- Granted once over adb (pm grant); inert until then. Lets the watchdog
+         turn on OPlus's app_extreme_high_refresh_switch when a rate above 120
+         is armed (ArmWatchService.ensureExtremeSwitch). -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS"
                      tools:ignore="ProtectedPermissions"/>
     <application

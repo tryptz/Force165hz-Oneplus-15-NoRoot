@@ -101,6 +101,9 @@ class ArmWatchService : Service() {
     /** The missing-usage-access warning is worth saying once, not every pass. */
     private var warnedNoFocusSignal = false
 
+    /** The extreme-refresh switch is looked at once per run — see [ensureExtremeSwitch]. */
+    private var extremeChecked = false
+
     /** Ticks in the pinned-but-unparked state; paces its diagnostic line. */
     private var pinnedTicks = 0
 
@@ -263,6 +266,7 @@ class ArmWatchService : Service() {
      */
     private fun tickOnce(): Long {
         val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
+        ensureExtremeSwitch(armedNow)
 
         // The armed set can change under us (disarm, re-arm, rate change) while
         // this service keeps running. Park/quiet state for a package that is no
@@ -540,6 +544,17 @@ class ArmWatchService : Service() {
                     .coerceAtLeast(0L) / 1_000_000_000L
                 val focusRate = focus?.let { armedNow[it] }
                 val why = when {
+                    // Not a hold at all: above the bound a pass votes only the
+                    // app on screen, and with no way to see it nothing goes
+                    // out, so the panel sits at the system's own 120 and the
+                    // "pin" above is only the highest rate in the armed set
+                    // (issue #20: 62 armed, focus=none, panel 120).
+                    focus == null && armedNow.size > FULL_SWEEP_MAX && !Foreground.hasAccess(this) ->
+                        "NOTHING VOTED: ${armedNow.size} armed (> $FULL_SWEEP_MAX) and no usage access, " +
+                            "so the app on screen cannot be seen. Grant usage access in Settings, " +
+                            "or arm $FULL_SWEEP_MAX apps or fewer"
+                    focus == null && armedNow.size > FULL_SWEEP_MAX ->
+                        "nothing voted: the app on screen is not one of the ${armedNow.size} armed"
                     focus == null -> "no focus, so no park candidate among ${armedNow.size} armed"
                     isGame(focus) ->
                         "game package, never parked , holding ${focusRate?.let(RateLock::hz) ?: 0} Hz"
@@ -705,6 +720,39 @@ class ArmWatchService : Service() {
         }
         focusPkg = null
         return null
+    }
+
+    /**
+     * Turns on OPlus's `app_extreme_high_refresh_switch` once anything is
+     * armed above 120, when the app may write it.
+     *
+     * It is one of the two gates on the rates above 120 rather than on the
+     * vote: a phone that ships `persist.oplus.display.ogfr.exclusive=144,165`
+     * (the Nord 6 family, which includes the Chinese OnePlus Turbo 6, PLU110)
+     * keeps 144 and 165 for "selected apps", and this is that feature's master
+     * switch. Issue #20 read `extreme=0` on a Turbo 6 capped at 120.
+     * `boot/165hz.sh` has always set it; the app never did, so a rootless
+     * install left it wherever the phone had it.
+     *
+     * Needs WRITE_SECURE_SETTINGS, which only adb can grant. Without it this
+     * says once how to grant it and changes nothing. Once per run, because the
+     * setting is the user's too: switched back off in the phone's own
+     * settings, it stays off until the watchdog next starts.
+     */
+    private fun ensureExtremeSwitch(armedNow: Map<String, Int>) {
+        if (extremeChecked || armedNow.values.none { RateLock.hz(it) > 120 }) return
+        extremeChecked = true
+        val key = SecureSettings.KEY_EXTREME_REFRESH
+        val was = SecureSettings.getGlobalInt(this, key, -1)
+        if (was == 1) return
+        if (!SecureSettings.canWrite(this)) {
+            Log.w(TAG, "$key=$was: phones that keep 144/165 for selected apps may cap everything " +
+                "else at 120 while it is off. Let this app turn it on with: " +
+                "adb shell pm grant $packageName android.permission.WRITE_SECURE_SETTINGS")
+            return
+        }
+        val ok = SecureSettings.putGlobalInt(this, key, 1)
+        Log.i(TAG, "$key $was -> 1 (${if (ok) "set" else "write refused"}), for rates above 120")
     }
 
     /**

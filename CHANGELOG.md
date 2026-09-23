@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- 144/165 Hz capped at 120 on the OnePlus Turbo 6 / Nord 6 (#20). The watchdog
+  now turns on `app_extreme_high_refresh_switch` when a rate above 120 is armed
+  and the app holds `WRITE_SECURE_SETTINGS` (granted over adb). Without that
+  permission it logs the command to grant it once.
+- The `pinned hold` log line said "no focus" when nothing was being voted at
+  all. That happens with more than 8 apps armed and no usage access. It now says
+  `NOTHING VOTED` and tells you how to fix it.
+
 ## 1.0.8
 
 ### Added
