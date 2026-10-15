@@ -1,6 +1,7 @@
 package tf.arm165
 
 import android.app.Activity
+import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
@@ -25,6 +26,8 @@ import android.widget.TextView
  * long as the page is open.
  */
 class FpsTestActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     private lateinit var readout: TextView
     private lateinit var holdSub: TextView

@@ -84,6 +84,9 @@
     <string name="log_clear">清除</string>
     <!-- smoothness test -->
     <string name="fps_title">流畅度测试</string>
+    <string name="language_title">语言</string>
+    <string name="language_change">更改</string>
+    <string name="language_system">跟随系统</string>
     <string name="fps_row_sub">移动的方块，每个速率一条通道，以及面板真正在做什么</string>
     <string name="fps_open">打开</string>
     <string name="fps_measuring">测量中…</string>

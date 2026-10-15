@@ -86,6 +86,9 @@
     <string name="log_clear">Clear</string>
     <!-- smoothness test -->
     <string name="fps_title">Smoothness test</string>
+    <string name="language_title">Language</string>
+    <string name="language_change">Change</string>
+    <string name="language_system">System default</string>
     <string name="fps_row_sub">Moving blocks, one lane per rate, and what the panel is really doing</string>
     <string name="fps_open">Open</string>
     <string name="fps_measuring">measuring…</string>

@@ -17,6 +17,9 @@
 - Settings shows how the vote's code was found: named by the build, its proxy,
   probed, swept, or assumed.
 - Simplified Chinese (zh-CN) translation of the main UI and dialogs.
+- **Language switcher** in Settings: System default, English or 简体中文,
+  whatever the phone is set to. On Android 13+ it is the system's own
+  per-app language, so it also shows under the app's page in Settings.
 
 ## 1.0.8
 

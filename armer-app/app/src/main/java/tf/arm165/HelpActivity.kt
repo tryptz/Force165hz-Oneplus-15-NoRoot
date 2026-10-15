@@ -1,6 +1,7 @@
 package tf.arm165
 
 import android.app.Activity
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -19,6 +20,8 @@ import android.widget.TextView
  * it can be read and translated without wading through markup.
  */
 class HelpActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

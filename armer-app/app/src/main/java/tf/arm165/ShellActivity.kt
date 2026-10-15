@@ -1,6 +1,7 @@
 package tf.arm165
 
 import android.app.Activity
+import android.content.Context
 import android.app.AlertDialog
 import android.content.SharedPreferences
 import android.os.Build
@@ -28,6 +29,8 @@ import java.util.concurrent.Executors
  * its layout, its action-bar buttons and what to do when the query changes.
  */
 abstract class ShellActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     protected lateinit var prefs: SharedPreferences
 

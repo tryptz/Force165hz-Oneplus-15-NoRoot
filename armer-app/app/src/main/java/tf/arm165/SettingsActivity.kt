@@ -1,6 +1,8 @@
 package tf.arm165
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
@@ -19,6 +21,8 @@ import android.widget.Toast
  * controls lost.
  */
 class SettingsActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +52,9 @@ class SettingsActivity : Activity() {
         // switch reports the state and the row opens the system page; onResume
         // re-reads it, which is how the switch follows a grant made there.
         findViewById<View>(R.id.row_usage).setOnClickListener { openUsageAccess() }
+
+        findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
+        findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
         findViewById<View>(R.id.row_fps).setOnClickListener {
             startActivity(Intent(this, FpsTestActivity::class.java))
@@ -100,6 +107,18 @@ class SettingsActivity : Activity() {
             armed > bound -> getString(R.string.usage_off_needed, armed, bound)
             else -> getString(R.string.usage_off, bound)
         }
+    }
+
+    private fun pickLanguage() {
+        val tags = AppLanguage.TAGS
+        val current = AppLanguage.current(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.language_title)
+            .setSingleChoiceItems(tags.map { AppLanguage.label(this, it) }.toTypedArray(), tags.indexOf(current)) { dialog, which ->
+                dialog.dismiss()
+                if (tags[which] != current) AppLanguage.set(this, tags[which])
+            }
+            .show()
     }
 
     private fun openUsageAccess() {
