@@ -93,7 +93,7 @@ class ArmWidget : AppWidgetProvider() {
             views.setProgressBar(R.id.w_bar, total, armed.size, false)
 
             RATE_IDS.forEachIndexed { i, viewId ->
-                val rate = RateLock.RATES_FOR_DEVICE.getOrNull(i)
+                val rate = RateLock.RATES.getOrNull(i)
                 if (rate == null) {
                     views.setViewVisibility(viewId, android.view.View.GONE)
                     return@forEachIndexed
@@ -122,7 +122,7 @@ class ArmWidget : AppWidgetProvider() {
 
         /** e.g. "165 Hz x 641", fastest first — the app's hero subtitle. */
         private fun breakdown(context: Context, armed: Map<String, Int>): String =
-            RateLock.RATES_FOR_DEVICE.asReversed().mapNotNull { (rateId, hz) ->
+            RateLock.RATES.asReversed().mapNotNull { (rateId, hz) ->
                 val n = armed.count { it.value == rateId }
                 if (n == 0) null else context.getString(R.string.rate_breakdown_part, hz, n)
             }.joinToString("  \u00b7  ")

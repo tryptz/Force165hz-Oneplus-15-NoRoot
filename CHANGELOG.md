@@ -5,9 +5,9 @@
 ### Added
 
 - **185 Hz on the OnePlus 16.** rateId 8, read from its own OTA. The selector,
-  the per-app picker and the widget build from the panel's ceiling, so the 185
-  segment only appears where the panel can show it. A saved 185 pick on a
-  165 Hz phone falls back to 165 at launch instead of voting nothing.
+  the per-app picker and the widget offer 185 on every phone; on one whose
+  panel tops out at 165 the vote goes out at 165 instead, and the app says so
+  when you pick it.
 - **OnePlus Nord 6 support** (#17). Its build numbers the vote 11, not 12, so
   every arm failed with "Parcel data not fully consumed". The app now asks the
   build which code it uses, at launch, before the first tap.

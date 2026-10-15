@@ -451,7 +451,7 @@ class ArmWatchService : Service() {
         val heldRate = focus?.let { armedNow[it] }
             ?: armedNow.values.maxByOrNull { RateLock.idleFloorHz(it) }
         val floorHz = heldRate?.let { RateLock.idleFloorHz(it) } ?: 0
-        val pinnedHz = heldRate?.let { RateLock.hz(it) } ?: 0
+        val pinnedHz = heldRate?.let { RateLock.hz(RateLock.onPanel(it)) } ?: 0
         val floorHidesContent = floorHz >= PANEL_MOTION_HZ
 
         // A pinned panel can only testify about the content BETWEEN the two

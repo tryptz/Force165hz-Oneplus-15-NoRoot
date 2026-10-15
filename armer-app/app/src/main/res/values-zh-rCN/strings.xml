@@ -55,8 +55,7 @@
     <string name="arm_wrong_build">无法武装 %1$s。此系统接受的调用与本应用不同——日志页面有提交错误报告所需的内容</string>
     <string name="arm_denied">无法武装 %1$s。此系统拒绝了请求：厂商已关闭该接口</string>
     <string name="arm_no_service">无法武装 %1$s。此系统没有 OxygenOS 显示模式服务</string>
-    <string name="rate_unsupported">%1$d Hz 需要一加 16——%2$s 最高只有 165。已退回 165 Hz</string>
-    <string name="rate_unsupported_generic">这台手机的屏幕不支持 %1$d Hz。%2$s 只能提供它所能渲染的选项；185 Hz 在不支持的手机上会隐藏</string>
+    <string name="rate_unsupported">%1$d Hz 需要一加 16——%2$s 最高只有 %3$d，将以 %3$d Hz 运行</string>
     <string name="disarm_failed">无法释放 %1$s。请重启手机清除</string>
     <string name="nothing_saved">还没有武装任何应用</string>
     <string name="rate_picker_disarm">解除</string>
@@ -156,7 +155,7 @@
     <string name="help_intro">面向一加 15（OxygenOS 16）的无 root 按应用刷新率解锁。以短篇形式说明它对你的手机做了什么。</string>
 
     <string name="help_what_title">它做什么</string>
-    <string name="help_what_body">为你选定的应用锁定刷新率：60、90、120、144、165——一加 16 上还有 185 Hz。在顶部选择速率，然后点按应用以该速率武装。点按行详情可为单个应用指定速率。</string>
+    <string name="help_what_body">为你选定的应用锁定刷新率：60、90、120、144、165 或 185 Hz。185 需要一加 16；在最高只有 165 的手机上以 165 运行。在顶部选择速率，然后点按应用以该速率武装。点按行详情可为单个应用指定速率。</string>
 
     <string name="help_sweeps_title">三种扫描</string>
     <string name="help_sweeps_body">全部武装扫描整个列表。重新武装重发已保存的集合。清除撤回一切。武装的集合在重启后仍然保留。</string>
