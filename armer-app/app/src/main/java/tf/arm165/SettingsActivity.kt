@@ -53,6 +53,10 @@ class SettingsActivity : Activity() {
         // re-reads it, which is how the switch follows a grant made there.
         findViewById<View>(R.id.row_usage).setOnClickListener { openUsageAccess() }
 
+        val updateSub = findViewById<TextView>(R.id.update_sub)
+        updateSub.text = getString(R.string.update_row_sub, UpdateCheck.installed(this))
+        findViewById<View>(R.id.row_update).setOnClickListener { checkForUpdate(updateSub) }
+
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
@@ -106,6 +110,22 @@ class SettingsActivity : Activity() {
             granted -> getString(R.string.usage_on, bound)
             armed > bound -> getString(R.string.usage_off_needed, armed, bound)
             else -> getString(R.string.usage_off, bound)
+        }
+    }
+
+    /** The manual check: always asks, whatever the once-a-day gate says. */
+    private fun checkForUpdate(sub: TextView) {
+        val installed = UpdateCheck.installed(this)
+        sub.setText(R.string.update_checking)
+        UpdateCheck.check(this, ArmedStore.open(this)) { release ->
+            sub.text = when {
+                release == null -> getString(R.string.update_failed)
+                UpdateCheck.isNewer(release.version, installed) -> {
+                    UpdateCheck.offer(this, release)
+                    getString(R.string.update_available_sub, release.version)
+                }
+                else -> getString(R.string.update_latest, installed)
+            }
         }
     }
 

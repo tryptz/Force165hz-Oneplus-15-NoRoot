@@ -54,6 +54,13 @@ class MainActivity : ShellActivity() {
         // re-arm below: they all post to the same single thread, so this runs
         // before any of them sends anything.
         worker.execute { RateLock.bind(packageName) }
+        if (UpdateCheck.due(prefs)) {
+            UpdateCheck.check(this, prefs) { release ->
+                if (release != null && UpdateCheck.isNewer(release.version, UpdateCheck.installed(this))) {
+                    UpdateCheck.offer(this, release)
+                }
+            }
+        }
         // An armed set written by a build whose "Arm all" swept in the
         // framework and SystemUI still names them, and the watchdog would keep
         // voting for packages whose windows sit next to every app's. Drop them

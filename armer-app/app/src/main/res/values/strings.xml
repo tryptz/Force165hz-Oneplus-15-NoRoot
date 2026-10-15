@@ -86,6 +86,18 @@
     <string name="log_clear">Clear</string>
     <!-- smoothness test -->
     <string name="fps_title">Smoothness test</string>
+    <string name="update_row_title">Updates</string>
+    <string name="update_row_sub">Version %1$s</string>
+    <string name="update_check">Check</string>
+    <string name="update_checking">Checking GitHub…</string>
+    <string name="update_latest">Version %1$s · up to date</string>
+    <string name="update_failed">Couldn\'t reach GitHub. Try again later</string>
+    <string name="update_available_sub">Version %1$s is available</string>
+    <string name="update_title">Update available</string>
+    <string name="update_body">Version %1$s is out. You have %2$s.</string>
+    <string name="update_download">Download</string>
+    <string name="update_notes">Release notes</string>
+    <string name="update_later">Later</string>
     <string name="language_title">Language</string>
     <string name="language_change">Change</string>
     <string name="language_system">System default</string>

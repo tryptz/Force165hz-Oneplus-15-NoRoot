@@ -84,6 +84,18 @@
     <string name="log_clear">清除</string>
     <!-- smoothness test -->
     <string name="fps_title">流畅度测试</string>
+    <string name="update_row_title">更新</string>
+    <string name="update_row_sub">版本 %1$s</string>
+    <string name="update_check">检查</string>
+    <string name="update_checking">正在检查 GitHub…</string>
+    <string name="update_latest">版本 %1$s · 已是最新</string>
+    <string name="update_failed">无法连接 GitHub，请稍后再试</string>
+    <string name="update_available_sub">有新版本 %1$s</string>
+    <string name="update_title">有可用更新</string>
+    <string name="update_body">版本 %1$s 已发布。你当前是 %2$s。</string>
+    <string name="update_download">下载</string>
+    <string name="update_notes">更新说明</string>
+    <string name="update_later">稍后</string>
     <string name="language_title">语言</string>
     <string name="language_change">更改</string>
     <string name="language_system">跟随系统</string>

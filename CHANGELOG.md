@@ -9,6 +9,8 @@
 - **简体中文.** Full Simplified Chinese translation.
 - **Language switcher** in Settings: System default, English or 简体中文.
 - **OnePlus 15R** (`CPH2767`) recognised as a 165 Hz phone.
+- **Update checker.** Checks GitHub for a newer release once a day, or
+  from **Settings → Updates**, and offers the download.
 
 ## 1.0.8
 
