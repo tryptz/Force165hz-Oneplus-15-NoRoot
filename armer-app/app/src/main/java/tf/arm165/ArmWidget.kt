@@ -36,6 +36,7 @@ class ArmWidget : AppWidgetProvider() {
         /** The selector's segments, in the order RateLock.RATES lists them. */
         private val RATE_IDS = intArrayOf(
             R.id.w_rate_0, R.id.w_rate_1, R.id.w_rate_2, R.id.w_rate_3, R.id.w_rate_4,
+            R.id.w_rate_5,
         )
 
         /** Re-renders every placed widget. Safe from any thread. */

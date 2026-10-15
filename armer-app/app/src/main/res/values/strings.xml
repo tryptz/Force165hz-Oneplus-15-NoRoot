@@ -57,6 +57,7 @@
     <string name="arm_wrong_build">Couldn\'t arm %1$s. This build takes a different call than this app makes — the log page has what a bug report needs</string>
     <string name="arm_denied">Couldn\'t arm %1$s. This build refuses the vote: the vendor closed the interface</string>
     <string name="arm_no_service">Couldn\'t arm %1$s. This build has no OxygenOS display-mode service</string>
+    <string name="rate_unsupported">%1$d Hz needs a OnePlus 16 — %2$s tops out at %3$d, so it runs at %3$d Hz</string>
     <string name="disarm_failed">Couldn\'t release %1$s. Restart the phone to clear it</string>
     <string name="nothing_saved">Nothing armed yet</string>
     <string name="rate_picker_disarm">Disarm</string>
@@ -85,6 +86,21 @@
     <string name="log_clear">Clear</string>
     <!-- smoothness test -->
     <string name="fps_title">Smoothness test</string>
+    <string name="update_row_title">Updates</string>
+    <string name="update_row_sub">Version %1$s</string>
+    <string name="update_check">Check</string>
+    <string name="update_checking">Checking GitHub…</string>
+    <string name="update_latest">Version %1$s · up to date</string>
+    <string name="update_failed">Couldn\'t reach GitHub. Try again later</string>
+    <string name="update_available_sub">Version %1$s is available</string>
+    <string name="update_title">Update available</string>
+    <string name="update_body">Version %1$s is out. You have %2$s.</string>
+    <string name="update_download">Download</string>
+    <string name="update_notes">Release notes</string>
+    <string name="update_later">Later</string>
+    <string name="language_title">Language</string>
+    <string name="language_change">Change</string>
+    <string name="language_system">System default</string>
     <string name="fps_row_sub">Moving blocks, one lane per rate, and what the panel is really doing</string>
     <string name="fps_open">Open</string>
     <string name="fps_measuring">measuring…</string>
@@ -157,7 +173,7 @@
     <string name="help_intro">A rootless per-app refresh-rate unlock for the OnePlus 15 on OxygenOS 16. What it does to your phone, in short pieces.</string>
 
     <string name="help_what_title">What it does</string>
-    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144 or 165 Hz. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
+    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144, 165 or 185 Hz. 185 needs a OnePlus 16; on a phone that tops out at 165 it runs at 165. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
 
     <string name="help_sweeps_title">The three sweeps</string>
     <string name="help_sweeps_body">Arm all sweeps the whole list. Re-arm re-sends the saved set. Clear withdraws everything. The armed set survives reboots.</string>

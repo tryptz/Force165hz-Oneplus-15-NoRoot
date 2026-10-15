@@ -1,6 +1,8 @@
 package tf.arm165
 
 import android.app.Activity
+import android.app.AlertDialog
+import android.content.Context
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.os.Build
@@ -19,6 +21,8 @@ import android.widget.Toast
  * controls lost.
  */
 class SettingsActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +52,13 @@ class SettingsActivity : Activity() {
         // switch reports the state and the row opens the system page; onResume
         // re-reads it, which is how the switch follows a grant made there.
         findViewById<View>(R.id.row_usage).setOnClickListener { openUsageAccess() }
+
+        val updateSub = findViewById<TextView>(R.id.update_sub)
+        updateSub.text = getString(R.string.update_row_sub, UpdateCheck.installed(this))
+        findViewById<View>(R.id.row_update).setOnClickListener { checkForUpdate(updateSub) }
+
+        findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
+        findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
         findViewById<View>(R.id.row_fps).setOnClickListener {
             startActivity(Intent(this, FpsTestActivity::class.java))
@@ -100,6 +111,34 @@ class SettingsActivity : Activity() {
             armed > bound -> getString(R.string.usage_off_needed, armed, bound)
             else -> getString(R.string.usage_off, bound)
         }
+    }
+
+    /** The manual check: always asks, whatever the once-a-day gate says. */
+    private fun checkForUpdate(sub: TextView) {
+        val installed = UpdateCheck.installed(this)
+        sub.setText(R.string.update_checking)
+        UpdateCheck.check(this, ArmedStore.open(this)) { release ->
+            sub.text = when {
+                release == null -> getString(R.string.update_failed)
+                UpdateCheck.isNewer(release.version, installed) -> {
+                    UpdateCheck.offer(this, release)
+                    getString(R.string.update_available_sub, release.version)
+                }
+                else -> getString(R.string.update_latest, installed)
+            }
+        }
+    }
+
+    private fun pickLanguage() {
+        val tags = AppLanguage.TAGS
+        val current = AppLanguage.current(this)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.language_title)
+            .setSingleChoiceItems(tags.map { AppLanguage.label(this, it) }.toTypedArray(), tags.indexOf(current)) { dialog, which ->
+                dialog.dismiss()
+                if (tags[which] != current) AppLanguage.set(this, tags[which])
+            }
+            .show()
     }
 
     private fun openUsageAccess() {

@@ -87,7 +87,7 @@ esac
 
 PKG="$1"
 RATE="${2:-7}"
-case "$RATE" in 165) RATE=7;; 144) RATE=4;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; off|none) RATE=0;; esac
+case "$RATE" in 185) RATE=8;; 165) RATE=7;; 144) RATE=4;; 120) RATE=3;; 90) RATE=1;; 60) RATE=2;; off|none) RATE=0;; esac
 
 command -v adb >/dev/null || die "adb not found (pkg install android-tools)"
 adb devices | grep -q . || true

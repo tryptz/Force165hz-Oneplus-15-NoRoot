@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">165 武装器</string>
+    <string name="tagline">按应用锁定刷新率</string>
+
+    <string name="watchdog_live">看门狗运行中</string>
+    <string name="watchdog_idle">空闲</string>
+
+    <string name="hero_unit">个应用已武装</string>
+    <string name="hero_of">共 %1$d 个应用</string>
+    <string name="hero_loading">正在读取已安装应用…</string>
+    <string name="rate_label">锁定至</string>
+    <string name="rate_hz">%1$d Hz</string>
+    <string name="rate_breakdown_part">%1$d Hz × %2$d</string>
+
+    <string name="search_hint">搜索应用或包名</string>
+    <string name="search_clear">清除搜索</string>
+
+    <string name="filter_all">全部</string>
+    <string name="filter_armed">已武装</string>
+    <string name="filter_games">游戏</string>
+    <string name="filter_user">用户应用</string>
+    <string name="filter_system">系统应用</string>
+
+    <string name="action_rearm">重新武装</string>
+    <string name="action_arm_all">全部武装</string>
+    <string name="action_clear">清除</string>
+
+    <string name="empty_title">这里什么都没有</string>
+    <string name="empty_body">没有应用符合此搜索或筛选条件。</string>
+    <string name="empty_armed_body">拨动任意应用的开关，以所选速率武装它。</string>
+    <string name="loading">正在加载应用…</string>
+
+    <string name="system_prefix">系统</string>
+    <string name="toggle_desc">以 %2$d Hz 武装 %1$s</string>
+
+    <string name="risk_title">锁定刷新率？</string>
+    <string name="risk_body">这将通过未公开的厂商接口驱动屏幕。预计耗电和发热会增加，部分视频应用可能出现卡顿。</string>
+    <string name="risk_yes">开启</string>
+    <string name="risk_no">取消</string>
+
+    <string name="busy">仍在处理…</string>
+    <string name="rearming">正在重新武装已保存的应用…</string>
+    <string name="rearmed">已重新武装 %2$d 个中的 %1$d 个</string>
+    <string name="arming_all">正在以 %2$d Hz 武装 %1$d 个应用…</string>
+    <string name="armed_all">已以 %3$d Hz 武装 %2$d 个中的 %1$d 个</string>
+    <string name="clearing">正在解除…</string>
+    <plurals name="cleared">
+        <item quantity="other">已解除 %1$d 个应用</item>
+    </plurals>
+    <plurals name="clear_failed">
+        <item quantity="other">%1$d 个应用无法释放。请重启手机清除</item>
+    </plurals>
+    <string name="arm_failed">无法武装 %1$s</string>
+    <string name="arm_wrong_build">无法武装 %1$s。此系统接受的调用与本应用不同——日志页面有提交错误报告所需的内容</string>
+    <string name="arm_denied">无法武装 %1$s。此系统拒绝了请求：厂商已关闭该接口</string>
+    <string name="arm_no_service">无法武装 %1$s。此系统没有 OxygenOS 显示模式服务</string>
+    <string name="rate_unsupported">%1$d Hz 需要一加 16——%2$s 最高只有 %3$d，将以 %3$d Hz 运行</string>
+    <string name="disarm_failed">无法释放 %1$s。请重启手机清除</string>
+    <string name="nothing_saved">还没有武装任何应用</string>
+    <string name="rate_picker_disarm">解除</string>
+    <string name="rate_set">%1$s 已设为 %2$d Hz</string>
+    <string name="rate_badge_desc">%1$s 已以 %2$d Hz 武装，点按可更改</string>
+
+    <!-- Idle behaviour, always on, no toggle. The note gives outcomes only: what
+         a still screen actually rests at per vote. The why (the park, and why 165
+         is the one rate that does not take it) is on the help screen under
+         "Letting the panel idle" and "What may park". -->
+    <string name="idle_note">空闲：静止画面会自行降频，有动态内容时恢复。60、90、120 和 144 均可降至 1 Hz。只有 165 停在更高处——其面板模式自身的 55 Hz 下限。</string>
+
+    <!-- navigation / support -->
+    <string name="back">返回</string>
+    <string name="coffee">请我喝杯咖啡</string>
+    <string name="coffee_url">https://ko-fi.com/tryptz</string>
+
+    <!-- Settings / logs -->
+    <string name="settings">设置与日志</string>
+    <string name="settings_title">设置</string>
+    <string name="back_desc">返回</string>
+    <string name="log_hint">实时日志。Arm165 是看门狗（驻留 / 恢复 / 武装），RefreshRate 是厂商框架自身的速率变更。</string>
+    <string name="log_loading">正在读取日志…</string>
+    <string name="log_refresh">刷新日志</string>
+    <string name="log_share">分享日志</string>
+    <string name="log_clear">清除</string>
+    <!-- smoothness test -->
+    <string name="fps_title">流畅度测试</string>
+    <string name="update_row_title">更新</string>
+    <string name="update_row_sub">版本 %1$s</string>
+    <string name="update_check">检查</string>
+    <string name="update_checking">正在检查 GitHub…</string>
+    <string name="update_latest">版本 %1$s · 已是最新</string>
+    <string name="update_failed">无法连接 GitHub，请稍后再试</string>
+    <string name="update_available_sub">有新版本 %1$s</string>
+    <string name="update_title">有可用更新</string>
+    <string name="update_body">版本 %1$s 已发布。你当前是 %2$s。</string>
+    <string name="update_download">下载</string>
+    <string name="update_notes">更新说明</string>
+    <string name="update_later">稍后</string>
+    <string name="language_title">语言</string>
+    <string name="language_change">更改</string>
+    <string name="language_system">跟随系统</string>
+    <string name="fps_row_sub">移动的方块，每个速率一条通道，以及面板真正在做什么</string>
+    <string name="fps_open">打开</string>
+    <string name="fps_measuring">测量中…</string>
+    <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d 长</string>
+    <string name="fps_strip_label">帧时间，最近 2 秒</string>
+    <string name="fps_strip_worst">最差 %1$.1f ms</string>
+    <string name="fps_color">标记颜色</string>
+    <string name="fps_color_desc">标记颜色：%1$s</string>
+    <string name="fps_color_accent">应用主题色</string>
+    <string name="fps_color_ink">墨色</string>
+    <string name="fps_color_red">红色</string>
+    <string name="fps_color_orange">橙色</string>
+    <string name="fps_color_green">绿色</string>
+    <string name="fps_color_cyan">青色</string>
+    <string name="fps_color_blue">蓝色</string>
+    <string name="fps_color_purple">紫色</string>
+    <string name="fps_speed">速度</string>
+    <string name="fps_speed_half">½×</string>
+    <string name="fps_speed_one">1×</string>
+    <string name="fps_speed_two">2×</string>
+    <string name="fps_hold">在此页保持 %1$d Hz</string>
+    <string name="fps_hold_on">此页面打开期间保持 %1$d Hz，通道才能显示它</string>
+    <string name="fps_hold_off">关闭。面板按默认运行，120 以上的速率无从分辨</string>
+
+    <!-- home-screen widget -->
+    <string name="widget_description">面板速率，附全部武装和清除。</string>
+    <string name="widget_hz">%1$d Hz</string>
+    <string name="widget_hz_none">— Hz</string>
+    <string name="widget_arm_all">全部武装</string>
+    <string name="widget_clear">清除</string>
+    <plurals name="widget_armed">
+        <item quantity="other">已武装 %1$d 个应用</item>
+    </plurals>
+    <string name="widget_arming">正在武装所有应用…</string>
+    <string name="widget_clearing">正在解除…</string>
+
+    <string name="usage_title">使用情况访问权限</string>
+    <string name="usage_no_screen">此系统没有使用情况访问页面——请用 adb 授权：appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="usage_on">已授权。仅在武装超过 %1$d 个应用时需要，届时看门狗只投票给屏幕上的应用——它能看到那是哪一个。</string>
+    <string name="usage_off">武装超过 %1$d 个应用时需要。不超过 %1$d 个时，每个已武装的应用都会在每一轮中被投票，所以现在无需授权。仍要点按授权，或：adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="usage_off_needed">需要：已武装 %1$d 个应用，超过 %2$d。超过后只投票给屏幕上的应用，而这就是识别它的方式。点按授权，或：adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="binding_title">厂商接口</string>
+    <string name="binding_pending">正在检测此系统对该调用的编号…</string>
+    <string name="binding_stub">事务 %1$d，由系统自身报告</string>
+    <string name="binding_proxy">事务由系统自身的代理解析——其参数与本应用编写时所用者不同</string>
+    <string name="binding_probed">事务 %1$d，由探测发现。此系统无法直接报出编号，但该编号有应答</string>
+    <string name="binding_scanned">事务 %1$d，通过扫描此系统的显示服务找到。此前未见的编号——值得报告</string>
+    <string name="binding_assumed">假定事务 %1$d。此系统无法报出编号，且已知的编号均无应答，武装可能失败——日志页面有提交报告所需的内容</string>
+    <string name="binding_absent">此系统没有 OxygenOS 显示模式服务。这里什么也无法武装</string>
+    <string name="log_title">实时日志</string>
+    <string name="log_open">打开</string>
+    <string name="log_row_sub">投票结果、看门狗看到的前台应用、驻留与恢复</string>
+    <string name="log_live">实时更新</string>
+    <string name="log_live_on">正在跟踪日志，新行到达时刷新</string>
+    <string name="log_live_off">已暂停。行仍在收集，刷新时显示</string>
+    <string name="no_browser">没有可打开链接的浏览器</string>
+
+    <!-- opt-in rows: SystemUI and the armer itself -->
+    <string name="row_display_wide">全屏生效</string>
+    <string name="row_self">本应用</string>
+    <string name="systemui_title">武装系统界面？</string>
+    <string name="systemui_body">在此系统上实测：通知栏不跟随投票。它保持 120。调用被接受，但面板以前台应用窗口决定模式，而 SystemUI 的通知栏、快捷设置和锁屏是没有活动驻留该栈的系统叠加层，因此没有任何东西读取该覆盖。\n\n保留此开关是为了在行为不同的系统上使用。在投票生效的系统上，它锁定的不是单个应用而是整个屏幕，锁屏和常亮显示也会一并被锁定。全部武装始终跳过此行。</string>
+    <string name="systemui_yes">武装它</string>
+
+
+    <!-- help screen -->
+    <string name="help">工作原理</string>
+    <string name="help_title">工作原理</string>
+    <string name="help_intro">面向一加 15（OxygenOS 16）的无 root 按应用刷新率解锁。以短篇形式说明它对你的手机做了什么。</string>
+
+    <string name="help_what_title">它做什么</string>
+    <string name="help_what_body">为你选定的应用锁定刷新率：60、90、120、144、165 或 185 Hz。185 需要一加 16；在最高只有 165 的手机上以 165 运行。在顶部选择速率，然后点按应用以该速率武装。点按行详情可为单个应用指定速率。</string>
+
+    <string name="help_sweeps_title">三种扫描</string>
+    <string name="help_sweeps_body">全部武装扫描整个列表。重新武装重发已保存的集合。清除撤回一切。武装的集合在重启后仍然保留。</string>
+
+    <string name="help_how_title">速率如何被强制</string>
+    <string name="help_how_body">OxygenOS 自带一个显示服务，其 requestGameRefreshRate 调用对调用方没有权限检查，因此任何应用都能代表任何包名请求速率。系统游戏模式用的是同一个请求，这就是无需 root 的原因。</string>
+
+    <string name="help_ids_title">为什么 60 和 90 曾被对调</string>
+    <string name="help_ids_body">厂商速率 ID 并非按 Hz 排序：ID 1 是 90 Hz，ID 2 是 60 Hz。早期版本将两者读反，导致这两个速率跑在了你没选的那个上。</string>
+
+    <string name="help_pin_title">投票即锁定</string>
+    <string name="help_pin_body">请求把面板的最小和最大刷新率设为同一数值。只要已武装的应用在屏幕上，面板就没有可移动的范围，所以这是锁定而非上限。</string>
+
+    <string name="help_floors_title">每个速率能空闲到多少</string>
+    <string name="help_floors_body">每个速率选择的面板模式都有自己的空闲下限。在本系统实测：165 停在 55 Hz，144 约 48，60 和 90 为 30，120 则一路降到 1。</string>
+
+    <string name="help_watchdog_title">看门狗</string>
+    <string name="help_watchdog_body">游戏引擎在取得焦点时会重新锁定自己的帧率，这会覆盖一次性的请求。看门狗在亮屏期间重发投票，让我们的一方最后落地。它的通知会显示正在保持多少个应用。</string>
+
+    <string name="help_focus_title">为什么前台应用决定顺序</string>
+    <string name="help_focus_body">系统把请求写到其指名的包所拥有的窗口上，面板跟随最后落地的那次写入。因此每一轮都以你正在使用的应用收尾。以后台应用收尾的一轮是在给不存在的窗口投票，会丢掉刚设好的锁定。</string>
+
+
+    <string name="help_usage_title">使用情况访问：武装超过八个应用时需要</string>
+    <string name="help_usage_body">只在你武装超过八个应用时需要。八个以内，每个已武装的应用都会在每一轮被投票，所以你在用的那个始终在其中，它的投票无论有没有东西报告是哪个应用都会落地。单个游戏或少数几个应用直接生效——无需授权，无事可做。\n\n全部武装是需要它的场景。每轮发出数百个投票不可行，轮流投票又会以后台应用收尾——那是给不存在的窗口投票，会丢掉刚设好的锁定。所以超过八个后，看门狗只投票给屏幕上的应用，它必须知道那是哪一个。\n\n没有授权时，它唯一能看到的是已被厂商标记为游戏的那个。其余一切读作无前台，武装集合一大就再也没有能安全投票的东西。\n\n它是只读且狭窄的：一个问题，最近恢复的是哪个包。没有历史，没有时间，不知道你在任何应用里做了什么。\n\n在设置中开启：应用 › 特殊应用权限 › 使用情况访问 › 165 武装器 › 允许使用情况访问。本应用设置顶部的"使用情况访问"一行会为你打开那个页面。\n\n或者用 adb，免菜单做同样的事：\n\nadb shell appops set tf.arm165 GET_USAGE_STATS allow\n\n无论哪种方式，回到应用时那一行的开关就会亮起。</string>
+
+    <string name="help_park_title">让面板空闲</string>
+    <string name="help_park_body">屏幕上没有东西移动时，投票被换成 120——唯一一个模式横跨 1 到 120 的速率。面板由此可以降频，而投票本身仍然保持。需要 120 以上速率的内容会在约 55 毫秒内取回已武装的速率。</string>
+
+    <string name="help_park_rule_title">什么可以驻留</string>
+    <string name="help_park_rule_body">只有 144，而且这是测量结果而非规则。60、90 和 120 在自己的模式里本来就能到 1 Hz，驻留对它们毫无收获，还会抬高你特意选定的上限。165 是唯一无法空闲的模式：静止的 165 屏幕停在 55 Hz。驻留它也无济于事，因为它会落在的 120 是一个 120 的锁定，高于那个 55。于是只剩 144——切换到 120 干净利落，面板一路降到 1。</string>
+
+    <string name="help_optin_title">系统界面一行</string>
+    <string name="help_optin_body">通知栏、快捷设置和锁屏属于 SystemUI，而不属于你所在的应用。在此系统上武装它毫无效果：面板以前台应用窗口决定模式，而那些是叠加层。保留此行是为了行为不同的系统，全部武装始终跳过它。</string>
+
+    <string name="help_self_title">武装本应用</string>
+    <string name="help_self_body">这是有效的，还可以当作自检。如果本应用自己的屏幕到不了你武装的速率，那就是根本没有投票落地。流畅度测试也有同样的开关，离开页面时会收回保持。全部武装跳过这两行。</string>
+
+    <string name="help_fps_title">看见速率</string>
+    <string name="help_fps_body">流畅度测试为每个速率画一条移动方块的通道，每条只允许按自己的速率刷新。与面板匹配的通道平滑滑动，慢的则逐格跳动。读数是从面板自身帧时间测得的，标记颜色由你挑选：哪种颜色最能显示移动边缘是屏幕的属性，与测试无关。</string>
+
+    <string name="help_disarm_title">解除武装</string>
+    <string name="help_disarm_body">解除通过请求速率 ID 0——厂商的取消——来撤回投票。重发速率只会把同一个锁定写回去。重启清除一切投票，因为厂商只把它们保存在内存里。</string>
+
+    <string name="help_limits_title">它做不到什么</string>
+    <string name="help_limits_body">永久的按应用覆盖受权限保护，对无 root 应用关闭，因此投票只在应用前台时生效。视频被强制到高于自身节奏时会卡顿：把它们锁在 60 或不武装。耗电和发热随速率和已武装应用的数量上升。</string>
+
+    <string name="help_ota_title">系统更新之后</string>
+    <string name="help_ota_body">OTA 可以随时封掉这个缺口。日志里的 SecurityException 就是它的样子。</string>
+
+    <string name="help_log_title">阅读日志</string>
+    <string name="help_log_body">设置里有实时日志页面。Arm165 行是本应用：投票结果、看门狗看到的前台应用、驻留与恢复。RefreshRate 行是厂商框架。分享即发送缓冲区用于错误报告。</string>
+
+
+    <!-- games page -->
+    <string name="games_title">3D 游戏</string>
+    <string name="games_tagline">按游戏强制 165 Hz 渲染</string>
+    <string name="games_hero_unit">个游戏已加速</string>
+    <string name="games_hero_of">共检测到 %1$d 个</string>
+    <string name="games_hero_loading">正在扫描游戏…</string>
+    <string name="games_empty_title">还没有游戏</string>
+    <string name="games_empty_body">没有已安装的应用声明自己是游戏。切换到全部并长按应用可将其标记为游戏。</string>
+    <string name="games_empty_armed_body">拨动任意游戏的开关即可强制 165 Hz 渲染。</string>
+
+    <string name="gfilter_games">游戏</string>
+    <string name="gfilter_boosted">已加速</string>
+    <string name="gfilter_all">全部应用</string>
+
+    <string name="mark_game">标记为游戏</string>
+    <string name="unmark_game">移出游戏</string>
+    <string name="marked_game">已将 %1$s 标记为游戏</string>
+    <string name="unmarked_game">已将 %1$s 移出游戏</string>
+
+    <string name="oiface_active">游戏引擎：已启用</string>
+    <string name="oiface_unsupported">游戏引擎：此系统不可用</string>
+    <string name="oiface_active_sub">已加速的游戏已在 OxygenOS 注册，HyperRendering 生效。</string>
+    <string name="oiface_unsupported_sub">厂商游戏服务拒绝访问，加速只能锁定显示速率。</string>
+
+    <!-- game boost / secure-settings card -->
+    <string name="boost_title">游戏加速开关</string>
+    <string name="boost_on">开。OxygenOS 高刷新特性已启用</string>
+    <string name="boost_off">关。点按以启用高刷新特性</string>
+    <string name="boost_locked">需要一次性授权，见下</string>
+    <string name="boost_grant_intro">用 adb 运行一次，然后重新打开。重启后依然有效。</string>
+    <string name="boost_grant_cmd">adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
+    <string name="copied">命令已复制</string>
+
+    <string name="boost_hold">正在以 165 Hz 加速 %1$d 个游戏…</string>
+    <string name="boosted_one">%1$s 已加速到 165 Hz</string>
+    <string name="unboosted_one">%1$s 已恢复正常</string>
+    <string name="boost_all">全部加速</string>
+    <string name="boosted_all">已加速 %2$d 个游戏中的 %1$d 个</string>
+    <string name="games_toggle_desc">将 %1$s 加速到 165 Hz</string>
+    <string name="nothing_boosted">还没有加速任何游戏</string>
+</resources>

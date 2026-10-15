@@ -54,6 +54,13 @@ class MainActivity : ShellActivity() {
         // re-arm below: they all post to the same single thread, so this runs
         // before any of them sends anything.
         worker.execute { RateLock.bind(packageName) }
+        if (UpdateCheck.due(prefs)) {
+            UpdateCheck.check(this, prefs) { release ->
+                if (release != null && UpdateCheck.isNewer(release.version, UpdateCheck.installed(this))) {
+                    UpdateCheck.offer(this, release)
+                }
+            }
+        }
         // An armed set written by a build whose "Arm all" swept in the
         // framework and SystemUI still names them, and the watchdog would keep
         // voting for packages whose windows sit next to every app's. Drop them
@@ -69,7 +76,6 @@ class MainActivity : ShellActivity() {
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
-
         armedCount = findViewById(R.id.armed_count)
         armedSub = findViewById(R.id.armed_sub)
         armedBar = findViewById(R.id.armed_bar)
@@ -105,7 +111,6 @@ class MainActivity : ShellActivity() {
             onDetails = ::showRatePicker,
         )
         list.adapter = adapter
-
         refreshStatus()
         updateState()
 
@@ -138,7 +143,11 @@ class MainActivity : ShellActivity() {
 
     // --------------------------------------------------------------- controls
 
-    /** Builds the segmented rate selector so it always matches [RateLock.RATES]. */
+    /**
+     * Builds the segmented rate selector from [RateLock.RATES]: every rate, on
+     * every phone. One past this panel's ceiling is voted at the ceiling
+     * ([RateLock.onPanel]), and [selectRate] says so when it is picked.
+     */
     private fun wireRates() {
         segments = RateLock.RATES.map { (rateId, hz) ->
             val segment = TextView(this, null, 0, R.style.Segment).apply {
@@ -160,6 +169,15 @@ class MainActivity : ShellActivity() {
         prefs.edit().putInt(ArmedStore.KEY_RATE, rateId).apply()
         syncChips(segments, activeRate)
         adapter.notifyDataSetChanged() // unarmed rows describe the rate they would use
+        noteFallback(rateId)
+    }
+
+    /** Says so when [rateId] is past this panel and will run at its ceiling instead. */
+    private fun noteFallback(rateId: Int): Boolean {
+        if (!RateLock.fallsBack(rateId)) return false
+        val runsAt = RateLock.hz(RateLock.onPanel(rateId))
+        snack(getString(R.string.rate_unsupported, RateLock.hz(rateId), Build.MODEL, runsAt))
+        return true
     }
 
     private fun wireActions() {
@@ -327,7 +345,7 @@ class MainActivity : ShellActivity() {
         if (RateLock.arm(entry.pkg, rateId)) {
             armed[entry.pkg] = rateId
             ArmWatchService.start(this)
-            snack(getString(R.string.rate_set, entry.label, RateLock.hz(rateId)))
+            if (!noteFallback(rateId)) snack(getString(R.string.rate_set, entry.label, RateLock.hz(rateId)))
         } else {
             // The move failed, so the row goes back to unarmed — but any vote it
             // already had is still live, and only a release takes that down.
@@ -342,14 +360,15 @@ class MainActivity : ShellActivity() {
     private fun showRatePicker(entry: AppEntry) {
         if (rejectWhileBusy()) return
         val current = armed[entry.pkg]
-        val labels = RateLock.RATES.map { getString(R.string.rate_hz, it.second) }.toTypedArray()
-        val checked = RateLock.RATES.indexOfFirst { it.first == (current ?: activeRate) }
+        val rates = RateLock.RATES
+        val labels = rates.map { getString(R.string.rate_hz, it.second) }.toTypedArray()
+        val checked = rates.indexOfFirst { it.first == (current ?: activeRate) }
 
         val builder = AlertDialog.Builder(this)
             .setTitle(entry.label)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 dialog.dismiss()
-                confirmFirstTime { setRate(entry, RateLock.RATES[which].first) }
+                confirmFirstTime { setRate(entry, rates[which].first) }
             }
             .setNegativeButton(R.string.risk_no, null)
         if (current != null) {

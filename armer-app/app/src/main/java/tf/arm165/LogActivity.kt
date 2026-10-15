@@ -1,6 +1,7 @@
 package tf.arm165
 
 import android.app.Activity
+import android.content.Context
 import android.content.ClipData
 import android.content.Intent
 import android.content.SharedPreferences
@@ -32,6 +33,8 @@ import android.widget.TextView
  * timer was really doing for us.
  */
 class LogActivity : Activity() {
+
+    override fun attachBaseContext(base: Context) = super.attachBaseContext(AppLanguage.wrap(base))
 
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var prefs: SharedPreferences

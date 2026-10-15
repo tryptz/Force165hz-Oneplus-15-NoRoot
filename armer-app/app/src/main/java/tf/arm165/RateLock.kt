@@ -44,6 +44,15 @@ object RateLock {
     const val RATE_120 = 3
     const val RATE_144 = 4
     const val RATE_165 = 7
+    const val RATE_185 = 8
+
+    /**
+     * The panel's highest vendor rate, from its own build: 165 on the OnePlus
+     * 15, 185 on the OnePlus 16 (PYB110 — see tool/tx-tables.md). Every rate
+     * is offered everywhere; one above the panel's ceiling is voted at that
+     * ceiling instead ([onPanel]), so picking 185 on a OnePlus 15 runs at 165.
+     */
+    val MAX_RATE = RATE_185
 
     /**
      * Not a rate: the vendor's "no request" id, used to withdraw a vote. The
@@ -53,17 +62,64 @@ object RateLock {
      */
     const val RATE_NONE = 0
 
+    /** Rates the panel on this device can actually take: rateId to Hz. */
+    val RATES_FOR_DEVICE: List<Pair<Int, Int>> by lazy { RATES.filter { it.second <= panelHz() } }
+
+    /**
+     * The id a vote for [rateId] goes out as on this panel. A rate it cannot
+     * render becomes the fastest one it can — 185 on a OnePlus 15 is voted as
+     * 165 — rather than an id its refresh_rate_config has no tier for. The
+     * withdrawal ([RATE_NONE]) passes through untouched.
+     */
+    fun onPanel(rateId: Int): Int =
+        if (rateId == RATE_NONE || hz(rateId) <= panelHz()) rateId
+        else RATES_FOR_DEVICE.last().first
+
+    /** True when [rateId] is one this panel runs at a lower rate than its label. */
+    fun fallsBack(rateId: Int): Boolean = onPanel(rateId) != rateId
+
     /** Every id we can name, for lookups: rateId to Hz. */
     private val ALL = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
+        RATE_185 to 185,
     )
 
     /** Rates offered in the UI, in display order: rateId to Hz. */
     val RATES = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
+        RATE_185 to 185,
     )
 
     const val DEFAULT_RATE = RATE_165
+
+    fun maxHz(): Int = panelHz()
+
+    /**
+     * The fastest rate this device's panel takes, from the vendor config the
+     * build itself ships. Read from my_product's refresh_rate_config.xml when
+     * the build has one — the OnePlus 15 reads 165, the OnePlus 16 (PYB110,
+     * CN 17.0.0.152) reads 185 with a tier at rateId 8 — falling back to the
+     * model numbers every known panel matches when it cannot be read.
+     */
+    fun panelHz(): Int {
+        // my_product is unreadable from an unprivileged app on most builds;
+        // the model number is the honest answer and the config is the check.
+        return when {
+            MODELS_185.any { Build.MODEL.startsWith(it) } -> 185
+            MODELS_165.any { Build.MODEL.startsWith(it) } -> 165
+            else -> 165 // unknown model: the lowest panel this app targets
+        }
+    }
+
+    /** Models whose panel does 185 Hz. OnePlus 16 (PLB/PLK-class, CN PYB110). */
+    private val MODELS_185 = listOf("OP64E1L1", "PYB110", "OnePlus 16")
+
+    /**
+     * Models whose panel tops out at 165 Hz: the OnePlus 15 family, and the
+     * OnePlus 15R (CPH2767). The 15R's panel is LTPS, not LTPO, so a still
+     * screen holds 60 Hz rather than falling to 1 — the vote is the same.
+     */
+    private val MODELS_165 = listOf("PLK110", "CPH2747", "CPH2749", "CPH2767", "OnePlus 15")
 
     fun hz(rateId: Int): Int = ALL.firstOrNull { it.first == rateId }?.second ?: 165
 
@@ -85,10 +141,13 @@ object RateLock {
      * for the floor. Now that 60, 90 and 120 all reach 1 it is likely 144
      * does too, which would make the park pointless for it. Measure it.
      */
-    fun idleFloorHz(rateId: Int): Int = when (rateId) {
+    fun idleFloorHz(rateId: Int): Int = when (onPanel(rateId)) {
         RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
         RATE_165 -> 55
+        // Never measured: the OnePlus 16's own floor. The estimate is kept
+        // deliberately, like 144's was — guessed low only delays a park.
+        RATE_185 -> 60
         else -> hz(rateId) / 3
     }
 
@@ -415,7 +474,8 @@ object RateLock {
      * written on, and they are answered in order: the code it is numbered with
      * ([voteCode]), and the argument list it takes ([proxyVote]).
      */
-    fun arm(packageName: String, rateId: Int = DEFAULT_RATE): Boolean {
+    fun arm(packageName: String, picked: Int = DEFAULT_RATE): Boolean {
+        val rateId = onPanel(picked)
         ensureBound()
         if (viaProxy) return proxyVote(packageName, rateId) ?: false
         // No binder is the only way out of transact without an answer.
@@ -425,7 +485,8 @@ object RateLock {
             write = { it.writeString(packageName); it.writeInt(rateId) },
             read = { reply ->
                 val res = reply.readInt()
-                Log.i(TAG, "$packageName -> id=$rateId res=$res")
+                val fell = if (rateId != picked) " (${hz(picked)} Hz falls back on this panel)" else ""
+                Log.i(TAG, "$packageName -> id=$rateId res=$res$fell")
                 fault = if (res == 1) Fault.NONE else Fault.REFUSED
                 res == 1
             },
