@@ -45,8 +45,3 @@ extension — the app can pin it the same way as 165:
 
 `sys_dynamic_frame_config.xml` stays capped at `targetFramerate="120"` — the 185 Hz tier
 exists only in the vendor game-rate channel, which is exactly what the vote drives.
-
-## KB2000 (OnePlus 8T Android-17 port) — reference floor
-
-`requestGameRefreshRate` = 12; config tops out at 120 (`ratemagic="865R60_90_120"`), no
-144/165/185 ids exist on that panel.
