@@ -114,8 +114,12 @@ object RateLock {
     /** Models whose panel does 185 Hz. OnePlus 16 (PLB/PLK-class, CN PYB110). */
     private val MODELS_185 = listOf("OP64E1L1", "PYB110", "OnePlus 16")
 
-    /** Models whose panel tops out at 165 Hz: the OnePlus 15 family. */
-    private val MODELS_165 = listOf("PLK110", "CPH2747", "CPH2749", "OnePlus 15")
+    /**
+     * Models whose panel tops out at 165 Hz: the OnePlus 15 family, and the
+     * OnePlus 15R (CPH2767). The 15R's panel is LTPS, not LTPO, so a still
+     * screen holds 60 Hz rather than falling to 1 — the vote is the same.
+     */
+    private val MODELS_165 = listOf("PLK110", "CPH2747", "CPH2749", "CPH2767", "OnePlus 15")
 
     fun hz(rateId: Int): Int = ALL.firstOrNull { it.first == rateId }?.second ?: 165
 

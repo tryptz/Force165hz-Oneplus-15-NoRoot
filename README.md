@@ -39,6 +39,7 @@ Usage access is only needed when more than eight apps are armed.
 |---|---|
 | OnePlus 16 (`PYB110`) | 185 Hz |
 | OnePlus 15 (`CPH2747`, `CPH2749`, `PLK110`) | 165 Hz |
+| OnePlus 15R (`CPH2767`) | 165 Hz |
 | OnePlus Nord 6 (`CPH2793`) | 165 Hz |
 
 185 Hz is offered on every phone. Where the panel tops out at 165 Hz, it
@@ -55,6 +56,9 @@ service. The app finds the right vendor call for each firmware at launch, and
 | 60 / 90 / 120 Hz | ≈1 Hz |
 | 144 Hz | ≈1 Hz (parks at 120 Hz while idle) |
 | 165 Hz | ≈55 Hz |
+
+Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
+still screen stays at 60 Hz or above whatever rate is selected.
 
 ## Notes
 

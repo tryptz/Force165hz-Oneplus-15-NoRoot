@@ -8,6 +8,7 @@
   185 on the OnePlus 16; on phones that top out at 165 it runs at 165.
 - **简体中文.** Full Simplified Chinese translation.
 - **Language switcher** in Settings: System default, English or 简体中文.
+- **OnePlus 15R** (`CPH2767`) recognised as a 165 Hz phone.
 
 ## 1.0.8
 
