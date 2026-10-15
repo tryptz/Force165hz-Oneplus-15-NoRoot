@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+
+- **185 Hz on the OnePlus 16.** rateId 8, read from its own OTA. The selector,
+  the per-app picker and the widget build from the panel's ceiling, so the 185
+  segment only appears where the panel can show it. A saved 185 pick on a
+  165 Hz phone falls back to 165 at launch instead of voting nothing.
+- **OnePlus Nord 6 support** (#17). Its build numbers the vote 11, not 12, so
+  every arm failed with "Parcel data not fully consumed". The app now asks the
+  build which code it uses, at launch, before the first tap.
+- When the build won't say, the app probes a package nothing has installed,
+  and on a numbering nobody has seen, sweeps the interface for a transaction
+  that behaves like the vote.
+- Settings shows how the vote's code was found: named by the build, its proxy,
+  probed, swept, or assumed.
+- Simplified Chinese (zh-CN) translation of the main UI and dialogs.
+
 ## 1.0.8
 
 ### Added
