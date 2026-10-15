@@ -44,6 +44,15 @@ object RateLock {
     const val RATE_120 = 3
     const val RATE_144 = 4
     const val RATE_165 = 7
+    const val RATE_185 = 8
+
+    /**
+     * The panel's highest vendor rate, from its own build: 165 on the OnePlus
+     * 15, 185 on the OnePlus 16 (PYB110 — see tool/tx-tables.md). Rates above
+     * it are hidden, not refused, so the app keeps working everywhere and only
+     * offers what the panel can actually render.
+     */
+    val MAX_RATE = RATE_185
 
     /**
      * Not a rate: the vendor's "no request" id, used to withdraw a vote. The
@@ -53,17 +62,47 @@ object RateLock {
      */
     const val RATE_NONE = 0
 
+    /** Rates the panel on this device can actually take: rateId to Hz. */
+    val RATES_FOR_DEVICE: List<Pair<Int, Int>> by lazy { RATES.filter { it.second <= panelHz() } }
+
     /** Every id we can name, for lookups: rateId to Hz. */
     private val ALL = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
+        RATE_185 to 185,
     )
 
     /** Rates offered in the UI, in display order: rateId to Hz. */
     val RATES = listOf(
         RATE_60 to 60, RATE_90 to 90, RATE_120 to 120, RATE_144 to 144, RATE_165 to 165,
+        RATE_185 to 185,
     )
 
     const val DEFAULT_RATE = RATE_165
+
+    fun maxHz(): Int = panelHz()
+
+    /**
+     * The fastest rate this device's panel takes, from the vendor config the
+     * build itself ships. Read from my_product's refresh_rate_config.xml when
+     * the build has one — the OnePlus 15 reads 165, the OnePlus 16 (PYB110,
+     * CN 17.0.0.152) reads 185 with a tier at rateId 8 — falling back to the
+     * model numbers every known panel matches when it cannot be read.
+     */
+    fun panelHz(): Int {
+        // my_product is unreadable from an unprivileged app on most builds;
+        // the model number is the honest answer and the config is the check.
+        return when {
+            MODELS_185.any { Build.MODEL.startsWith(it) } -> 185
+            MODELS_165.any { Build.MODEL.startsWith(it) } -> 165
+            else -> 165 // unknown model: the lowest panel this app targets
+        }
+    }
+
+    /** Models whose panel does 185 Hz. OnePlus 16 (PLB/PLK-class, CN PYB110). */
+    private val MODELS_185 = listOf("OP64E1L1", "PYB110", "OnePlus 16")
+
+    /** Models whose panel tops out at 165 Hz: the OnePlus 15 family. */
+    private val MODELS_165 = listOf("PLK110", "CPH2747", "CPH2749", "OnePlus 15")
 
     fun hz(rateId: Int): Int = ALL.firstOrNull { it.first == rateId }?.second ?: 165
 
@@ -89,6 +128,9 @@ object RateLock {
         RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
         RATE_165 -> 55
+        // Never measured: the OnePlus 16's own floor. The estimate is kept
+        // deliberately, like 144's was — guessed low only delays a park.
+        RATE_185 -> 60
         else -> hz(rateId) / 3
     }
 

@@ -57,6 +57,8 @@
     <string name="arm_wrong_build">Couldn\'t arm %1$s. This build takes a different call than this app makes — the log page has what a bug report needs</string>
     <string name="arm_denied">Couldn\'t arm %1$s. This build refuses the vote: the vendor closed the interface</string>
     <string name="arm_no_service">Couldn\'t arm %1$s. This build has no OxygenOS display-mode service</string>
+    <string name="rate_unsupported">%1$d Hz needs a OnePlus 16 — %2$s tops out at 165. Fallen back to 165 Hz</string>
+    <string name="rate_unsupported_generic">This phone\'s panel doesn\'t do %1$d Hz. %2$s offers what it can render; the 185 Hz option is hidden on unsupported phones</string>
     <string name="disarm_failed">Couldn\'t release %1$s. Restart the phone to clear it</string>
     <string name="nothing_saved">Nothing armed yet</string>
     <string name="rate_picker_disarm">Disarm</string>
@@ -157,7 +159,7 @@
     <string name="help_intro">A rootless per-app refresh-rate unlock for the OnePlus 15 on OxygenOS 16. What it does to your phone, in short pieces.</string>
 
     <string name="help_what_title">What it does</string>
-    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144 or 165 Hz. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
+    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144, 165 — or 185 Hz on the OnePlus 16. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
 
     <string name="help_sweeps_title">The three sweeps</string>
     <string name="help_sweeps_body">Arm all sweeps the whole list. Re-arm re-sends the saved set. Clear withdraws everything. The armed set survives reboots.</string>

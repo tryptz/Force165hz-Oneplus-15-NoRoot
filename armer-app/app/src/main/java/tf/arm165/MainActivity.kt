@@ -69,7 +69,6 @@ class MainActivity : ShellActivity() {
         armed.putAll(ArmedStore.read(prefs))
         activeRate = prefs.getInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE)
             .takeIf { RateLock.isKnown(it) } ?: RateLock.DEFAULT_RATE
-
         armedCount = findViewById(R.id.armed_count)
         armedSub = findViewById(R.id.armed_sub)
         armedBar = findViewById(R.id.armed_bar)
@@ -94,6 +93,7 @@ class MainActivity : ShellActivity() {
         }
         syncChips(chips, filter)
         wireRates()
+        checkSavedRate()
         wireActions()
 
         adapter = AppRowAdapter(
@@ -105,7 +105,6 @@ class MainActivity : ShellActivity() {
             onDetails = ::showRatePicker,
         )
         list.adapter = adapter
-
         refreshStatus()
         updateState()
 
@@ -138,9 +137,9 @@ class MainActivity : ShellActivity() {
 
     // --------------------------------------------------------------- controls
 
-    /** Builds the segmented rate selector so it always matches [RateLock.RATES]. */
+    /** Builds the segmented rate selector so it always matches [RateLock.RATES_FOR_DEVICE]. */
     private fun wireRates() {
-        segments = RateLock.RATES.map { (rateId, hz) ->
+        segments = RateLock.RATES_FOR_DEVICE.map { (rateId, hz) ->
             val segment = TextView(this, null, 0, R.style.Segment).apply {
                 // A style can't carry layout params onto a view built in code.
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
@@ -160,6 +159,22 @@ class MainActivity : ShellActivity() {
         prefs.edit().putInt(ArmedStore.KEY_RATE, rateId).apply()
         syncChips(segments, activeRate)
         adapter.notifyDataSetChanged() // unarmed rows describe the rate they would use
+    }
+
+    /**
+     * The saved pick is only valid on the panel that made it. A set written on
+     * a OnePlus 16 carries 185; on a OnePlus 15 that id does nothing, and the
+     * worst part is it "works" — the vote lands, the panel silently caps at
+     * 165. Catch it at launch and say which one is which.
+     */
+    private fun checkSavedRate() {
+        if (RateLock.isKnown(activeRate) && activeRate !in RateLock.RATES_FOR_DEVICE.map { it.first }) {
+            val hz = RateLock.hz(activeRate)
+            snack(getString(R.string.rate_unsupported, hz, Build.MODEL))
+            activeRate = RateLock.DEFAULT_RATE
+            prefs.edit().putInt(ArmedStore.KEY_RATE, RateLock.DEFAULT_RATE).apply()
+            syncChips(segments, activeRate)
+        }
     }
 
     private fun wireActions() {
@@ -231,7 +246,7 @@ class MainActivity : ShellActivity() {
 
     /** e.g. "165 Hz × 8  ·  120 Hz × 4", fastest first, skipping unused rates. */
     private fun rateBreakdown(): String =
-        RateLock.RATES.asReversed().mapNotNull { (rateId, hz) ->
+        RateLock.RATES_FOR_DEVICE.asReversed().mapNotNull { (rateId, hz) ->
             val n = armed.count { it.value == rateId }
             if (n == 0) null else getString(R.string.rate_breakdown_part, hz, n)
         }.joinToString("  ·  ")
@@ -342,14 +357,15 @@ class MainActivity : ShellActivity() {
     private fun showRatePicker(entry: AppEntry) {
         if (rejectWhileBusy()) return
         val current = armed[entry.pkg]
-        val labels = RateLock.RATES.map { getString(R.string.rate_hz, it.second) }.toTypedArray()
-        val checked = RateLock.RATES.indexOfFirst { it.first == (current ?: activeRate) }
+        val rates = RateLock.RATES_FOR_DEVICE
+        val labels = rates.map { getString(R.string.rate_hz, it.second) }.toTypedArray()
+        val checked = rates.indexOfFirst { it.first == (current ?: activeRate) }
 
         val builder = AlertDialog.Builder(this)
             .setTitle(entry.label)
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 dialog.dismiss()
-                confirmFirstTime { setRate(entry, RateLock.RATES[which].first) }
+                confirmFirstTime { setRate(entry, rates[which].first) }
             }
             .setNegativeButton(R.string.risk_no, null)
         if (current != null) {
