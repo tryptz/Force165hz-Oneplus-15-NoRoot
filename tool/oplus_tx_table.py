@@ -19,6 +19,11 @@ without downloading all 8 GB of it:
     ./oplus_tx_table.py table /mnt/x/system/framework/oplus-framework.jar \
         com.oplus.screenmode.IOplusScreenMode
 
+    # a path to a local full-OTA zip works wherever a URL does — payload.bin is
+    # stored uncompressed in the zip, so seek+read stands in for curl ranges:
+    ./oplus_tx_table.py partitions ~/Downloads/ota_full-*.zip
+    ./oplus_tx_table.py fetch ~/Downloads/ota_full-*.zip system -o system.img
+
 The OTA URL can come from Oxygen Updater's public API, which is how the Nord 6
 build in the README was found:
 
@@ -86,6 +91,41 @@ class HttpFile(io.RawIOBase):
             if p.returncode == 0 and len(p.stdout) == n:
                 return p.stdout
         raise IOError(f"range {off}+{n} failed")
+
+
+class LocalFile:
+    """Same interface over a local OTA zip. payload.bin is stored uncompressed
+    inside it, so a seek+read replaces the curl range entirely."""
+
+    def __init__(self, path):
+        self.path, self._pos = path, 0
+        self._f = open(path, "rb", buffering=0)
+        self._size = os.fstat(self._f.fileno()).st_size
+
+    seekable = readable = lambda self: True
+
+    def tell(self): return self._pos
+    @property
+    def size(self): return self._size
+
+    def seek(self, off, whence=os.SEEK_SET):
+        self._pos = self._f.seek(off, whence)
+        return self._pos
+
+    def read(self, n=-1):
+        n = self._size - self._pos if n is None or n < 0 else min(n, self._size - self._pos)
+        if n <= 0: return b""
+        data = self.fetch(self._pos, n)
+        self._pos += len(data)
+        return data
+
+    def fetch(self, off, n):
+        self._f.seek(off)
+        return self._f.read(n)
+
+
+def open_source(arg):
+    return HttpFile(arg) if arg.startswith(("http://", "https://")) else LocalFile(arg)
 
 
 def payload_offset(f):
@@ -174,8 +214,7 @@ class Payload:
         raise SystemExit(f"no partition {name}")
 
 
-def fetch_partition(url, name, out):
-    f = HttpFile(url)
+def fetch_partition(f, name, out):
     p = Payload(f, payload_offset(f))
     part = p.get(name)
     ops = sorted(part["ops"], key=lambda o: o["data_offset"])
@@ -183,13 +222,21 @@ def fetch_partition(url, name, out):
     hi = max(o["data_offset"] + o["data_length"] for o in ops if o["data_length"])
     blob = out + ".blob"
     print(f"{name}: {len(ops)} ops, {hi-lo:,} bytes of {f.size:,}")
-    # resumable: these CDNs drop long transfers, and the signed URL expires
+    # remote CDNs drop long transfers and the signed URL expires, so those go
+    # through curl and resume; a local file is read straight through
     for attempt in range(6):
         have = os.path.getsize(blob) if os.path.exists(blob) else 0
         if have >= hi - lo: break
         with open(blob, "ab") as fh:
-            subprocess.run(["curl", "-sS", "--max-time", "3600",
-                            "-r", f"{p.data_base+lo+have}-{p.data_base+hi-1}", url], stdout=fh)
+            if isinstance(f, HttpFile):
+                subprocess.run(["curl", "-sS", "--max-time", "3600",
+                                "-r", f"{p.data_base+lo+have}-{p.data_base+hi-1}", f.url], stdout=fh)
+            else:
+                got = have
+                while got < hi - lo:
+                    n = min(1 << 28, hi - lo - got)          # 256 MiB at a time
+                    fh.write(f.fetch(p.data_base + lo + got, n))
+                    got += n
         print(f"  {os.path.getsize(blob):,} / {hi-lo:,}")
     if os.path.getsize(blob) != hi - lo:
         raise SystemExit("download incomplete: get a fresh URL and rerun")
@@ -344,7 +391,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2: sys.exit(__doc__)
     cmd = sys.argv[1]
     if cmd == "partitions":
-        f = HttpFile(sys.argv[2])
+        f = open_source(sys.argv[2])
         p = Payload(f, payload_offset(f))
         rows = sorted(((sum(o["data_length"] for o in x["ops"]), x["name"], x["size"])
                        for x in p.partitions), reverse=True)
@@ -353,7 +400,7 @@ if __name__ == "__main__":
             print(f"{name:20s} {size:14,d} {blob:14,d}")
     elif cmd == "fetch":
         out = sys.argv[sys.argv.index("-o") + 1] if "-o" in sys.argv else sys.argv[3] + ".img"
-        fetch_partition(sys.argv[2], sys.argv[3], out)
+        fetch_partition(open_source(sys.argv[2]), sys.argv[3], out)
     elif cmd == "table":
         table(sys.argv[2], sys.argv[3])
     else:
