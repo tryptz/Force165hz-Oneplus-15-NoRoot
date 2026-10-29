@@ -79,7 +79,8 @@ adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS
 
 The first time, the app asks you to set the option to Standard, then High, then
 Standard again. It watches that change to learn which setting your phone
-writes (`oplus_customize_screen_refresh_rate` on the OnePlus 15) and its values.
+writes and its values. On the OnePlus 15 that is
+`oplus_customize_screen_refresh_rate`, plus `choice_mode_rate` on Android 17.
 
 ## Notes
 

@@ -22,7 +22,7 @@ import android.util.Log
  * back.
  *
  * Which setting that option writes is known for the OnePlus 15 (see
- * [KNOWN_KEY]) but its High value is not a constant, other builds may differ,
+ * [KNOWN_KEYS]) but its High value is not a constant, other builds may differ,
  * and a wrong guess written to the secure table is worse than no feature. So it is learned instead: [startLearning] watches every settings
  * table while the user flips the option in the phone's own Display settings,
  * and [finishLearning] keeps each key that moved, with the value it had on
@@ -41,14 +41,17 @@ object LockRate {
     private const val SEP = '|'
 
     /**
-     * What the OnePlus 15's own Settings writes for the option (read out of
-     * its system_ext Settings.apk, an Android 16 OTA): 0 Auto, 2 Standard, and High
-     * as the last entry of a per-device list of modes — which is why the
-     * values are learned rather than written in here. When learning sees this
-     * key, it is the only one kept: anything else that moved at the same time
-     * is the settings page's own bookkeeping, not the option.
+     * What the OnePlus 15's own Settings writes for the option, read out of
+     * the system_ext Settings.apk of its Android 16 and Android 17 OTAs.
+     * `oplus_customize_screen_refresh_rate` is the mode: 0 Auto, 2 Standard,
+     * and High one of 3 (120), 4 (144), 7 (165) or 8 (185) depending on the
+     * panel and on Android 17's per-rate choice — which is why the values are
+     * learned rather than written in here. Android 17 also keeps the chosen
+     * rate in Hz, `choice_mode_rate`, and writes it alongside the mode. When
+     * learning sees these keys they are the only ones kept: anything else that
+     * moved at the same time is the settings page's own bookkeeping.
      */
-    private const val KNOWN_KEY = "oplus_customize_screen_refresh_rate"
+    private val KNOWN_KEYS = setOf("oplus_customize_screen_refresh_rate", "choice_mode_rate")
 
     /** Only Global and Secure are writable with the grant. */
     private val WRITABLE = setOf("global", "secure")
@@ -175,7 +178,7 @@ object LockRate {
         seen.clear()
         keys.forEach { Log.i(TAG, "lock120: learned ${it.table}/${it.name} high=${it.high} standard=${it.standard}") }
         val writable = keys.filter { it.table in WRITABLE && SEP !in it.name && SEP !in it.high && SEP !in it.standard }
-            .let { all -> all.filter { it.table == "secure" && it.name == KNOWN_KEY }.ifEmpty { all } }
+            .let { all -> all.filter { it.table == "secure" && it.name in KNOWN_KEYS }.ifEmpty { all } }
         if (writable.isEmpty()) return if (keys.isEmpty()) Learned.NOTHING_SEEN else Learned.SYSTEM_ONLY
         ArmedStore.open(context).edit()
             .putStringSet(KEY_LEARNED, writable.mapTo(HashSet()) {
