@@ -79,6 +79,12 @@ You can have both. No adb needed:
 2. In 165 Armer, pick **165 Hz** and arm your apps (or **Arm all**).
 3. In 165 Armer, open **Settings** and turn on **Lock screen at 120 Hz**.
 
+<p align="center">
+  <img src="screenshot-standard.png" width="320" alt="ColorOS Screen refresh rate set to Standard, with the 165 Hz counter showing">
+  <br>
+  <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen at 120 Hz turned on">
+</p>
+
 Now the UI runs at 165 Hz and the lock screen at 120 Hz. Tested on the OnePlus 15.
 
 **How it works:** while the phone is locked, the app holds a 120 Hz vote with
