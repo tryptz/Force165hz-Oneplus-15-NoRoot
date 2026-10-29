@@ -60,6 +60,27 @@ service. The app finds the right vendor call for each firmware at launch, and
 Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
 still screen stays at 60 Hz or above whatever rate is selected.
 
+## Lock screen at 120 Hz
+
+On ColorOS, the phone's own **Screen refresh rate** option decides two things
+at once. On **High**, SystemUI (app switching, the notification shade) stays at
+120 Hz whatever is armed. On **Standard**, SystemUI follows the armed rate, but
+the lock screen drops to 60 Hz.
+
+**Settings → Lock screen at 120 Hz** gives you both. The phone runs on Standard
+while it is unlocked and switches to High while it is locked. The switch
+happens as the screen turns off and again when you unlock.
+
+It needs one adb grant:
+
+```sh
+adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS
+```
+
+The first time, the app asks you to set the option to Standard, then High, then
+Standard again. It watches that change to learn which setting your phone
+writes (`oplus_customize_screen_refresh_rate` on the OnePlus 15) and its values.
+
 ## Notes
 
 - Higher rates use more battery and run warmer.

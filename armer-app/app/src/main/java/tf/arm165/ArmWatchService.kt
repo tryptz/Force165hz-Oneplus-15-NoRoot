@@ -939,8 +939,19 @@ class ArmWatchService : Service() {
 
     private val screenReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
+            // The unlock is not a wake: the screen has been on since the
+            // keyguard came up, and the restore below already ran then.
+            if (i?.action == Intent.ACTION_USER_PRESENT) {
+                LockRate.onUnlocked(this@ArmWatchService)
+                return
+            }
             val off = i?.action == Intent.ACTION_SCREEN_OFF
             screenOn = !off
+            // Before the panel is back: the lock screen has to come up on the
+            // mode it is shown in. A wake with no keyguard gets no
+            // USER_PRESENT to wait for, so sync covers that here.
+            if (off) LockRate.onScreenOff(this@ArmWatchService)
+            else LockRate.sync(this@ArmWatchService)
             handler.removeCallbacks(tick)
             if (!off) {
                 // A wake-up is motion by definition: the launcher, the keyguard
@@ -991,7 +1002,9 @@ class ArmWatchService : Service() {
         }
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
         })
+        LockRate.sync(this)
         Choreographer.getInstance().postFrameCallback(panelFrames)
         startForeground(NOTIFY_ID, buildNotification())
         handler.postDelayed(tick, 3000)
@@ -1262,11 +1275,13 @@ class ArmWatchService : Service() {
 
         /**
          * Stops the watchdog once nothing is armed — a disarm should leave
-         * nothing running behind it.
+         * nothing running behind it. The lock-screen switch is the one other
+         * thing that needs it: it is what hears the lock and the unlock.
          */
         fun stopIfIdle(context: Context) {
             val prefs = ArmedStore.open(context)
             if (ArmedStore.read(prefs).isNotEmpty()) return
+            if (LockRate.enabled(context)) return
             context.stopService(Intent(context, ArmWatchService::class.java))
         }
     }
