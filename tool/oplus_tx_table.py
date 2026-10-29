@@ -53,7 +53,7 @@ class HttpFile(io.RawIOBase):
 
     def __init__(self, url):
         self.url, self._pos = url, 0
-        out = subprocess.run(["curl", "-sS", "--max-time", "60", "-r", "0-0", "-D", "-",
+        out = subprocess.run(["curl", "-sSL", "--max-time", "60", "-r", "0-0", "-D", "-",
                               "-o", "/dev/null", url], capture_output=True, text=True).stdout
         for line in out.splitlines():
             if line.lower().startswith("content-range:"):
@@ -86,7 +86,7 @@ class HttpFile(io.RawIOBase):
 
     def fetch(self, off, n, retries=4):
         for _ in range(retries):
-            p = subprocess.run(["curl", "-sS", "--max-time", "600",
+            p = subprocess.run(["curl", "-sSL", "--max-time", "600",
                                 "-r", f"{off}-{off+n-1}", self.url], capture_output=True)
             if p.returncode == 0 and len(p.stdout) == n:
                 return p.stdout
@@ -229,7 +229,7 @@ def fetch_partition(f, name, out):
         if have >= hi - lo: break
         with open(blob, "ab") as fh:
             if isinstance(f, HttpFile):
-                subprocess.run(["curl", "-sS", "--max-time", "3600",
+                subprocess.run(["curl", "-sSL", "--max-time", "3600",
                                 "-r", f"{p.data_base+lo+have}-{p.data_base+hi-1}", f.url], stdout=fh)
             else:
                 got = have

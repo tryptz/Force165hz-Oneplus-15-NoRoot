@@ -30,10 +30,12 @@ object RateLock {
     private const val TX_REQUEST_GAME_REFRESH_RATE = 12 // (String, int) -> boolean
     private const val TX_GET_GAME_LIST = 14 //             (Bundle) inout -> boolean
     private const val TX_SET_APP_OVERRIDE = 25 //          (String, int mode, int rate) -> boolean
+    private const val TX_REQUEST_REFRESH_RATE_WITH_TOKEN = 13 // (boolean, int, IBinder) -> boolean
 
     private const val REQUEST_GAME_REFRESH_RATE = "requestGameRefreshRate"
     private const val GET_GAME_LIST = "getGameList"
     private const val SET_APP_OVERRIDE_REFRESH_RATE = "setAppOverrideRefreshRate"
+    private const val REQUEST_REFRESH_RATE_WITH_TOKEN = "requestRefreshRateWithToken"
 
     // Vendor rateIds, same numbering as refresh_rate_config.xml. They are not
     // in Hz order: the vendor numbers 90 Hz as 1 and 60 Hz as 2. Builds that
@@ -128,7 +130,7 @@ object RateLock {
     /**
      * Measured LTPO idle floor of the panel mode each rateId selects — the
      * lowest the panel goes while that vote is held. Measured on this build
-     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at 55.
+     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at [floor165Hz].
      *
      * So 165 is the only mode that cannot idle, and the only reason the park
      * exists. A still screen with 165 held ramps down to 55 and stops, which
@@ -141,10 +143,19 @@ object RateLock {
      * for the floor. Now that 60, 90 and 120 all reach 1 it is likely 144
      * does too, which would make the park pointless for it. Measure it.
      */
+    /**
+     * Where a still 165 screen rests: 55 Hz on the OnePlus 15's ColorOS 16,
+     * 33 Hz on ColorOS 17 (Android 17, API 37), as reported on the OnePlus 15
+     * in issue #26. The watchdog counts the panel climbing 10 Hz above
+     * this as motion, so keeping 55 on ColorOS 17 would read anything between
+     * 33 and 65 as still.
+     */
+    val floor165Hz: Int = if (Build.VERSION.SDK_INT >= 37) 33 else 55
+
     fun idleFloorHz(rateId: Int): Int = when (onPanel(rateId)) {
         RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
-        RATE_165 -> 55
+        RATE_165 -> floor165Hz
         // Never measured: the OnePlus 16's own floor. The estimate is kept
         // deliberately, like 144's was — guessed low only delays a park.
         RATE_185 -> 60
@@ -335,6 +346,16 @@ object RateLock {
     private var appOverrideCode: Int = TX_SET_APP_OVERRIDE
 
     /**
+     * The display-wide vote, by the build's own name for it when the stub can
+     * be read. When it cannot, it is taken as the code after the per-app vote:
+     * it is declared right after `requestGameRefreshRate` in every table read
+     * so far (12/13 on the OnePlus 15 and 16, 11/12 on the Nord 6), so it moves
+     * with the vote rather than staying at 13.
+     */
+    @Volatile
+    private var displayVoteCode: Int? = null
+
+    /**
      * Codes the vote has actually been found at: 12 on the OnePlus 15
      * (CPH2749_16.0.9.400), 11 on the OnePlus Nord 6 (CPH2793_16.0.5.1200).
      * Tried in that order, and only when the build's own stub cannot be read —
@@ -400,6 +421,7 @@ object RateLock {
             named = true
             VendorStub.transactionCode(IFACE, GET_GAME_LIST)?.let { gameListCode = it }
             VendorStub.transactionCode(IFACE, SET_APP_OVERRIDE_REFRESH_RATE)?.let { appOverrideCode = it }
+            VendorStub.transactionCode(IFACE, REQUEST_REFRESH_RATE_WITH_TOKEN)?.let { displayVoteCode = it }
             VendorStub.transactionCode(IFACE, REQUEST_GAME_REFRESH_RATE)?.let {
                 voteCode = it
                 binding = Binding.STUB
@@ -626,6 +648,37 @@ object RateLock {
     fun setAppOverride(packageName: String, rateId: Int, mode: Int = 0): Boolean = transact(
         appOverrideCode,
         write = { it.writeString(packageName); it.writeInt(mode); it.writeInt(rateId) },
+        read = { it.readInt() != 0 },
+        fallback = false,
+    )
+
+    /**
+     * A display-wide vote: `requestRefreshRateWithToken(true, rateId, token)`.
+     * Unlike [arm] it names no package — it is one slot, priority 70
+     * (`PRIORITY_MEMC`) in `OplusRefreshRateCore`, and the vendor resolves the
+     * panel to the highest-priority fixed vote it holds. Read out of the
+     * OnePlus 15's Android 17 oplus-services.jar: neither
+     * `OplusDisplayModeService` nor `OplusRefreshRatePolicyImpl` checks the
+     * caller, and the lock screen's own pick is a priority-0 window vote, so
+     * this outranks it — which is what [LockRate] holds while the phone is
+     * locked. The vote outranks every app's pin too, so it must not outlive
+     * the lock: [releaseDisplayRate] takes it back, and the vendor drops it by
+     * itself if this process dies, because [token] is linked to its death.
+     *
+     * On a build with the MEMC game, FRC or AI-SR display feature the call is
+     * handed to the MEMC chip's feedback instead and votes nothing.
+     */
+    fun holdDisplayRate(rateId: Int, token: IBinder): Boolean = transact(
+        displayVoteCode ?: (voteCode + 1),
+        write = { it.writeInt(1); it.writeInt(rateId); it.writeStrongBinder(token) },
+        read = { it.readInt() != 0 },
+        fallback = false,
+    )
+
+    /** Withdraws [holdDisplayRate]'s vote and unlinks [token]. */
+    fun releaseDisplayRate(token: IBinder): Boolean = transact(
+        displayVoteCode ?: (voteCode + 1),
+        write = { it.writeInt(0); it.writeInt(RATE_NONE); it.writeStrongBinder(token) },
         read = { it.readInt() != 0 },
         fallback = false,
     )

@@ -57,6 +57,8 @@ class SettingsActivity : Activity() {
         updateSub.text = getString(R.string.update_row_sub, UpdateCheck.installed(this))
         findViewById<View>(R.id.row_update).setOnClickListener { checkForUpdate(updateSub) }
 
+        findViewById<View>(R.id.row_lock120).setOnClickListener { tapLock120() }
+
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
@@ -73,6 +75,30 @@ class SettingsActivity : Activity() {
         super.onResume()
         syncUsageRow()
         syncBindingRow()
+        syncLock120Row()
+    }
+
+    /**
+     * The switch, and a word on the phone's own mode: this is for Standard.
+     * On High the lock screen is at 120 already and SystemUI is capped there
+     * whatever this does; where the mode cannot be read, nothing is claimed.
+     */
+    private fun syncLock120Row() {
+        val on = LockRate.enabled(this)
+        findViewById<RateSwitch>(R.id.lock120_switch).setChecked(on, animate = false)
+        val mode = LockRate.phoneMode(this)
+        findViewById<TextView>(R.id.lock120_sub).setText(when {
+            mode != null && mode != LockRate.MODE_STANDARD -> R.string.lock120_sub_not_standard
+            on -> R.string.lock120_sub_on
+            else -> R.string.lock120_sub_off
+        })
+    }
+
+    private fun tapLock120() {
+        val on = !LockRate.enabled(this)
+        LockRate.setEnabled(this, on)
+        if (on) ArmWatchService.start(this) else ArmWatchService.stopIfIdle(this)
+        syncLock120Row()
     }
 
     /**

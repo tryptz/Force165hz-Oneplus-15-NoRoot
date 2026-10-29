@@ -22,6 +22,7 @@ Rootless per-app refresh-rate unlock for OnePlus phones: **60 / 90 / 120 / 144 /
 - Search, and filters for armed, games, user and system apps
 - Home-screen widget: arm all, clear and pick the rate
 - Watchdog that keeps the rate held, and restores armed apps after a reboot
+- 165 Hz across the UI with the lock screen kept at 120 Hz ([how](#165-hz-across-the-ui-120-hz-on-the-lock-screen))
 - Smoothness test and a live log
 - English and 简体中文, with a language switcher in Settings
 
@@ -55,10 +56,43 @@ service. The app finds the right vendor call for each firmware at launch, and
 |---|---|
 | 60 / 90 / 120 Hz | ≈1 Hz |
 | 144 Hz | ≈1 Hz (parks at 120 Hz while idle) |
-| 165 Hz | ≈55 Hz |
+| 165 Hz | ≈55 Hz on ColorOS 16, ≈33 Hz on ColorOS 17 |
 
 Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
 still screen stays at 60 Hz or above whatever rate is selected.
+
+## 165 Hz across the UI, 120 Hz on the lock screen
+
+ColorOS's own **Screen refresh rate** option makes you pick one of two bad
+choices:
+
+| Phone setting | App switching, notification shade | Lock screen |
+|---|---|---|
+| **High** | capped at 120 Hz | 120 Hz |
+| **Standard** | follows the armed rate (165 Hz) | drops to 60 Hz |
+
+You can have both. No adb needed:
+
+1. Open the phone's **Settings → Display → Screen refresh rate** and choose
+   **Standard**. The option says "a maximum refresh rate of 60 Hz"; ignore
+   that, the armed rate still applies.
+2. In 165 Armer, pick **165 Hz** and arm your apps (or **Arm all**).
+3. In 165 Armer, open **Settings** and turn on **Lock screen at 120 Hz**.
+
+<p align="center">
+  <img src="screenshot-standard.png" width="320" alt="ColorOS Screen refresh rate set to Standard, with the 165 Hz counter showing">
+  <br>
+  <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen at 120 Hz turned on">
+</p>
+
+Now the UI runs at 165 Hz and the lock screen at 120 Hz. Tested on the OnePlus 15.
+
+**How it works:** while the phone is locked, the app holds a 120 Hz vote with
+the vendor's `requestRefreshRateWithToken`, which needs no permission. That
+vote outranks the 60 Hz that Standard gives the lock screen. The app releases
+it when you unlock, so your armed apps are not capped. If the app is killed,
+the phone drops the vote by itself. Details are in
+[`tool/tx-tables.md`](tool/tx-tables.md).
 
 ## Notes
 

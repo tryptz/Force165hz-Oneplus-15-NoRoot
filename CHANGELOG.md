@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.1
+
+### Added
+
+- **Lock screen at 120 Hz** (issue #26), in Settings. On ColorOS the phone's
+  own *Screen refresh rate* option caps SystemUI (app switching, the shade)
+  at 120 on High, and drops the lock screen to 60 on Standard. With the phone
+  on Standard and this on, the app holds a 120 Hz display vote while the phone
+  is locked and releases it on unlock. No adb, no permission.
+
+### Changed
+
+- **165 Hz idles to 33 Hz on ColorOS 17** (55 on ColorOS 16). The watchdog,
+  the note on the main screen and Help now use the floor of the phone's own
+  build, so motion between 33 and 65 Hz is no longer read as a still screen.
+
 ## 1.1.0
 
 ### Added
