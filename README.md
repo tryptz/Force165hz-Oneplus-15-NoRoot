@@ -67,20 +67,14 @@ at once. On **High**, SystemUI (app switching, the notification shade) stays at
 120 Hz whatever is armed. On **Standard**, SystemUI follows the armed rate, but
 the lock screen drops to 60 Hz.
 
-**Settings → Lock screen at 120 Hz** gives you both. The phone runs on Standard
-while it is unlocked and switches to High while it is locked. The switch
-happens as the screen turns off and again when you unlock.
+To get both, set the phone to **Standard** and turn on **Settings → Lock screen
+at 120 Hz** in this app. While the phone is locked, the app holds the screen at
+120 Hz. It lets go as soon as you unlock. No adb needed, and the phone's own
+setting is never changed.
 
-It needs one adb grant:
-
-```sh
-adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS
-```
-
-The first time, the app asks you to set the option to Standard, then High, then
-Standard again. It watches that change to learn which setting your phone
-writes and its values. On the OnePlus 15 that is
-`oplus_customize_screen_refresh_rate`, plus `choice_mode_rate` on Android 17.
+How: the same vendor service takes a display-wide vote,
+`requestRefreshRateWithToken`, with no permission check. It outranks the lock
+screen's own pick. If the app is killed, the vendor drops the vote by itself.
 
 ## Notes
 

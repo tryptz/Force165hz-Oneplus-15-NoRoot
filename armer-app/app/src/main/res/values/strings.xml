@@ -270,15 +270,7 @@
     <string name="nothing_boosted">No games boosted yet</string>
     <!-- lock screen at 120 Hz (issue #26) -->
     <string name="lock120_title">Lock screen at 120 Hz</string>
-    <string name="lock120_sub_setup">Keeps the phone on Standard while unlocked, so the shade and app switching follow the armed rate, and on High while locked, so the lock screen runs at 120 Hz instead of 60. Tap to set up.</string>
-    <string name="lock120_sub_on">On. Unlocked: Standard, SystemUI follows the armed rate. Locked: High, 120 Hz. Long-press to set up again.</string>
-    <string name="lock120_sub_off">Off. Set up and ready. Tap to turn on, long-press to set up again.</string>
-    <string name="lock120_sub_grant">Needs a one-time grant over adb:\nadb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
-    <string name="lock120_learn_title">Show the app the setting</string>
-    <string name="lock120_learn_body">Your phone does not say which setting its refresh-rate option writes, so the app watches while you change it once.\n\n1. Tap Start. Display settings opens.\n2. Open Screen refresh rate.\n3. Choose Standard, then High, then Standard again.\n4. Come back to this app.\n\nThe phone stays on Standard. The app switches it to High only while the phone is locked.</string>
-    <string name="lock120_learn_start">Start</string>
-    <string name="lock120_learned">Done. The lock screen will run at 120 Hz.</string>
-    <string name="lock120_nothing">No change seen. Choose Standard, then High, then Standard, and try again.</string>
-    <string name="lock120_system_only">This phone keeps that option where an app cannot write it. The feature cannot work here.</string>
-    <string name="lock120_no_screen">No Display settings screen to open. Open it yourself, change the option, then come back.</string>
+    <string name="lock120_sub_off">For the phone\'s Standard refresh rate, where the shade and app switching follow the armed rate but the lock screen drops to 60 Hz. This holds the lock screen at 120 Hz. No adb needed.</string>
+    <string name="lock120_sub_on">On. While the phone is locked the screen is held at 120 Hz, and the hold is released when you unlock.</string>
+    <string name="lock120_sub_not_standard">Works with the phone\'s refresh rate on Standard (Settings › Display › Screen refresh rate). On High the lock screen is at 120 Hz already, but the shade and app switching stay capped at 120.</string>
 </resources>

@@ -57,15 +57,7 @@ class SettingsActivity : Activity() {
         updateSub.text = getString(R.string.update_row_sub, UpdateCheck.installed(this))
         findViewById<View>(R.id.row_update).setOnClickListener { checkForUpdate(updateSub) }
 
-        findViewById<View>(R.id.row_lock120).apply {
-            setOnClickListener { tapLock120() }
-            setOnLongClickListener {
-                if (LockRate.learned(this@SettingsActivity).isEmpty()) return@setOnLongClickListener false
-                LockRate.forget(this@SettingsActivity)
-                tapLock120()
-                true
-            }
-        }
+        findViewById<View>(R.id.row_lock120).setOnClickListener { tapLock120() }
 
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
@@ -83,61 +75,30 @@ class SettingsActivity : Activity() {
         super.onResume()
         syncUsageRow()
         syncBindingRow()
-        // Back from Display settings with the option flipped: what moved is
-        // the answer, and the watchdog is what applies it from here on.
-        if (LockRate.learning) {
-            val msg = when (LockRate.finishLearning(this)) {
-                LockRate.Learned.OK -> R.string.lock120_learned
-                LockRate.Learned.NOTHING_SEEN -> R.string.lock120_nothing
-                LockRate.Learned.SYSTEM_ONLY -> R.string.lock120_system_only
-            }
-            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-            if (LockRate.enabled(this)) ArmWatchService.start(this)
-        }
         syncLock120Row()
     }
 
+    /**
+     * The switch, and a word on the phone's own mode: this is for Standard.
+     * On High the lock screen is at 120 already and SystemUI is capped there
+     * whatever this does; where the mode cannot be read, nothing is claimed.
+     */
     private fun syncLock120Row() {
         val on = LockRate.enabled(this)
         findViewById<RateSwitch>(R.id.lock120_switch).setChecked(on, animate = false)
+        val mode = LockRate.phoneMode(this)
         findViewById<TextView>(R.id.lock120_sub).setText(when {
-            !SecureSettings.canWrite(this) -> R.string.lock120_sub_grant
-            LockRate.learned(this).isEmpty() -> R.string.lock120_sub_setup
+            mode != null && mode != LockRate.MODE_STANDARD -> R.string.lock120_sub_not_standard
             on -> R.string.lock120_sub_on
             else -> R.string.lock120_sub_off
         })
     }
 
-    /**
-     * Without the grant nothing can be written, so the row only says how to
-     * get it. Unlearned, it asks to watch the option change once; learned, it
-     * is a plain switch.
-     */
     private fun tapLock120() {
-        if (!SecureSettings.canWrite(this)) {
-            syncLock120Row()
-            return
-        }
-        if (LockRate.learned(this).isNotEmpty()) {
-            val on = !LockRate.enabled(this)
-            LockRate.setEnabled(this, on)
-            if (on) ArmWatchService.start(this) else ArmWatchService.stopIfIdle(this)
-            syncLock120Row()
-            return
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.lock120_learn_title)
-            .setMessage(R.string.lock120_learn_body)
-            .setPositiveButton(R.string.lock120_learn_start) { _, _ ->
-                LockRate.startLearning(this)
-                try {
-                    startActivity(Intent(Settings.ACTION_DISPLAY_SETTINGS))
-                } catch (t: ActivityNotFoundException) {
-                    Toast.makeText(this, R.string.lock120_no_screen, Toast.LENGTH_LONG).show()
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+        val on = !LockRate.enabled(this)
+        LockRate.setEnabled(this, on)
+        if (on) ArmWatchService.start(this) else ArmWatchService.stopIfIdle(this)
+        syncLock120Row()
     }
 
     /**

@@ -1,202 +1,136 @@
 package tf.arm165
 
+import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
-import android.database.ContentObserver
-import android.net.Uri
+import android.os.Binder
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import java.util.concurrent.Executors
 
 /**
  * The lock screen at 120 Hz while SystemUI runs at the armed rate (issue #26).
  *
- * ColorOS's own "Screen refresh rate" setting decides two things at once. On
+ * ColorOS's own "Screen refresh rate" option decides two things at once. On
  * High, SystemUI — app switching, the shade — caps at 120 whatever is armed.
  * On Standard, SystemUI follows the armed rate, but the lock screen falls to
- * 60. Neither is what anyone wants, and the two never matter at the same time:
- * the lock screen is only up while the phone is locked. So the phone runs on
- * Standard while unlocked and is switched to High as the screen goes off,
- * which is the one moment the change cannot be seen; the unlock switches it
- * back.
+ * 60. The reason is in `OplusRefreshRatePolicyImpl.getNormalModePickPreferredId`
+ * (OnePlus 15, Android 17): while the keyguard shows, the panel takes the
+ * keyguard's rate — 120 — unless the mode is Standard, where it takes
+ * SystemUI's configured rate instead, and that is 60.
  *
- * Which setting that option writes is known for the OnePlus 15 (see
- * [KNOWN_KEYS]) but its High value is not a constant, other builds may differ,
- * and a wrong guess written to the secure table is worse than no feature. So it is learned instead: [startLearning] watches every settings
- * table while the user flips the option in the phone's own Display settings,
- * and [finishLearning] keeps each key that moved, with the value it had on
- * High and the one it was left on (Standard). Writing needs
- * WRITE_SECURE_SETTINGS, granted once over adb, like the extreme switch.
- * `Settings.System` keys are seen but not kept: an app cannot write a hidden
- * key there, granted or not.
+ * So the phone stays on Standard, and while it is locked this holds a 120 Hz
+ * display vote ([RateLock.holdDisplayRate]) that outranks the keyguard's pick.
+ * No permission, no adb, and the phone's own setting is never touched. The
+ * vote outranks every armed app as well, so it is taken back on the unlock
+ * and checked every second while it is held; and the vendor drops it by
+ * itself if this process dies, because [token] is linked to its death.
  */
 object LockRate {
     private const val TAG = "Arm165"
 
     private const val KEY_ON = "lock120_on"
-    private const val KEY_LEARNED = "lock120_keys"
 
-    /** One learned key: "table|name|high|standard". */
-    private const val SEP = '|'
+    /** What the lock screen is held at: 120, as it is on High. */
+    private const val LOCK_RATE = RateLock.RATE_120
 
-    /**
-     * What the OnePlus 15's own Settings writes for the option, read out of
-     * the system_ext Settings.apk of its Android 16 and Android 17 OTAs.
-     * `oplus_customize_screen_refresh_rate` is the mode: 0 Auto, 2 Standard,
-     * and High one of 3 (120), 4 (144), 7 (165) or 8 (185) depending on the
-     * panel and on Android 17's per-rate choice — which is why the values are
-     * learned rather than written in here. Android 17 also keeps the chosen
-     * rate in Hz, `choice_mode_rate`, and writes it alongside the mode. When
-     * learning sees these keys they are the only ones kept: anything else that
-     * moved at the same time is the settings page's own bookkeeping.
-     */
-    private val KNOWN_KEYS = setOf("oplus_customize_screen_refresh_rate", "choice_mode_rate")
+    /** Settings.Secure, written by the phone's own Display settings. */
+    private const val KEY_MODE = "oplus_customize_screen_refresh_rate"
+    const val MODE_STANDARD = 2
 
-    /** Only Global and Secure are writable with the grant. */
-    private val WRITABLE = setOf("global", "secure")
+    private const val CHECK_MS = 1000L
 
-    data class Key(val table: String, val name: String, val high: String, val standard: String)
+    /** The vote's identity: the vendor unlinks it when this process dies. */
+    private val token = Binder()
 
-    enum class Learned { OK, NOTHING_SEEN, SYSTEM_ONLY }
+    /** Binder calls stay off the main thread and in order. */
+    private val worker = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
 
-    fun learned(context: Context): List<Key> =
-        ArmedStore.open(context).getStringSet(KEY_LEARNED, emptySet()).orEmpty().mapNotNull { s ->
-            val p = s.split(SEP)
-            if (p.size == 4) Key(p[0], p[1], p[2], p[3]) else null
-        }
+    @Volatile
+    private var held = false
+
+    /** Always the application context, which lives as long as this object. */
+    @SuppressLint("StaticFieldLeak")
+    private var app: Context? = null
 
     fun enabled(context: Context): Boolean =
-        ArmedStore.open(context).getBoolean(KEY_ON, false) && learned(context).isNotEmpty()
+        ArmedStore.open(context).getBoolean(KEY_ON, false)
 
-    /**
-     * Turning it off puts the phone back on Standard — the value the user
-     * left it on when this was learned — so a lock that happened while it was
-     * on does not leave the phone on High behind it.
-     */
     fun setEnabled(context: Context, on: Boolean) {
         ArmedStore.open(context).edit().putBoolean(KEY_ON, on).apply()
-        if (!on) write(context, locked = false)
-    }
-
-    fun forget(context: Context) {
-        setEnabled(context, false)
-        ArmedStore.open(context).edit().remove(KEY_LEARNED).apply()
-    }
-
-    /** Lock went on: the lock screen should come up on High. */
-    fun onScreenOff(context: Context) {
-        if (enabled(context)) write(context, locked = true)
+        if (on) sync(context) else release()
     }
 
     /**
-     * Unlock, or a wake with no keyguard to pass: back to Standard. A wake
-     * that lands on the keyguard stays on High until the unlock says so.
+     * The phone's refresh-rate mode, or null where the table will not say.
+     * Read only, for the hint on the Settings row: this works best on
+     * Standard, and on High there is nothing for it to fix.
      */
-    fun onUnlocked(context: Context) {
-        if (enabled(context)) write(context, locked = false)
-    }
-
-    /** For a service start or a wake: the state the keyguard is in right now. */
-    fun sync(context: Context) {
-        if (!enabled(context)) return
-        val km = context.getSystemService(KeyguardManager::class.java)
-        write(context, locked = km?.isKeyguardLocked == true)
-    }
-
-    private fun write(context: Context, locked: Boolean) {
-        val cr = context.contentResolver
-        learned(context).forEach { k ->
-            val value = if (locked) k.high else k.standard
-            val ok = try {
-                when (k.table) {
-                    "global" -> Settings.Global.putString(cr, k.name, value)
-                    "secure" -> Settings.Secure.putString(cr, k.name, value)
-                    else -> false
-                }
-            } catch (t: Throwable) {
-                Log.w(TAG, "lock120: writing ${k.table}/${k.name} failed", t)
-                false
-            }
-            Log.i(TAG, "lock120: %s %s/%s=%s%s".format(
-                if (locked) "locked," else "unlocked,", k.table, k.name, value,
-                if (ok) "" else " (refused)"))
-        }
-    }
-
-    // ---- learning ----------------------------------------------------------
-
-    /** Every distinct value each key moved through, in order, while learning. */
-    private val seen = LinkedHashMap<Pair<String, String>, MutableList<String>>()
-    private var observer: ContentObserver? = null
-
-    val learning: Boolean get() = observer != null
-
-    private val TABLES = listOf(
-        "global" to Settings.Global.CONTENT_URI,
-        "secure" to Settings.Secure.CONTENT_URI,
-        "system" to Settings.System.CONTENT_URI,
-    )
-
-    fun startLearning(context: Context) {
-        stopLearning(context)
-        seen.clear()
-        val cr = context.applicationContext.contentResolver
-        val obs = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean, uri: Uri?) {
-                val segs = uri?.pathSegments ?: return
-                if (segs.size < 2) return
-                val table = segs[0]
-                val name = segs[1]
-                val value = read(cr, table, name) ?: return
-                val list = seen.getOrPut(table to name) { mutableListOf() }
-                if (list.lastOrNull() != value) list += value
-            }
-        }
-        TABLES.forEach { (_, uri) -> cr.registerContentObserver(uri, true, obs) }
-        observer = obs
-    }
-
-    fun stopLearning(context: Context) {
-        observer?.let { context.applicationContext.contentResolver.unregisterContentObserver(it) }
-        observer = null
-    }
-
-    /**
-     * The user was asked for Standard, High, Standard. Whatever they started
-     * on, that leaves every key the option writes with at least two distinct
-     * values: the last is Standard, the one before it High. A key seen once
-     * only (a counter, a timestamp the settings page bumps on open) or one
-     * that ended where it started is not the option.
-     */
-    fun finishLearning(context: Context): Learned {
-        stopLearning(context)
-        val keys = seen.mapNotNull { (k, values) ->
-            if (values.size < 2) return@mapNotNull null
-            Key(k.first, k.second, values[values.size - 2], values.last())
-        }
-        seen.clear()
-        keys.forEach { Log.i(TAG, "lock120: learned ${it.table}/${it.name} high=${it.high} standard=${it.standard}") }
-        val writable = keys.filter { it.table in WRITABLE && SEP !in it.name && SEP !in it.high && SEP !in it.standard }
-            .let { all -> all.filter { it.table == "secure" && it.name in KNOWN_KEYS }.ifEmpty { all } }
-        if (writable.isEmpty()) return if (keys.isEmpty()) Learned.NOTHING_SEEN else Learned.SYSTEM_ONLY
-        ArmedStore.open(context).edit()
-            .putStringSet(KEY_LEARNED, writable.mapTo(HashSet()) {
-                listOf(it.table, it.name, it.high, it.standard).joinToString(SEP.toString())
-            })
-            .putBoolean(KEY_ON, true)
-            .apply()
-        return Learned.OK
-    }
-
-    private fun read(cr: android.content.ContentResolver, table: String, name: String): String? = try {
-        when (table) {
-            "global" -> Settings.Global.getString(cr, name)
-            "secure" -> Settings.Secure.getString(cr, name)
-            "system" -> Settings.System.getString(cr, name)
-            else -> null
-        }
+    fun phoneMode(context: Context): Int? = try {
+        Settings.Secure.getInt(context.contentResolver, KEY_MODE)
     } catch (t: Throwable) {
         null
+    }
+
+    /**
+     * Screen off: hold it now, so the lock screen comes up on it. With a lock
+     * delay there is no keyguard yet; the wake's [sync] lets it go if none
+     * appears.
+     */
+    fun onScreenOff(context: Context) {
+        if (enabled(context)) hold(context)
+    }
+
+    fun onUnlocked() = release()
+
+    /** A wake, or the service starting: whatever the keyguard is doing now. */
+    fun sync(context: Context) {
+        val km = context.getSystemService(KeyguardManager::class.java)
+        if (enabled(context) && km?.isKeyguardLocked == true) hold(context) else release()
+    }
+
+    private fun hold(context: Context) {
+        app = context.applicationContext
+        handler.removeCallbacks(check)
+        handler.postDelayed(check, CHECK_MS)
+        if (held) return
+        held = true
+        worker.execute {
+            val ok = synchronized(RateLock) { RateLock.holdDisplayRate(LOCK_RATE, token) }
+            Log.i(TAG, "lock120: locked, holding ${RateLock.hz(LOCK_RATE)} Hz" +
+                if (ok) "" else " (the vendor did not take the vote)")
+        }
+    }
+
+    fun release() {
+        handler.removeCallbacks(check)
+        if (!held) return
+        held = false
+        worker.execute {
+            synchronized(RateLock) { RateLock.releaseDisplayRate(token) }
+            Log.i(TAG, "lock120: unlocked, vote released")
+        }
+    }
+
+    /**
+     * The backstop for an unlock that sent no USER_PRESENT. A vote left behind
+     * would cap every armed app at 120, so a screen that is on with no
+     * keyguard lets it go here.
+     */
+    private val check = object : Runnable {
+        override fun run() {
+            val c = app ?: return
+            val km = c.getSystemService(KeyguardManager::class.java)
+            val pm = c.getSystemService(PowerManager::class.java)
+            if (pm?.isInteractive == true && km?.isKeyguardLocked != true) {
+                release()
+                return
+            }
+            if (held) handler.postDelayed(this, CHECK_MS)
+        }
     }
 }

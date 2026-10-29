@@ -267,15 +267,7 @@
     <string name="nothing_boosted">还没有加速任何游戏</string>
     <!-- 锁屏 120 Hz (issue #26) -->
     <string name="lock120_title">锁屏 120 Hz</string>
-    <string name="lock120_sub_setup">解锁时让手机保持在“标准”，下拉栏和切换应用跟随已武装的刷新率；锁定时切换到“高”，锁屏以 120 Hz 而不是 60 Hz 运行。点按设置。</string>
-    <string name="lock120_sub_on">已开启。解锁：标准，系统界面跟随已武装的刷新率。锁定：高，120 Hz。长按重新设置。</string>
-    <string name="lock120_sub_off">已关闭。已设置好。点按开启，长按重新设置。</string>
-    <string name="lock120_sub_grant">需要用 adb 授权一次：\nadb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
-    <string name="lock120_learn_title">让应用认识这个设置</string>
-    <string name="lock120_learn_body">手机不会告诉应用刷新率选项写入的是哪个设置，所以请在应用观察时修改一次。\n\n1. 点按“开始”，会打开显示设置。\n2. 打开“屏幕刷新率”。\n3. 依次选择“标准”、“高”、再选“标准”。\n4. 返回本应用。\n\n手机保持在“标准”。只有在锁定时，应用才会把它切换到“高”。</string>
-    <string name="lock120_learn_start">开始</string>
-    <string name="lock120_learned">完成。锁屏将以 120 Hz 运行。</string>
-    <string name="lock120_nothing">没有看到变化。请依次选择“标准”、“高”、“标准”，然后再试一次。</string>
-    <string name="lock120_system_only">此手机把该选项保存在应用无法写入的位置，此功能无法使用。</string>
-    <string name="lock120_no_screen">没有可打开的显示设置页面。请自行打开并修改该选项，然后返回。</string>
+    <string name="lock120_sub_off">用于手机刷新率设为“标准”时：下拉栏和切换应用跟随已武装的刷新率，但锁屏会降到 60 Hz。此功能让锁屏保持 120 Hz。无需 adb。</string>
+    <string name="lock120_sub_on">已开启。手机锁定时屏幕保持 120 Hz，解锁后立即释放。</string>
+    <string name="lock120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时锁屏已经是 120 Hz，但下拉栏和切换应用会被限制在 120 Hz。</string>
 </resources>

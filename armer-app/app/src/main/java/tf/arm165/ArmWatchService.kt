@@ -942,14 +942,14 @@ class ArmWatchService : Service() {
             // The unlock is not a wake: the screen has been on since the
             // keyguard came up, and the restore below already ran then.
             if (i?.action == Intent.ACTION_USER_PRESENT) {
-                LockRate.onUnlocked(this@ArmWatchService)
+                LockRate.onUnlocked()
                 return
             }
             val off = i?.action == Intent.ACTION_SCREEN_OFF
             screenOn = !off
-            // Before the panel is back: the lock screen has to come up on the
-            // mode it is shown in. A wake with no keyguard gets no
-            // USER_PRESENT to wait for, so sync covers that here.
+            // Before the panel is back: the lock screen has to come up on its
+            // vote. A wake with no keyguard gets no USER_PRESENT to wait for,
+            // so sync lets the vote go here instead.
             if (off) LockRate.onScreenOff(this@ArmWatchService)
             else LockRate.sync(this@ArmWatchService)
             handler.removeCallbacks(tick)
@@ -1059,6 +1059,9 @@ class ArmWatchService : Service() {
             }
         }
         handler.removeCallbacksAndMessages(null)
+        // Nothing hears the unlock once this is gone, and a held lock-screen
+        // vote outranks every app's pin.
+        LockRate.release()
         Choreographer.getInstance().removeFrameCallback(panelFrames)
         worker.shutdown()
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}

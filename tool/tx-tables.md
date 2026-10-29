@@ -45,3 +45,27 @@ extension — the app can pin it the same way as 165:
 
 `sys_dynamic_frame_config.xml` stays capped at `targetFramerate="120"` — the 185 Hz tier
 exists only in the vendor game-rate channel, which is exactly what the vote drives.
+
+## OnePlus 15 (OxygenOS, Android 17) — the display-wide vote
+
+Source: full OTA `system` partition (payload manifest sha256-verified),
+`system/framework/oplus-services.jar` and `oplus-framework.jar`. Same table as the baseline.
+
+    13  0x0d  requestRefreshRateWithToken(Z, I, IBinder) -> Z   ← Lock screen at 120 Hz
+
+`OplusDisplayModeService` passes it straight to `OplusRefreshRatePolicyImpl` with **no
+permission check**, which puts a fixed vote at priority 70 (`PRIORITY_MEMC`) in
+`OplusRefreshRateCore`. The core resolves the panel to the highest-priority fixed vote, and
+the lock screen's own pick is a priority-0 window vote, so this one wins. The token is linked
+to the caller's death, so the vote cannot outlive the app. On builds with the
+`oplus.software.display.game.memc_enable`, FRC or AI-SR display features the call goes to the
+MEMC chip's feedback instead and votes nothing.
+
+Why the lock screen is 60 on Standard (`getNormalModePickPreferredId`): while the keyguard
+shows, the pick is `getKeyguardRefreshRateId()` (= 120), except when the mode
+(`Settings.Secure oplus_customize_screen_refresh_rate`, 2 = Standard) is Standard, where it is
+SystemUI's configured rate instead.
+
+Closed to an unprivileged caller on this build: `setAppOverrideRefreshRate` and the other
+override-store calls (`oplus.permission.OPLUS_COMPONENT_SAFE`), `requestRefreshRateCommon`,
+`setFollowFocusEnable` and `getVoteInfo` (`com.oplus.permission.safe.WINDOW`).

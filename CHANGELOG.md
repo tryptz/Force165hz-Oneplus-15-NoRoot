@@ -6,13 +6,9 @@
 
 - **Lock screen at 120 Hz** (issue #26), in Settings. On ColorOS the phone's
   own *Screen refresh rate* option caps SystemUI (app switching, the shade)
-  at 120 on High, and drops the lock screen to 60 on Standard. With this on,
-  the phone runs on Standard while unlocked, so SystemUI follows the armed
-  rate, and the watchdog switches it to High as the screen goes off, so the
-  lock screen comes up at 120. Unlocking switches it back. Needs the
-  `WRITE_SECURE_SETTINGS` grant over adb. The first tap asks you to flip the
-  option once (Standard, High, Standard) so the app learns the values your
-  phone uses.
+  at 120 on High, and drops the lock screen to 60 on Standard. With the phone
+  on Standard and this on, the app holds a 120 Hz display vote while the phone
+  is locked and releases it on unlock. No adb, no permission.
 
 ## 1.1.0
 
