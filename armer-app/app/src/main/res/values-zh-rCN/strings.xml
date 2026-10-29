@@ -66,7 +66,7 @@
          a still screen actually rests at per vote. The why (the park, and why 165
          is the one rate that does not take it) is on the help screen under
          "Letting the panel idle" and "What may park". -->
-    <string name="idle_note">空闲：静止画面会自行降频，有动态内容时恢复。60、90、120 和 144 均可降至 1 Hz。只有 165 停在更高处——其面板模式自身的 55 Hz 下限。</string>
+    <string name="idle_note">空闲：静止画面会自行降频，有动态内容时恢复。60、90、120 和 144 均可降至 1 Hz。只有 165 停在更高处——其面板模式自身的 %1$d Hz 下限。</string>
 
     <!-- navigation / support -->
     <string name="back">返回</string>
@@ -185,7 +185,7 @@
     <string name="help_pin_body">请求把面板的最小和最大刷新率设为同一数值。只要已武装的应用在屏幕上，面板就没有可移动的范围，所以这是锁定而非上限。</string>
 
     <string name="help_floors_title">每个速率能空闲到多少</string>
-    <string name="help_floors_body">每个速率选择的面板模式都有自己的空闲下限。在本系统实测：165 停在 55 Hz，144 约 48，60 和 90 为 30，120 则一路降到 1。</string>
+    <string name="help_floors_body">每个速率选择的面板模式都有自己的空闲下限。在本系统实测：165 停在 %1$d Hz，144 约 48，60 和 90 为 30，120 则一路降到 1。</string>
 
     <string name="help_watchdog_title">看门狗</string>
     <string name="help_watchdog_body">游戏引擎在取得焦点时会重新锁定自己的帧率，这会覆盖一次性的请求。看门狗在亮屏期间重发投票，让我们的一方最后落地。它的通知会显示正在保持多少个应用。</string>
@@ -201,7 +201,7 @@
     <string name="help_park_body">屏幕上没有东西移动时，投票被换成 120——唯一一个模式横跨 1 到 120 的速率。面板由此可以降频，而投票本身仍然保持。需要 120 以上速率的内容会在约 55 毫秒内取回已武装的速率。</string>
 
     <string name="help_park_rule_title">什么可以驻留</string>
-    <string name="help_park_rule_body">只有 144，而且这是测量结果而非规则。60、90 和 120 在自己的模式里本来就能到 1 Hz，驻留对它们毫无收获，还会抬高你特意选定的上限。165 是唯一无法空闲的模式：静止的 165 屏幕停在 55 Hz。驻留它也无济于事，因为它会落在的 120 是一个 120 的锁定，高于那个 55。于是只剩 144——切换到 120 干净利落，面板一路降到 1。</string>
+    <string name="help_park_rule_body">只有 144，而且这是测量结果而非规则。60、90 和 120 在自己的模式里本来就能到 1 Hz，驻留对它们毫无收获，还会抬高你特意选定的上限。165 是唯一无法空闲的模式：静止的 165 屏幕停在 %1$d Hz。驻留它也无济于事，因为它会落在的 120 是一个 120 的锁定，高于那个 %1$d。于是只剩 144——切换到 120 干净利落，面板一路降到 1。</string>
 
     <string name="help_optin_title">系统界面一行</string>
     <string name="help_optin_body">通知栏、快捷设置和锁屏属于 SystemUI，而不属于你所在的应用。在此系统上武装它毫无效果：面板以前台应用窗口决定模式，而那些是叠加层。保留此行是为了行为不同的系统，全部武装始终跳过它。</string>

@@ -65,7 +65,9 @@ class HelpActivity : Activity() {
             setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
         addView(TextView(context).apply {
-            setText(bodyRes)
+            // The two cards that quote the 165 floor take it as an argument;
+            // getString ignores it for the rest.
+            text = getString(bodyRes, RateLock.floor165Hz)
             setTextColor(getColor(R.color.text_secondary))
             textSize = 12.5f
             setLineSpacing(dp(3).toFloat(), 1f)

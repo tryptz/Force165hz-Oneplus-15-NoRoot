@@ -130,7 +130,7 @@ object RateLock {
     /**
      * Measured LTPO idle floor of the panel mode each rateId selects — the
      * lowest the panel goes while that vote is held. Measured on this build
-     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at 55.
+     * (README): 60, 90 and 120 all reach 1 Hz; 165 stops at [floor165Hz].
      *
      * So 165 is the only mode that cannot idle, and the only reason the park
      * exists. A still screen with 165 held ramps down to 55 and stops, which
@@ -143,10 +143,19 @@ object RateLock {
      * for the floor. Now that 60, 90 and 120 all reach 1 it is likely 144
      * does too, which would make the park pointless for it. Measure it.
      */
+    /**
+     * Where a still 165 screen rests: 55 Hz on the OnePlus 15's ColorOS 16,
+     * 33 Hz on ColorOS 17 (Android 17, API 37), as reported on the OnePlus 15
+     * in issue #26. The watchdog counts the panel climbing 10 Hz above
+     * this as motion, so keeping 55 on ColorOS 17 would read anything between
+     * 33 and 65 as still.
+     */
+    val floor165Hz: Int = if (Build.VERSION.SDK_INT >= 37) 33 else 55
+
     fun idleFloorHz(rateId: Int): Int = when (onPanel(rateId)) {
         RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
-        RATE_165 -> 55
+        RATE_165 -> floor165Hz
         // Never measured: the OnePlus 16's own floor. The estimate is kept
         // deliberately, like 144's was — guessed low only delays a park.
         RATE_185 -> 60

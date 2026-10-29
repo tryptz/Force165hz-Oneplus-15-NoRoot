@@ -10,6 +10,12 @@
   on Standard and this on, the app holds a 120 Hz display vote while the phone
   is locked and releases it on unlock. No adb, no permission.
 
+### Changed
+
+- **165 Hz idles to 33 Hz on ColorOS 17** (55 on ColorOS 16). The watchdog,
+  the note on the main screen and Help now use the floor of the phone's own
+  build, so motion between 33 and 65 Hz is no longer read as a still screen.
+
 ## 1.1.0
 
 ### Added

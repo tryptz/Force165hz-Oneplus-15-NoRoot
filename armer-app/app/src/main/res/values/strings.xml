@@ -68,7 +68,7 @@
          a still screen actually rests at per vote. The why (the park, and why 165
          is the one rate that does not take it) is on the help screen under
          "Letting the panel idle" and "What may park". -->
-    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the 55 Hz floor of its own panel mode.</string>
+    <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the %1$d Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
     <string name="back">Back</string>
@@ -188,7 +188,7 @@
     <string name="help_pin_body">The request sets the panel minimum and maximum to the same rate. While an armed app is on screen the panel has no range left to move inside, so it is a pin rather than a ceiling.</string>
 
     <string name="help_floors_title">What each rate can idle to</string>
-    <string name="help_floors_body">Every rate selects a panel mode with its own idle floor. Measured on this build: 165 rests at 55 Hz, 144 near 48, 60 and 90 at 30, and 120 goes all the way down to 1.</string>
+    <string name="help_floors_body">Every rate selects a panel mode with its own idle floor. Measured on this build: 165 rests at %1$d Hz, 144 near 48, 60 and 90 at 30, and 120 goes all the way down to 1.</string>
 
     <string name="help_watchdog_title">The watchdog</string>
     <string name="help_watchdog_body">Game engines re-pin their own frame rate whenever they take focus, which overwrites a one-shot request. The watchdog re-issues the vote while the screen is on so ours lands last. Its notification says how many apps it is holding.</string>
@@ -204,7 +204,7 @@
     <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
 
     <string name="help_park_rule_title">What may park</string>
-    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at 55 Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that 55. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
+    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at %1$d Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that %1$d. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
 
     <string name="help_optin_title">The system UI row</string>
     <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>

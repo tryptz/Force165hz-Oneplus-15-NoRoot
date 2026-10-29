@@ -82,6 +82,9 @@ class MainActivity : ShellActivity() {
         rateSegments = findViewById(R.id.rate_segments)
         watchdogDot = findViewById(R.id.watchdog_dot)
         watchdogLabel = findViewById(R.id.watchdog_label)
+        // The 165 floor is a per-build measurement, so the note says the
+        // one this phone has rather than the one it was written on.
+        findViewById<TextView>(R.id.idle_note).text = getString(R.string.idle_note, RateLock.floor165Hz)
         chips = listOf(
             findViewById<TextView>(R.id.chip_all) to Filter.ALL,
             findViewById<TextView>(R.id.chip_armed) to Filter.ARMED,
