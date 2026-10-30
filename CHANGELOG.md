@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Game developer options** (issue #24), in Settings. Opens Game Space's
+  hidden *Performance and frame rate* menu (frame interpolation, super
+  resolution, GT mode, thermal control and more) where the phone allows it.
+  The screen is looked up on the phone each time, so a renamed one is still
+  found. Where Game Space has closed it to other apps, the row says so
+  instead; nothing, not even adb, can open it then.
+
 ## 1.1.2
 
 ### Added

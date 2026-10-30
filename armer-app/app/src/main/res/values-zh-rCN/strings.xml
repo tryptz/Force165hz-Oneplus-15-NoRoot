@@ -101,6 +101,13 @@
     <string name="language_system">跟随系统</string>
     <string name="fps_row_sub">移动的方块，每个速率一条通道，以及面板真正在做什么</string>
     <string name="fps_open">打开</string>
+    <string name="gamedev_title">游戏开发者选项</string>
+    <string name="gamedev_open">打开</string>
+    <string name="gamedev_sub_open">游戏空间隐藏的“性能与帧率”菜单：游戏插帧、超级分辨率、GT 性能模式、温控开关等。这些设置属于游戏空间本身，而非本应用。</string>
+    <string name="gamedev_sub_closed">游戏空间有此菜单，但当前版本不允许其他应用打开，因此无法从这里或通过 adb 打开。</string>
+    <string name="gamedev_sub_missing">此版本的游戏空间没有开发者选项菜单。</string>
+    <string name="gamedev_sub_no_gamespace">需要游戏空间（com.oplus.games），但未安装。</string>
+    <string name="gamedev_failed">游戏空间拒绝打开。原因见实时日志。</string>
     <string name="fps_measuring">测量中…</string>
     <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d 长</string>
     <string name="fps_strip_label">帧时间，最近 2 秒</string>

@@ -62,6 +62,13 @@ class SettingsActivity : Activity() {
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
+        findViewById<View>(R.id.row_gamedev).setOnClickListener {
+            if (!GameDevMenu.open(this)) {
+                Toast.makeText(this, R.string.gamedev_failed, Toast.LENGTH_LONG).show()
+                syncGameDevRow()
+            }
+        }
+
         findViewById<View>(R.id.row_fps).setOnClickListener {
             startActivity(Intent(this, FpsTestActivity::class.java))
         }
@@ -76,6 +83,25 @@ class SettingsActivity : Activity() {
         syncUsageRow()
         syncBindingRow()
         syncLock120Row()
+        syncGameDevRow()
+    }
+
+    /**
+     * Whether Game Space's developer menu can be opened from here, asked of
+     * the phone each time the page shows: a Game Space update can open or
+     * close it. Only an open one gets a working button.
+     */
+    private fun syncGameDevRow() {
+        val found = GameDevMenu.find(this)
+        val row = findViewById<View>(R.id.row_gamedev)
+        row.isEnabled = found is GameDevMenu.Found.Open
+        row.alpha = if (row.isEnabled) 1f else 0.6f
+        findViewById<TextView>(R.id.gamedev_sub).setText(when (found) {
+            is GameDevMenu.Found.Open -> R.string.gamedev_sub_open
+            is GameDevMenu.Found.Closed -> R.string.gamedev_sub_closed
+            GameDevMenu.Found.Missing -> R.string.gamedev_sub_missing
+            GameDevMenu.Found.NoGameSpace -> R.string.gamedev_sub_no_gamespace
+        })
     }
 
     /**
