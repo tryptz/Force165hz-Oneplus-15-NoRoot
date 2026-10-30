@@ -85,7 +85,7 @@ You can have both. No adb needed:
 <p align="center">
   <img src="screenshot-standard.png" width="320" alt="ColorOS Screen refresh rate set to Standard, with the 165 Hz counter showing">
   <br>
-  <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen at 120 Hz turned on">
+  <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen and camera at 120 Hz turned on">
 </p>
 
 Now the UI runs at 165 Hz, and the lock screen and the camera's buttons and
