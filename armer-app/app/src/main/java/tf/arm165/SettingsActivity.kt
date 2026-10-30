@@ -80,8 +80,10 @@ class SettingsActivity : Activity() {
 
     /**
      * The switch, and a word on the phone's own mode: this is for Standard.
-     * On High the lock screen is at 120 already and SystemUI is capped there
-     * whatever this does; where the mode cannot be read, nothing is claimed.
+     * On High the lock screen and the camera are at 120 already and SystemUI
+     * is capped there whatever this does; where the mode cannot be read,
+     * nothing is claimed. Usage access is how the camera is seen, so the row
+     * says when that half is waiting on it.
      */
     private fun syncLock120Row() {
         val on = LockRate.enabled(this)
@@ -89,6 +91,7 @@ class SettingsActivity : Activity() {
         val mode = LockRate.phoneMode(this)
         findViewById<TextView>(R.id.lock120_sub).setText(when {
             mode != null && mode != LockRate.MODE_STANDARD -> R.string.lock120_sub_not_standard
+            on && !Foreground.hasAccess(this) -> R.string.lock120_sub_no_usage
             on -> R.string.lock120_sub_on
             else -> R.string.lock120_sub_off
         })

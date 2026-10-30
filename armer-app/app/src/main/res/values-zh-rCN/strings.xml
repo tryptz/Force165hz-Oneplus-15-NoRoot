@@ -266,8 +266,9 @@
     <string name="games_toggle_desc">将 %1$s 加速到 165 Hz</string>
     <string name="nothing_boosted">还没有加速任何游戏</string>
     <!-- 锁屏 120 Hz (issue #26) -->
-    <string name="lock120_title">锁屏 120 Hz</string>
-    <string name="lock120_sub_off">用于手机刷新率设为“标准”时：下拉栏和切换应用跟随已武装的刷新率，但锁屏会降到 60 Hz。此功能让锁屏保持 120 Hz。无需 adb。</string>
-    <string name="lock120_sub_on">已开启。手机锁定时屏幕保持 120 Hz，解锁后立即释放。</string>
-    <string name="lock120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时锁屏已经是 120 Hz，但下拉栏和切换应用会被限制在 120 Hz。</string>
+    <string name="lock120_title">锁屏和相机 120 Hz</string>
+    <string name="lock120_sub_off">用于手机刷新率设为“标准”时：下拉栏和切换应用跟随已武装的刷新率，但锁屏和相机的按钮会降到 60 Hz。此功能让两者保持 120 Hz。无需 adb；相机需要使用情况访问权限。</string>
+    <string name="lock120_sub_on">已开启。手机锁定或相机打开时屏幕保持 120 Hz，解锁或离开相机后立即释放。</string>
+    <string name="lock120_sub_no_usage">锁屏已开启。相机需要使用情况访问权限才能被识别：点按上方的“使用情况访问权限”一行授予。</string>
+    <string name="lock120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时锁屏和相机已经是 120 Hz，但下拉栏和切换应用会被限制在 120 Hz。</string>
 </resources>

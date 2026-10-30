@@ -81,7 +81,7 @@
             android:layout_marginStart="10dp" />
     </LinearLayout>
 
-    <!-- the phone on Standard while unlocked, High while locked (issue #26) -->
+    <!-- the phone on Standard, with the lock screen (#26) and camera (#28) at 120 -->
     <LinearLayout
         android:id="@+id/row_lock120"
         android:layout_width="match_parent"
