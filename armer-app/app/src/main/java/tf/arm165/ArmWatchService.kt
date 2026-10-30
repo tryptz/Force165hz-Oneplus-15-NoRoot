@@ -1279,13 +1279,13 @@ class ArmWatchService : Service() {
         /**
          * Stops the watchdog once nothing is armed — a disarm should leave
          * nothing running behind it. The lock-screen switch is the one other
-         * thing that needs it: it is what hears the lock and the unlock.
-         * The camera switch too: it keeps the camera check running.
+         * thing that needs it: it is what hears the lock and the unlock,
+         * and runs the camera check.
          */
         fun stopIfIdle(context: Context) {
             val prefs = ArmedStore.open(context)
             if (ArmedStore.read(prefs).isNotEmpty()) return
-            if (LockRate.anyEnabled(context)) return
+            if (LockRate.enabled(context)) return
             context.stopService(Intent(context, ArmWatchService::class.java))
         }
     }

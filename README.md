@@ -77,7 +77,9 @@ You can have both. No adb needed:
    **Standard**. The option says "a maximum refresh rate of 60 Hz"; ignore
    that, the armed rate still applies.
 2. In 165 Armer, pick **165 Hz** and arm your apps (or **Arm all**).
-3. In 165 Armer, open **Settings** and turn on **Lock screen at 120 Hz**.
+3. In 165 Armer, open **Settings** and turn on **Lock screen and camera at
+   120 Hz**. For the camera, also turn on **Usage access** (the row above it),
+   so the app can see when the camera is open.
 
 <p align="center">
   <img src="screenshot-standard.png" width="320" alt="ColorOS Screen refresh rate set to Standard, with the 165 Hz counter showing">
@@ -85,12 +87,14 @@ You can have both. No adb needed:
   <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen at 120 Hz turned on">
 </p>
 
-Now the UI runs at 165 Hz and the lock screen at 120 Hz. Tested on the OnePlus 15.
+Now the UI runs at 165 Hz, and the lock screen and the camera's buttons and
+menus at 120 Hz. Tested on the OnePlus 15.
 
-**How it works:** while the phone is locked, the app holds a 120 Hz vote with
-the vendor's `requestRefreshRateWithToken`, which needs no permission. That
-vote outranks the 60 Hz that Standard gives the lock screen. The app releases
-it when you unlock, so your armed apps are not capped. If the app is killed,
+**How it works:** while the phone is locked, or the camera is on screen, the
+app holds a 120 Hz vote with the vendor's `requestRefreshRateWithToken`, which
+needs no permission. That vote outranks the 60 Hz that Standard gives the lock
+screen and the camera. The app releases it when you unlock or leave the
+camera, so your armed apps are not capped. If the app is killed,
 the phone drops the vote by itself. Details are in
 [`tool/tx-tables.md`](tool/tx-tables.md).
 

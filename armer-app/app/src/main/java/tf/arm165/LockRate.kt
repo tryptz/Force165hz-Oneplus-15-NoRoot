@@ -40,8 +40,8 @@ import java.util.concurrent.Executors
 object LockRate {
     private const val TAG = "Arm165"
 
+    /** One switch for both: the lock screen and the camera. */
     private const val KEY_ON = "lock120_on"
-    private const val KEY_CAMERA = "camera120_on"
 
     /** What the screen is held at: 120, as it is on High. */
     private const val LOCK_RATE = RateLock.RATE_120
@@ -84,20 +84,9 @@ object LockRate {
         sync(context)
     }
 
-    fun cameraEnabled(context: Context): Boolean =
-        ArmedStore.open(context).getBoolean(KEY_CAMERA, false)
-
-    fun setCameraEnabled(context: Context, on: Boolean) {
-        ArmedStore.open(context).edit().putBoolean(KEY_CAMERA, on).apply()
-        sync(context)
-    }
-
-    /** Either switch: what keeps the watchdog running with nothing armed. */
-    fun anyEnabled(context: Context): Boolean = enabled(context) || cameraEnabled(context)
-
     /**
      * The phone's refresh-rate mode, or null where the table will not say.
-     * Read only, for the hint on the Settings rows: this works best on
+     * Read only, for the hint on the Settings row: this works best on
      * Standard, and on High there is nothing for it to fix.
      */
     fun phoneMode(context: Context): Int? = try {
@@ -129,7 +118,7 @@ object LockRate {
         app = context.applicationContext
         val km = context.getSystemService(KeyguardManager::class.java)
         locked = enabled(context) && km?.isKeyguardLocked == true
-        if (!cameraEnabled(context) || locked) camera = false
+        if (!enabled(context) || locked) camera = false
         apply()
     }
 
@@ -146,7 +135,7 @@ object LockRate {
         handler.removeCallbacks(check)
         val c = app
         if (locked) handler.postDelayed(check, CHECK_MS)
-        else if (c != null && cameraEnabled(c) && interactive(c)) handler.postDelayed(check, CAMERA_POLL_MS)
+        else if (c != null && enabled(c) && interactive(c)) handler.postDelayed(check, CAMERA_POLL_MS)
 
         val want = locked || camera
         if (want == held) return
@@ -170,8 +159,8 @@ object LockRate {
     /**
      * Two jobs. The backstop for an unlock that sent no USER_PRESENT: a vote
      * left behind would cap every armed app at 120, so a screen that is on
-     * with no keyguard lets the lock reason go. And, unlocked with the camera
-     * switch on, whether the camera is what is on screen.
+     * with no keyguard lets the lock reason go. And, unlocked, whether the
+     * camera is what is on screen.
      */
     private val check = object : Runnable {
         override fun run() {
@@ -179,7 +168,7 @@ object LockRate {
             val km = c.getSystemService(KeyguardManager::class.java)
             val unlocked = interactive(c) && km?.isKeyguardLocked != true
             if (locked && unlocked) locked = false
-            if (!unlocked || !cameraEnabled(c)) {
+            if (!unlocked || !enabled(c)) {
                 camera = false
                 apply()
                 return
@@ -190,7 +179,7 @@ object LockRate {
             worker.execute {
                 val inFront = Foreground.current(c) in CAMERA_PACKAGES
                 handler.post {
-                    if (!locked && interactive(c) && cameraEnabled(c)) {
+                    if (!locked && interactive(c) && enabled(c)) {
                         if (inFront != camera) Log.i(TAG, "camera120: camera ${if (inFront) "on" else "off"} screen")
                         camera = inFront
                     }
