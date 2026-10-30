@@ -22,7 +22,7 @@ Rootless per-app refresh-rate unlock for OnePlus phones: **60 / 90 / 120 / 144 /
 - Search, and filters for armed, games, user and system apps
 - Home-screen widget: arm all, clear and pick the rate
 - Watchdog that keeps the rate held, and restores armed apps after a reboot
-- 165 Hz across the UI with the lock screen kept at 120 Hz ([how](#165-hz-across-the-ui-120-hz-on-the-lock-screen))
+- 165 Hz across the UI with the lock screen and camera kept at 120 Hz ([how](#165-hz-across-the-ui-120-hz-on-the-lock-screen-and-camera))
 - Smoothness test and a live log
 - English and 简体中文, with a language switcher in Settings
 
@@ -32,7 +32,8 @@ Rootless per-app refresh-rate unlock for OnePlus phones: **60 / 90 / 120 / 144 /
 2. Pick a rate at the top.
 3. Tap an app to arm it, or press **Arm all**.
 
-Usage access is only needed when more than eight apps are armed.
+Usage access is only needed when more than eight apps are armed, or for the
+camera part of **Lock screen and camera at 120 Hz**.
 
 ## Supported phones
 
@@ -61,15 +62,15 @@ service. The app finds the right vendor call for each firmware at launch, and
 Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
 still screen stays at 60 Hz or above whatever rate is selected.
 
-## 165 Hz across the UI, 120 Hz on the lock screen
+## 165 Hz across the UI, 120 Hz on the lock screen and camera
 
 ColorOS's own **Screen refresh rate** option makes you pick one of two bad
 choices:
 
-| Phone setting | App switching, notification shade | Lock screen |
-|---|---|---|
-| **High** | capped at 120 Hz | 120 Hz |
-| **Standard** | follows the armed rate (165 Hz) | drops to 60 Hz |
+| Phone setting | App switching, notification shade | Lock screen | Camera buttons and menus |
+|---|---|---|---|
+| **High** | capped at 120 Hz | 120 Hz | 120 Hz |
+| **Standard** | follows the armed rate (165 Hz) | drops to 60 Hz | drops to 60 Hz |
 
 You can have both. No adb needed:
 
@@ -102,6 +103,8 @@ the phone drops the vote by itself. Details are in
 
 - Higher rates use more battery and run warmer.
 - If a video app judders, arm it at 60 Hz.
+- The camera viewfinder runs at 60 Hz on any setting; only its buttons and
+  menus follow the refresh rate.
 - An OxygenOS update can close the interface this app uses.
 - If an app stays pinned after disarming, reboot.
 
