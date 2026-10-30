@@ -273,4 +273,9 @@
     <string name="lock120_sub_off">For the phone\'s Standard refresh rate, where the shade and app switching follow the armed rate but the lock screen drops to 60 Hz. This holds the lock screen at 120 Hz. No adb needed.</string>
     <string name="lock120_sub_on">On. While the phone is locked the screen is held at 120 Hz, and the hold is released when you unlock.</string>
     <string name="lock120_sub_not_standard">Works with the phone\'s refresh rate on Standard (Settings › Display › Screen refresh rate). On High the lock screen is at 120 Hz already, but the shade and app switching stay capped at 120.</string>
+    <string name="camera120_title">Camera at 120 Hz</string>
+    <string name="camera120_sub_off">For the phone\'s Standard refresh rate, where the camera\'s buttons and menus drop to 60 Hz. This holds the screen at 120 Hz while the camera is open. Needs usage access to see the camera.</string>
+    <string name="camera120_sub_on">On. While the camera is on screen the screen is held at 120 Hz, and the hold is released when you leave it.</string>
+    <string name="camera120_sub_no_usage">On, but waiting for usage access: without it the camera cannot be seen on screen. Tap the Usage access row above to grant it.</string>
+    <string name="camera120_sub_not_standard">Works with the phone\'s refresh rate on Standard (Settings › Display › Screen refresh rate). On High the camera\'s buttons and menus are at 120 Hz already.</string>
 </resources>

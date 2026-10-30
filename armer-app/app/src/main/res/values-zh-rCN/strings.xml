@@ -270,4 +270,9 @@
     <string name="lock120_sub_off">用于手机刷新率设为“标准”时：下拉栏和切换应用跟随已武装的刷新率，但锁屏会降到 60 Hz。此功能让锁屏保持 120 Hz。无需 adb。</string>
     <string name="lock120_sub_on">已开启。手机锁定时屏幕保持 120 Hz，解锁后立即释放。</string>
     <string name="lock120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时锁屏已经是 120 Hz，但下拉栏和切换应用会被限制在 120 Hz。</string>
+    <string name="camera120_title">相机 120 Hz</string>
+    <string name="camera120_sub_off">用于手机刷新率设为“标准”时：相机的按钮和菜单会降到 60 Hz。此功能在相机打开时让屏幕保持 120 Hz。需要使用情况访问权限才能识别相机。</string>
+    <string name="camera120_sub_on">已开启。相机在前台时屏幕保持 120 Hz，离开相机后立即释放。</string>
+    <string name="camera120_sub_no_usage">已开启，但缺少使用情况访问权限，无法识别相机是否在前台。点按上方的“使用情况访问权限”一行授予。</string>
+    <string name="camera120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时相机的按钮和菜单已经是 120 Hz。</string>
 </resources>

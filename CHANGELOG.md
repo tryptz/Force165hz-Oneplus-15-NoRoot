@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **Camera at 120 Hz** (issue #28), in Settings. On Standard the camera's
+  buttons and menus run at 60 (its viewfinder is 60 on either mode). With
+  this on, the app holds the same 120 Hz display vote the lock screen uses
+  while the camera is on screen, and releases it when you leave. Needs usage
+  access to see the camera.
+
 ## 1.1.1
 
 ### Added

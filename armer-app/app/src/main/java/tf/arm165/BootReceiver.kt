@@ -16,7 +16,7 @@ class BootReceiver : BroadcastReceiver() {
         // last; the watchdog re-orders every later pass around the one on
         // screen (see RateLock.armEach).
         RateLock.armEach(armed)
-        if (armed.isNotEmpty() || LockRate.enabled(context)) {
+        if (armed.isNotEmpty() || LockRate.anyEnabled(context)) {
             ArmWatchService.start(context) // keep re-arming after games re-pin their rate
         }
     }

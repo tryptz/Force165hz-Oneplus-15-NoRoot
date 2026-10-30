@@ -57,7 +57,11 @@ object Foreground {
      * Resume events are sparse — one per app switch, nothing at all while a
      * game is held — so the last one seen is remembered across calls rather
      * than re-queried over a window wide enough to contain it.
+     *
+     * Synchronized: the watchdog and [LockRate]'s camera check ask from
+     * different threads, and both advance the same window.
      */
+    @Synchronized
     fun current(context: Context): String? {
         val usm = context.getSystemService(UsageStatsManager::class.java) ?: return lastPkg
         val now = System.currentTimeMillis()

@@ -124,6 +124,49 @@
             android:layout_marginStart="10dp" />
     </LinearLayout>
 
+    <!-- the camera's buttons and menus at 120 on Standard (issue #28) -->
+    <LinearLayout
+        android:id="@+id/row_camera120"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/screen_pad"
+        android:layout_marginEnd="@dimen/screen_pad"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_card"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="14dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/camera120_title"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/camera120_sub"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <tf.arm165.RateSwitch
+            android:id="@+id/camera120_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp" />
+    </LinearLayout>
+
     <!-- this build's version, and a check against the latest GitHub release -->
     <LinearLayout
         android:id="@+id/row_update"
