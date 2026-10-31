@@ -102,7 +102,9 @@ object GameDevMenu {
                     a.name.lowercase().let { n -> NAME_HINTS.any { it in n } }
             }
                 .forEach { candidates += pkg to it }
-            exported[pkg] = activities.filter { it.exported && it.enabled }.map { it.name }
+            exported[pkg] = activities.filter { it.exported && it.enabled }.map {
+                if (openable(context, it)) it.name else "${it.name} (needs ${it.permission})"
+            }
         }
 
         if (!gameSpace && candidates.isEmpty()) return Found.NoGameSpace
@@ -180,10 +182,18 @@ object GameDevMenu {
 
     /** The [RELATED] pages this phone lets other apps open. */
     fun related(context: Context): List<Related> = RELATED.filter {
+        val name = it.component.flattenToShortString()
         try {
             @Suppress("DEPRECATION")
-            openable(context, context.packageManager.getActivityInfo(it.component, PackageManager.MATCH_DISABLED_COMPONENTS))
+            val info = context.packageManager.getActivityInfo(it.component, PackageManager.MATCH_DISABLED_COMPONENTS)
+            val ok = openable(context, info)
+            Log.i(TAG, "gamedev: related $name exported=${info.exported} enabled=${info.enabled}" +
+                (info.permission?.let { p ->
+                    " permission=$p granted=${context.checkSelfPermission(p) == PackageManager.PERMISSION_GRANTED}"
+                } ?: "") + if (ok) " -> offered" else " -> not offered")
+            ok
         } catch (e: PackageManager.NameNotFoundException) {
+            Log.i(TAG, "gamedev: related $name not on this phone")
             false
         }
     }
