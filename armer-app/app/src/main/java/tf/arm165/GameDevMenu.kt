@@ -24,8 +24,8 @@ import android.util.Log
  * nothing here is taken on trust: [find] asks the phone every time, in Game
  * Space and in COSA (the service behind GPA, frame interpolation and super
  * resolution, which the menu's switches drive), by the action, then the
- * known name, then any activity whose name looks like a developer or debug
- * screen. The first one other apps may open wins. One that exists but is
+ * known name, then any activity of its own whose name looks like a developer
+ * options screen. The first one other apps may open wins. One that exists but is
  * closed is reported as such, because no app — and no adb shell either —
  * can start a screen its owner has not exported. When nothing matches, the
  * log lists every screen those packages do export: the only ones this app
@@ -40,8 +40,15 @@ object GameDevMenu {
     private const val KNOWN = "business.compact.activity.GameDevelopOptionsActivity"
     private const val EXTRA = "gameDevelopOptions"
 
-    /** Lower-cased pieces of a class name that mark a developer or debug screen. */
-    private val NAME_HINTS = listOf("gamedevelop", "developoption", "developeroption", "devoption", "debug")
+    /**
+     * Lower-cased pieces of a class name that mark a developer-options screen.
+     * Not "debug": Game Space 10.41 carries nineteen debug screens, every one
+     * an ad or mini-program SDK's own, and none of them the menu.
+     */
+    private val NAME_HINTS = listOf("gamedevelop", "developoption", "developeroption", "devoption")
+
+    /** Libraries bundled inside Game Space: their screens are never the menu. */
+    private val SDK_PREFIXES = listOf("com.applovin.", "com.qq.", "com.tencent.", "com.google.", "com.bytedance.")
 
     sealed class Found {
         /** Other apps may open it: [component] is what [open] starts. */
@@ -94,7 +101,10 @@ object GameDevMenu {
             Log.i(TAG, "gamedev: $pkg ${info.versionName}, ${activities.size} screens, " +
                 "${activities.count { it.exported }} open to other apps")
             activities.firstOrNull { it.name == KNOWN }?.let { candidates += pkg to it }
-            activities.filter { a -> a.name.lowercase().let { n -> NAME_HINTS.any { it in n } } }
+            activities.filter { a ->
+                SDK_PREFIXES.none { a.name.startsWith(it) } &&
+                    a.name.lowercase().let { n -> NAME_HINTS.any { it in n } }
+            }
                 .forEach { candidates += pkg to it }
             exported[pkg] = activities.filter { it.exported && it.enabled }.map { it.name }
         }
