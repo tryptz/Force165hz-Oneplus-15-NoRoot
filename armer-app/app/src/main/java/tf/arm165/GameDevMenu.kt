@@ -158,4 +158,49 @@ object GameDevMenu {
             false
         }
     }
+
+    /**
+     * Game Space and COSA pages that other apps may open and that sit near
+     * the old menu: on 10.41.21 the menu itself is gone, and these are what
+     * is left of performance and frame-rate settings. Offered to try, not
+     * vouched for: some may want a game picked first.
+     */
+    class Related(val component: ComponentName, val label: Int)
+
+    private val RELATED = listOf(
+        Related(ComponentName("com.oplus.games", "business.module.performance.settings.PerfSettingActivity"),
+            R.string.gamedev_rel_perf),
+        Related(ComponentName("com.oplus.cosa", "com.oplus.cosa.enhanceservice.EnhanceServiceDetailActivity"),
+            R.string.gamedev_rel_cosa),
+        Related(ComponentName("com.oplus.games", "business.module.screenanimation.settings.ScreenLightEffectSettingActivity"),
+            R.string.gamedev_rel_light),
+        Related(ComponentName("com.oplus.games", "business.module.gameaitool.settings.AiLabGameSettingActivity"),
+            R.string.gamedev_rel_ailab),
+    )
+
+    /** The [RELATED] pages this phone lets other apps open. */
+    fun related(context: Context): List<Related> = RELATED.filter {
+        try {
+            @Suppress("DEPRECATION")
+            openable(context, context.packageManager.getActivityInfo(it.component, PackageManager.MATCH_DISABLED_COMPONENTS))
+        } catch (e: PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    /** Starts one of [related]; false when the system refused, and the log says why. */
+    fun openRelated(activity: Activity, page: Related): Boolean {
+        val name = page.component.flattenToShortString()
+        return try {
+            activity.startActivity(Intent().setComponent(page.component))
+            Log.i(TAG, "gamedev: opened related $name")
+            true
+        } catch (e: SecurityException) {
+            Log.w(TAG, "gamedev: related $name refused: ${e.message}")
+            false
+        } catch (e: ActivityNotFoundException) {
+            Log.w(TAG, "gamedev: related $name not found: ${e.message}")
+            false
+        }
+    }
 }

@@ -108,6 +108,12 @@
     <string name="gamedev_sub_missing">此版本的游戏空间没有开发者选项菜单。</string>
     <string name="gamedev_sub_no_gamespace">需要游戏空间（com.oplus.games），但未安装。</string>
     <string name="gamedev_failed">游戏空间拒绝打开。原因见实时日志。</string>
+    <string name="gamedev_sub_related">此版本的游戏空间已没有开发者选项菜单。点按“打开”可查看游戏空间仍允许其他应用打开的相关页面。</string>
+    <string name="gamedev_rel_title">游戏空间相关页面</string>
+    <string name="gamedev_rel_perf">性能设置</string>
+    <string name="gamedev_rel_cosa">增强服务（COSA）</string>
+    <string name="gamedev_rel_light">屏幕光效</string>
+    <string name="gamedev_rel_ailab">AI 实验室游戏设置</string>
     <string name="fps_measuring">测量中…</string>
     <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d 长</string>
     <string name="fps_strip_label">帧时间，最近 2 秒</string>

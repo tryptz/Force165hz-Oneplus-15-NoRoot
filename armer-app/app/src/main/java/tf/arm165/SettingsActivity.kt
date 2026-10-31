@@ -62,12 +62,7 @@ class SettingsActivity : Activity() {
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
-        findViewById<View>(R.id.row_gamedev).setOnClickListener {
-            if (!GameDevMenu.open(this)) {
-                Toast.makeText(this, R.string.gamedev_failed, Toast.LENGTH_LONG).show()
-                syncGameDevRow()
-            }
-        }
+        findViewById<View>(R.id.row_gamedev).setOnClickListener { tapGameDev() }
 
         findViewById<View>(R.id.row_fps).setOnClickListener {
             startActivity(Intent(this, FpsTestActivity::class.java))
@@ -93,15 +88,45 @@ class SettingsActivity : Activity() {
      */
     private fun syncGameDevRow() {
         val found = GameDevMenu.find(this)
+        val related = if (found is GameDevMenu.Found.Open) emptyList() else GameDevMenu.related(this)
         val row = findViewById<View>(R.id.row_gamedev)
-        row.isEnabled = found is GameDevMenu.Found.Open
+        row.isEnabled = found is GameDevMenu.Found.Open || related.isNotEmpty()
         row.alpha = if (row.isEnabled) 1f else 0.6f
-        findViewById<TextView>(R.id.gamedev_sub).setText(when (found) {
-            is GameDevMenu.Found.Open -> R.string.gamedev_sub_open
-            is GameDevMenu.Found.Closed -> R.string.gamedev_sub_closed
-            GameDevMenu.Found.Missing -> R.string.gamedev_sub_missing
-            GameDevMenu.Found.NoGameSpace -> R.string.gamedev_sub_no_gamespace
+        findViewById<TextView>(R.id.gamedev_sub).setText(when {
+            found is GameDevMenu.Found.Open -> R.string.gamedev_sub_open
+            related.isNotEmpty() -> R.string.gamedev_sub_related
+            found is GameDevMenu.Found.Closed -> R.string.gamedev_sub_closed
+            found == GameDevMenu.Found.Missing -> R.string.gamedev_sub_missing
+            else -> R.string.gamedev_sub_no_gamespace
         })
+    }
+
+    /**
+     * The menu where Game Space still has one; otherwise a pick of the
+     * related pages it does let other apps open (Game Space 10.41 dropped
+     * the menu itself).
+     */
+    private fun tapGameDev() {
+        if (GameDevMenu.find(this) is GameDevMenu.Found.Open) {
+            if (!GameDevMenu.open(this)) {
+                Toast.makeText(this, R.string.gamedev_failed, Toast.LENGTH_LONG).show()
+                syncGameDevRow()
+            }
+            return
+        }
+        val pages = GameDevMenu.related(this)
+        if (pages.isEmpty()) {
+            syncGameDevRow()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.gamedev_rel_title)
+            .setItems(pages.map { getString(it.label) }.toTypedArray()) { _, which ->
+                if (!GameDevMenu.openRelated(this, pages[which])) {
+                    Toast.makeText(this, R.string.gamedev_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+            .show()
     }
 
     /**

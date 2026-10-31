@@ -110,6 +110,12 @@
     <string name="gamedev_sub_missing">This version of Game Space has no developer options menu.</string>
     <string name="gamedev_sub_no_gamespace">Needs Game Space (com.oplus.games), which is not installed.</string>
     <string name="gamedev_failed">Game Space refused to open it. The live log says why.</string>
+    <string name="gamedev_sub_related">This version of Game Space has no developer options menu any more. Open lists the related Game Space pages it still lets other apps open, to try.</string>
+    <string name="gamedev_rel_title">Related Game Space pages</string>
+    <string name="gamedev_rel_perf">Performance settings</string>
+    <string name="gamedev_rel_cosa">Enhancement services (COSA)</string>
+    <string name="gamedev_rel_light">Screen light effect</string>
+    <string name="gamedev_rel_ailab">AI lab game settings</string>
     <string name="fps_measuring">measuring…</string>
     <string name="fps_readout">%1$d Hz · %2$.1f ms · ±%3$.1f · %4$d long</string>
     <string name="fps_strip_label">frame time, last 2 s</string>
