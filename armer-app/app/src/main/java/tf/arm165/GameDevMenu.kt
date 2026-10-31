@@ -19,29 +19,35 @@ import android.util.Log
  *         -c android.intent.category.DEFAULT \
  *         --es gameDevelopOptions GameDevelopOptionsActivity
  *
- * and stopped opening after a Game Space update. Either the screen moved or
- * Game Space closed it to other apps, and only the phone can say which, so
- * nothing here is taken on trust: [find] asks the package for the screen
- * every time, by the action first, then by the known name, then by any
- * activity whose name says "GameDevelop". The first one other apps may
- * open wins. One that exists but is closed is reported as such, because no
- * app — and no adb shell either — can start a screen its owner has not
- * exported.
+ * and stopped opening after a Game Space update. On a OnePlus 15 with the
+ * current Game Space neither that name nor that action exists any more, so
+ * nothing here is taken on trust: [find] asks the phone every time, in Game
+ * Space and in COSA (the service behind GPA, frame interpolation and super
+ * resolution, which the menu's switches drive), by the action, then the
+ * known name, then any activity whose name looks like a developer or debug
+ * screen. The first one other apps may open wins. One that exists but is
+ * closed is reported as such, because no app — and no adb shell either —
+ * can start a screen its owner has not exported. When nothing matches, the
+ * log lists every screen those packages do export: the only ones this app
+ * could ever open, and what a renamed menu would be among.
  */
 object GameDevMenu {
     private const val TAG = "Arm165"
 
-    const val PKG = "com.oplus.games"
+    /** Game Space first: it is where the menu lived. */
+    private val PACKAGES = listOf("com.oplus.games", "com.oplus.cosa")
     private const val ACTION = "oplus.intent.action.GAMESPACEGAMEDEVELOP_OPTIONS"
     private const val KNOWN = "business.compact.activity.GameDevelopOptionsActivity"
     private const val EXTRA = "gameDevelopOptions"
-    private const val NAME_HINT = "GameDevelop"
+
+    /** Lower-cased pieces of a class name that mark a developer or debug screen. */
+    private val NAME_HINTS = listOf("gamedevelop", "developoption", "developeroption", "devoption", "debug")
 
     sealed class Found {
         /** Other apps may open it: [component] is what [open] starts. */
         class Open(val component: ComponentName) : Found()
 
-        /** Game Space has it, but only for itself or a permission we lack. */
+        /** It exists, but only for its own package or a permission we lack. */
         class Closed(val component: ComponentName) : Found()
 
         /** Game Space is installed and has no such screen. */
@@ -51,47 +57,71 @@ object GameDevMenu {
         object NoGameSpace : Found()
     }
 
+    /** Ran once per process: the exported-screen dump is long and does not change. */
+    @Volatile
+    private var dumped = false
+
     fun find(context: Context): Found {
         val pm = context.packageManager
-        val candidates = LinkedHashMap<String, ActivityInfo>()
+        // Package -> activity, in the order they should be tried.
+        val candidates = ArrayList<Pair<String, ActivityInfo>>()
+        val exported = LinkedHashMap<String, List<String>>()
+        var gameSpace = false
 
-        // 1. Whatever answers the menu's own action.
-        try {
-            @Suppress("DEPRECATION")
-            pm.queryIntentActivities(Intent(ACTION).setPackage(PKG), PackageManager.MATCH_DISABLED_COMPONENTS)
-                .forEach { candidates.putIfAbsent(it.activityInfo.name, it.activityInfo) }
-        } catch (t: Throwable) {
-            Log.w(TAG, "gamedev: action query failed", t)
-        }
-
-        // 2 and 3. The known name, and anything renamed around it.
-        val activities = try {
-            @Suppress("DEPRECATION")
-            pm.getPackageInfo(PKG, PackageManager.GET_ACTIVITIES or PackageManager.MATCH_DISABLED_COMPONENTS)
-                .activities.orEmpty()
-        } catch (e: PackageManager.NameNotFoundException) {
-            if (candidates.isEmpty()) {
-                Log.i(TAG, "gamedev: $PKG not installed")
-                return Found.NoGameSpace
+        for (pkg in PACKAGES) {
+            // 1. Whatever answers the menu's own action.
+            try {
+                @Suppress("DEPRECATION")
+                pm.queryIntentActivities(Intent(ACTION).setPackage(pkg), PackageManager.MATCH_DISABLED_COMPONENTS)
+                    .forEach { candidates += pkg to it.activityInfo }
+            } catch (t: Throwable) {
+                Log.w(TAG, "gamedev: action query in $pkg failed", t)
             }
-            emptyArray()
-        }
-        activities.firstOrNull { it.name == KNOWN }?.let { candidates.putIfAbsent(it.name, it) }
-        activities.filter { NAME_HINT in it.name }.forEach { candidates.putIfAbsent(it.name, it) }
 
-        if (candidates.isEmpty()) {
-            Log.i(TAG, "gamedev: $PKG has no developer-options screen")
+            // 2 and 3. The known name, and anything named like it.
+            val info = try {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(pkg, PackageManager.GET_ACTIVITIES or PackageManager.MATCH_DISABLED_COMPONENTS)
+            } catch (e: PackageManager.NameNotFoundException) {
+                Log.i(TAG, "gamedev: $pkg not installed")
+                continue
+            } catch (t: Throwable) {
+                Log.w(TAG, "gamedev: could not list $pkg", t)
+                continue
+            }
+            if (pkg == PACKAGES[0]) gameSpace = true
+            val activities = info.activities.orEmpty()
+            Log.i(TAG, "gamedev: $pkg ${info.versionName}, ${activities.size} screens, " +
+                "${activities.count { it.exported }} open to other apps")
+            activities.firstOrNull { it.name == KNOWN }?.let { candidates += pkg to it }
+            activities.filter { a -> a.name.lowercase().let { n -> NAME_HINTS.any { it in n } } }
+                .forEach { candidates += pkg to it }
+            exported[pkg] = activities.filter { it.exported && it.enabled }.map { it.name }
+        }
+
+        if (!gameSpace && candidates.isEmpty()) return Found.NoGameSpace
+
+        val unique = candidates.distinctBy { (pkg, a) -> "$pkg/${a.name}" }
+        unique.forEach { (pkg, a) ->
+            Log.i(TAG, "gamedev: $pkg/${a.name} exported=${a.exported} enabled=${a.enabled}" +
+                (a.permission?.let { p -> " permission=$p" } ?: ""))
+        }
+        if (unique.isEmpty()) {
+            Log.i(TAG, "gamedev: no developer-options screen in ${PACKAGES.joinToString()}")
+            if (!dumped) {
+                dumped = true
+                exported.forEach { (pkg, names) ->
+                    Log.i(TAG, "gamedev: $pkg opens to other apps: " +
+                        names.ifEmpty { listOf("nothing") }.joinToString())
+                }
+            }
             return Found.Missing
         }
-        candidates.values.forEach {
-            Log.i(TAG, "gamedev: ${it.name} exported=${it.exported} enabled=${it.enabled}" +
-                (it.permission?.let { p -> " permission=$p" } ?: ""))
-        }
-        val open = candidates.values.firstOrNull { openable(context, it) }
+        val open = unique.firstOrNull { (_, a) -> openable(context, a) }
         return if (open != null) {
-            Found.Open(ComponentName(PKG, open.name))
+            Found.Open(ComponentName(open.first, open.second.name))
         } else {
-            Found.Closed(ComponentName(PKG, candidates.values.first().name))
+            Found.Closed(ComponentName(unique.first().first, unique.first().second.name))
         }
     }
 
