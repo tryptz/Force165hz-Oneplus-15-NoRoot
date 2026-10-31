@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **Screen-off animation at 120 Hz** (issue #31). With *Lock screen and
+  camera at 120 Hz* on, the animation of the screen going off (most visible
+  as the clock moving into the Always-On display) still ran at 60. The hold
+  only began once the screen was fully off. It now begins as the screen
+  starts going off, as soon as the panel changes mode.
+
 ## 1.1.2
 
 ### Added
