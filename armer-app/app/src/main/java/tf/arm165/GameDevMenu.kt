@@ -28,7 +28,7 @@ import android.util.Log
  * options screen. The first one other apps may open wins. One that exists but is
  * closed is reported as such, because no app — and no adb shell either —
  * can start a screen its owner has not exported. When nothing matches, the
- * log lists every screen those packages do export: the only ones this app
+ * log lists, each time, every screen those packages do export: the only ones this app
  * could ever open, and what a renamed menu would be among.
  */
 object GameDevMenu {
@@ -63,10 +63,6 @@ object GameDevMenu {
         /** No Game Space on this phone. */
         object NoGameSpace : Found()
     }
-
-    /** Ran once per process: the exported-screen dump is long and does not change. */
-    @Volatile
-    private var dumped = false
 
     fun find(context: Context): Found {
         val pm = context.packageManager
@@ -118,12 +114,11 @@ object GameDevMenu {
         }
         if (unique.isEmpty()) {
             Log.i(TAG, "gamedev: no developer-options screen in ${PACKAGES.joinToString()}")
-            if (!dumped) {
-                dumped = true
-                exported.forEach { (pkg, names) ->
-                    Log.i(TAG, "gamedev: $pkg opens to other apps: " +
-                        names.ifEmpty { listOf("nothing") }.joinToString())
-                }
+            // Every time, not once per run: the log keeps 800 lines, and a
+            // single Clear or Arm all writes more than that.
+            exported.forEach { (pkg, names) ->
+                Log.i(TAG, "gamedev: $pkg opens to other apps: " +
+                    names.ifEmpty { listOf("nothing") }.joinToString())
             }
             return Found.Missing
         }
