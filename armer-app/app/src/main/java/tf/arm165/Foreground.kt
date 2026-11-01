@@ -38,6 +38,13 @@ object Foreground {
     private var lastPkg: String? = null
     private var windowEndMs = 0L
 
+    /**
+     * Every activity resumed and not yet paused or stopped, as
+     * "package/class". One app full screen leaves one here; split view and a
+     * floating window leave two, because Android resumes both (issue #32).
+     */
+    private val resumed = LinkedHashSet<String>()
+
     /** True when the usage-access grant is in place. */
     // Deprecated, and still the only way to read an app op about yourself
     // across 29..36; the replacements are all privileged.
@@ -72,13 +79,35 @@ object Foreground {
             val event = UsageEvents.Event()
             while (events.hasNextEvent()) {
                 events.getNextEvent(event)
-                if (event.eventType == UsageEvents.Event.ACTIVITY_RESUMED) {
-                    lastPkg = event.packageName
+                val key = event.packageName + "/" + event.className
+                when (event.eventType) {
+                    UsageEvents.Event.ACTIVITY_RESUMED -> {
+                        lastPkg = event.packageName
+                        resumed += key
+                    }
+                    UsageEvents.Event.ACTIVITY_PAUSED,
+                    UsageEvents.Event.ACTIVITY_STOPPED -> resumed -= key
                 }
             }
         } catch (t: Throwable) {
             Log.w(TAG, "usage events unavailable", t)
         }
         return lastPkg
+    }
+
+    /**
+     * The packages with an activity resumed right now, freshly read. Two or
+     * more is split view or a floating window. Empty without usage access.
+     */
+    @Synchronized
+    fun resumedPackages(context: Context): Set<String> {
+        current(context)
+        return resumed.mapTo(LinkedHashSet()) { it.substringBefore('/') }
+    }
+
+    /** Screen off: every activity pauses, whether or not its event was seen. */
+    @Synchronized
+    fun forgetResumed() {
+        resumed.clear()
     }
 }

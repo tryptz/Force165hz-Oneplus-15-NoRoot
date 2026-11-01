@@ -66,8 +66,8 @@
 
     <!-- Idle behaviour, always on, no toggle. The note gives outcomes only: what
          a still screen actually rests at per vote. The why (the park, and why 165
-         is the one rate that does not take it) is on the help screen under
-         "Letting the panel idle" and "What may park". -->
+         is the one rate that does not take it) is in the README and in the
+         comments of ArmWatchService. -->
     <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the %1$d Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
@@ -140,8 +140,8 @@
 
     <string name="usage_title">Usage access</string>
     <string name="usage_no_screen">No usage-access screen on this build — grant it over adb: appops set tf.arm165 GET_USAGE_STATS allow</string>
-    <string name="usage_on">Granted. Needed only above %1$d armed apps, where the watchdog votes just the app on screen — it can see which one that is.</string>
-    <string name="usage_off">Needed if you arm more than %1$d apps. Up to %1$d, every armed app is voted on every pass, so what you have now works without it. Tap to grant anyway, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="usage_on">Granted. Used for the camera at 120 Hz, split view and floating windows, and above %1$d armed apps, where only the app on screen is voted.</string>
+    <string name="usage_off">Needed for the camera at 120 Hz, split view and floating windows, and if you arm more than %1$d apps. Tap to grant, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="usage_off_needed">Needed: %1$d apps armed, more than %2$d. Above that only the app on screen is voted, and this is what sees which one. Tap to grant, or: adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="binding_title">Vendor interface</string>
     <string name="binding_pending">Checking what this build numbers the call with\u2026</string>
@@ -170,62 +170,28 @@
     <!-- help screen -->
     <string name="help">How it works</string>
     <string name="help_title">How it works</string>
-    <string name="help_intro">A rootless per-app refresh-rate unlock for the OnePlus 15 on OxygenOS 16. What it does to your phone, in short pieces.</string>
+    <string name="help_intro">Rootless refresh-rate control for the OnePlus 15 and 16. The basics, in short.</string>
 
-    <string name="help_what_title">What it does</string>
-    <string name="help_what_body">Pins a refresh rate on the apps you choose: 60, 90, 120, 144, 165 or 185 Hz. 185 needs a OnePlus 16; on a phone that tops out at 165 it runs at 165. Pick the rate at the top, then tap an app to arm it at that rate. Tap the row details for a rate that app alone should use.</string>
+    <string name="help_start_title">Getting started</string>
+    <string name="help_start_body">1. Pick a rate at the top. 185 Hz needs a OnePlus 16; on other phones it runs at 165.\n2. Tap an app to arm it at that rate. Tap it again to disarm it.\n3. Tap the rate badge on a row to give that app its own rate.\n\nArm all arms every app, Re-arm sends your saved apps again, and Clear disarms everything. Your choices survive a reboot.</string>
 
-    <string name="help_sweeps_title">The three sweeps</string>
-    <string name="help_sweeps_body">Arm all sweeps the whole list. Re-arm re-sends the saved set. Clear withdraws everything. The armed set survives reboots.</string>
+    <string name="help_lock_title">Smooth lock screen and camera</string>
+    <string name="help_lock_body">Set the phone to Standard (Settings › Display › Screen refresh rate), then turn on Lock screen and camera at 120 Hz in this app\'s Settings. Armed apps keep their rate, and the lock screen, the screen-off animation and the camera run at 120 Hz.</string>
 
-    <string name="help_how_title">How a rate is forced</string>
-    <string name="help_how_body">OxygenOS carries a display service whose requestGameRefreshRate call has no permission check on the caller, so any app can ask for a rate on behalf of any package. It is the same request the system game mode uses, which is why no root is needed.</string>
+    <string name="help_usage_title">Usage access</string>
+    <string name="help_usage_body">Lets the app see which apps are on screen. You need it for the camera at 120 Hz, for split view and floating windows at the armed rate, and if you arm more than eight apps (Arm all, for example). It only reads which apps opened last.
 
-    <string name="help_ids_title">Why 60 and 90 were once swapped</string>
-    <string name="help_ids_body">The vendor rate ids are not in Hz order: id 1 is 90 Hz and id 2 is 60 Hz. An early build read them the other way round, so those two rates ran at the one you had not picked.</string>
+Turn it on from the Usage access row at the top of Settings, or over adb:
+adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
 
-    <string name="help_pin_title">The vote is a pin</string>
-    <string name="help_pin_body">The request sets the panel minimum and maximum to the same rate. While an armed app is on screen the panel has no range left to move inside, so it is a pin rather than a ceiling.</string>
+    <string name="help_battery_title">Battery</string>
+    <string name="help_battery_body">Higher rates use more battery and run warmer, so arm the apps where you notice the difference. A still screen idles by itself: 60, 90, 120 and 144 Hz drop to 1 Hz, and 165 Hz stops at %1$d Hz. Video can stutter when forced above its own frame rate: arm video apps at 60 or leave them off.</string>
 
-    <string name="help_floors_title">What each rate can idle to</string>
-    <string name="help_floors_body">Every rate selects a panel mode with its own idle floor. Measured on this build: 165 rests at %1$d Hz, 144 near 48, 60 and 90 at 30, and 120 goes all the way down to 1.</string>
+    <string name="help_check_title">Checking it works</string>
+    <string name="help_check_body">Developer options › Show refresh rate gives a live readout. The Smoothness test in Settings shows the rate with moving blocks. Arming this app is a quick self test: if its own screen does not reach the rate, nothing is landing.</string>
 
-    <string name="help_watchdog_title">The watchdog</string>
-    <string name="help_watchdog_body">Game engines re-pin their own frame rate whenever they take focus, which overwrites a one-shot request. The watchdog re-issues the vote while the screen is on so ours lands last. Its notification says how many apps it is holding.</string>
-
-    <string name="help_focus_title">Why the app on screen decides the order</string>
-    <string name="help_focus_body">The system writes the request onto the windows of the package it names, and the panel follows whichever write landed last. So every pass ends on the app you are using. A pass ending on a background app would vote for windows that do not exist and drop the pin it had just set.</string>
-
-
-    <string name="help_usage_title">Usage access: needed above eight armed apps</string>
-    <string name="help_usage_body">Needed only if you arm more than eight apps. Up to eight, every armed app is voted on every pass, so the one you are using is always among them and its vote lands whether or not anything says which app that is. One game, or a handful, simply works — no grant, nothing to turn on.\n\nArm all is the case that needs it. Hundreds of votes cannot go out every pass, and voting a slice of them in turn ends the pass on a background app — a vote for windows that do not exist, which drops the pin it just set. So past eight the watchdog votes only the app on screen, and it has to know which one that is.\n\nWithout the grant the only thing it can see is a game the vendor already tracks as a game. Everything else reads as no focus, and with a large armed set there is then nothing it can safely vote.\n\nIt is read-only and narrow: one question, which package resumed most recently. No history, no times, nothing about what you did in any app.\n\nTurn it on in Settings: Apps › Special app access › Usage access › 165 Armer › Permit usage access. The Usage access row at the top of this app\'s Settings opens that page for you.\n\nOr over adb, which does the same thing without the menus:\n\nadb shell appops set tf.arm165 GET_USAGE_STATS allow\n\nEither way the switch on that row turns on as soon as you come back.</string>
-
-    <string name="help_park_title">Letting the panel idle</string>
-    <string name="help_park_body">When nothing on screen is moving, the vote is swapped for 120, the one rate whose mode spans 1 to 120. The panel can then ramp down while the vote itself stays held. Content that needs more than 120 gets the armed rate back in about 55 ms.</string>
-
-    <string name="help_park_rule_title">What may park</string>
-    <string name="help_park_rule_body">Only 144, and that is a measurement rather than a rule. 60, 90 and 120 already reach 1 Hz in their own modes, so a park would win them nothing and would raise a ceiling you chose on purpose. 165 is the one mode that cannot idle: a still 165 screen rests at %1$d Hz. Parking it does not help either, because the 120 it would land on is a pin at 120, which is higher than that %1$d. That leaves 144, where the switch to 120 is clean and the panel ramps all the way to 1.</string>
-
-    <string name="help_optin_title">The system UI row</string>
-    <string name="help_optin_body">The shade, quick settings and lock screen belong to SystemUI, not to the app you are in. Arming it does nothing on this build: the panel takes its mode from the foreground app window, and those are overlays. The row stays for builds that behave differently, and Arm all always skips it.</string>
-
-    <string name="help_self_title">Arming this app</string>
-    <string name="help_self_body">That one does work, and doubles as a self test. If this app\'s own screen will not reach the rate you armed it at, no vote is landing at all. The smoothness test has its own switch for the same thing, and that one gives the hold back when you leave the page. Arm all skips both rows.</string>
-
-    <string name="help_fps_title">Seeing the rate</string>
-    <string name="help_fps_body">The smoothness test draws one lane of moving blocks per rate, each allowed to update only at its own rate. The lane matching the panel glides and the slower ones step. The readout is the panel measured from its own frame timing, and the marker colour is yours to pick: which colour shows a moving edge best is a property of the screen, not of the test.</string>
-
-    <string name="help_disarm_title">Disarming</string>
-    <string name="help_disarm_body">Disarm withdraws the vote by asking for rate id 0, the vendor cancel. Sending the rate again would only write the same pin back. A reboot clears every vote, because the vendor keeps them in memory only.</string>
-
-    <string name="help_limits_title">What it cannot do</string>
-    <string name="help_limits_body">The permanent per-app override is permission protected and closed to a rootless app, so a vote applies only while its app is in the foreground. Video can judder when forced above its own cadence: pin those at 60 or leave them unarmed. Battery and heat rise with the rate and with the number of armed apps.</string>
-
-    <string name="help_ota_title">After an update</string>
-    <string name="help_ota_body">An OTA can close the hole at any time. A SecurityException in the log is what that looks like.</string>
-
-    <string name="help_log_title">Reading the log</string>
-    <string name="help_log_body">Settings has a Live log page. Arm165 lines are this app: vote results, the app it sees on screen, parks and restores. RefreshRate lines are the vendor framework. Share sends the buffer for a bug report.</string>
+    <string name="help_trouble_title">If something stops working</string>
+    <string name="help_trouble_body">Settings › Live log shows what the app is doing, and Share log sends it with a bug report. A SecurityException there usually means a system update closed the door this app uses. The System UI row does nothing on current builds; Arm all skips it.</string>
 
 
     <!-- games page -->
