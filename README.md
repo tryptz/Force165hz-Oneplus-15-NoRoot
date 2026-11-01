@@ -67,7 +67,7 @@ still screen stays at 60 Hz or above whatever rate is selected.
 ColorOS's own **Screen refresh rate** option makes you pick one of two bad
 choices:
 
-| Phone setting | App switching, notification shade | Lock screen | Camera buttons and menus |
+| Phone setting | App switching, notification shade | Lock screen and screen-off animation | Camera buttons and menus |
 |---|---|---|---|
 | **High** | capped at 120 Hz | 120 Hz | 120 Hz |
 | **Standard** | follows the armed rate (165 Hz) | drops to 60 Hz | drops to 60 Hz |
@@ -88,11 +88,11 @@ You can have both. No adb needed:
   <img src="screenshot-lock120.png" width="480" alt="165 Armer Settings: Lock screen and camera at 120 Hz turned on">
 </p>
 
-Now the UI runs at 165 Hz, and the lock screen and the camera's buttons and
-menus at 120 Hz. Tested on the OnePlus 15.
+Now the UI runs at 165 Hz, and the lock screen, the screen-off animation
+(into the Always-On display) and the camera's buttons and menus at 120 Hz. Tested on the OnePlus 15.
 
-**How it works:** while the phone is locked, or the camera is on screen, the
-app holds a 120 Hz vote with the vendor's `requestRefreshRateWithToken`, which
+**How it works:** from the moment the screen starts going off, while the
+phone is locked, and while the camera is on screen, the app holds a 120 Hz vote with the vendor's `requestRefreshRateWithToken`, which
 needs no permission. That vote outranks the 60 Hz that Standard gives the lock
 screen and the camera. The app releases it when you unlock or leave the
 camera, so your armed apps are not capped. If the app is killed,
