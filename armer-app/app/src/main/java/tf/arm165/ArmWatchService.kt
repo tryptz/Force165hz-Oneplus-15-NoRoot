@@ -280,6 +280,10 @@ class ArmWatchService : Service() {
         // Every vote below is ordered around these two.
         val focus = focus(armedNow)
 
+        // Two apps on screen at once: the vendor's multi-window rate wins over
+        // every app's vote, so a display-wide one holds the armed rate instead.
+        MultiWindowRate.update(this, armedNow)
+
 
         // Switching INTO an armed app is the user asking for its rate now: a
         // vote left parked at 120 from the last time it was on screen must not
@@ -972,7 +976,10 @@ class ArmWatchService : Service() {
                 }
                 handler.postDelayed(tick, 1500)
             } else {
-                // nothing to measure with the panel off
+                // Nothing is split with the panel off, and the lock screen's
+                // own vote is what should hold it now.
+                Foreground.forgetResumed()
+                worker.execute { synchronized(RateLock) { MultiWindowRate.release() } }
             }
         }
     }
@@ -1063,6 +1070,7 @@ class ArmWatchService : Service() {
         // Nothing hears the unlock once this is gone, and a held lock-screen
         // vote outranks every app's pin.
         LockRate.release()
+        worker.execute { synchronized(RateLock) { MultiWindowRate.release() } }
         Choreographer.getInstance().removeFrameCallback(panelFrames)
         worker.shutdown()
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
