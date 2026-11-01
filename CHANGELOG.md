@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.1.4
+
+### Added
+
+- **Split view and floating windows at the armed rate** (issue #32). With
+  two apps on screen, in split view or with one as a floating window, the
+  phone dropped to 120 Hz whatever was armed, on Standard and High alike.
+  While two apps are on screen and one is armed, the app now holds the
+  screen at the highest armed rate among them, and lets go when you are back
+  to one app. Needs usage access to see both apps. While it holds, a still
+  screen does not idle down, so it costs a little battery for as long as the
+  split lasts.
 
 ### Changed
 

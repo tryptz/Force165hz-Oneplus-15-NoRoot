@@ -23,6 +23,7 @@ Rootless per-app refresh-rate unlock for OnePlus phones: **60 / 90 / 120 / 144 /
 - Home-screen widget: arm all, clear and pick the rate
 - Watchdog that keeps the rate held, and restores armed apps after a reboot
 - 165 Hz across the UI with the lock screen and camera kept at 120 Hz ([how](#165-hz-across-the-ui-120-hz-on-the-lock-screen-and-camera))
+- Split view and floating windows kept at the armed rate
 - Smoothness test and a live log
 - English and 简体中文, with a language switcher in Settings
 
@@ -32,8 +33,9 @@ Rootless per-app refresh-rate unlock for OnePlus phones: **60 / 90 / 120 / 144 /
 2. Pick a rate at the top.
 3. Tap an app to arm it, or press **Arm all**.
 
-Usage access is only needed when more than eight apps are armed, or for the
-camera part of **Lock screen and camera at 120 Hz**.
+Usage access is only needed when more than eight apps are armed, for split
+view and floating windows, or for the camera part of **Lock screen and camera
+at 120 Hz**.
 
 ## Supported phones
 

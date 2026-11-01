@@ -12,9 +12,9 @@ import android.util.Log
  * its windows, and with two of them on screen the vendor stops following
  * either and uses its own multi-window rate.
  *
- * The answer tried here is the one the lock screen got ([LockRate]): the
- * display-wide vote ([RateLock.holdDisplayRate]), priority 70, which outranks
- * the vendor's window picks. It is held while two or more apps are resumed
+ * The answer is the one the lock screen got ([LockRate]), confirmed on the
+ * OnePlus 15: the display-wide vote ([RateLock.holdDisplayRate]), priority
+ * 70, which outranks the vendor's window picks. It is held while two or more apps are resumed
  * at once ([Foreground.resumedPackages]) and one of them is armed, at the
  * highest rate armed among them, and taken back the moment that stops being
  * true. Usage access is how the apps are seen; without it this never holds.
