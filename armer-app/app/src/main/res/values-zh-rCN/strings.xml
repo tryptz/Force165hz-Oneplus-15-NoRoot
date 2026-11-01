@@ -137,8 +137,8 @@
 
     <string name="usage_title">使用情况访问权限</string>
     <string name="usage_no_screen">此系统没有使用情况访问页面——请用 adb 授权：appops set tf.arm165 GET_USAGE_STATS allow</string>
-    <string name="usage_on">已授权。仅在武装超过 %1$d 个应用时需要，届时看门狗只投票给屏幕上的应用——它能看到那是哪一个。</string>
-    <string name="usage_off">武装超过 %1$d 个应用时需要。不超过 %1$d 个时，每个已武装的应用都会在每一轮中被投票，所以现在无需授权。仍要点按授权，或：adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
+    <string name="usage_on">已授权。用于相机 120 Hz、分屏和浮窗，以及武装超过 %1$d 个应用时只投票给屏幕上的应用。</string>
+    <string name="usage_off">相机 120 Hz、分屏和浮窗，以及武装超过 %1$d 个应用时需要。点按授权，或：adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="usage_off_needed">需要：已武装 %1$d 个应用，超过 %2$d。超过后只投票给屏幕上的应用，而这就是识别它的方式。点按授权，或：adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="binding_title">厂商接口</string>
     <string name="binding_pending">正在检测此系统对该调用的编号…</string>
@@ -167,62 +167,28 @@
     <!-- help screen -->
     <string name="help">工作原理</string>
     <string name="help_title">工作原理</string>
-    <string name="help_intro">面向一加 15（OxygenOS 16）的无 root 按应用刷新率解锁。以短篇形式说明它对你的手机做了什么。</string>
+    <string name="help_intro">面向一加 15 和 16 的无 root 刷新率控制。基础用法，简短说明。</string>
 
-    <string name="help_what_title">它做什么</string>
-    <string name="help_what_body">为你选定的应用锁定刷新率：60、90、120、144、165 或 185 Hz。185 需要一加 16；在最高只有 165 的手机上以 165 运行。在顶部选择速率，然后点按应用以该速率武装。点按行详情可为单个应用指定速率。</string>
+    <string name="help_start_title">开始使用</string>
+    <string name="help_start_body">1. 在顶部选择速率。185 Hz 需要一加 16；在其他手机上以 165 运行。\n2. 点按应用即以该速率武装。再点一次解除武装。\n3. 点按某一行的速率标签，可为该应用单独指定速率。\n\n全部武装会武装所有应用，重新武装会重发已保存的应用，清除会解除全部武装。你的选择在重启后仍然保留。</string>
 
-    <string name="help_sweeps_title">三种扫描</string>
-    <string name="help_sweeps_body">全部武装扫描整个列表。重新武装重发已保存的集合。清除撤回一切。武装的集合在重启后仍然保留。</string>
+    <string name="help_lock_title">流畅的锁屏和相机</string>
+    <string name="help_lock_body">把手机设为“标准”（设置 › 显示 › 屏幕刷新率），然后在本应用设置中开启“锁屏和相机 120 Hz”。已武装的应用保持各自的速率，锁屏、熄屏动画和相机以 120 Hz 运行。</string>
 
-    <string name="help_how_title">速率如何被强制</string>
-    <string name="help_how_body">OxygenOS 自带一个显示服务，其 requestGameRefreshRate 调用对调用方没有权限检查，因此任何应用都能代表任何包名请求速率。系统游戏模式用的是同一个请求，这就是无需 root 的原因。</string>
+    <string name="help_usage_title">使用情况访问权限</string>
+    <string name="help_usage_body">让本应用知道屏幕上有哪些应用。相机 120 Hz、分屏和浮窗保持武装速率，以及武装超过八个应用（例如全部武装）时需要它。它只读取最近打开的是哪些应用。
 
-    <string name="help_ids_title">为什么 60 和 90 曾被对调</string>
-    <string name="help_ids_body">厂商速率 ID 并非按 Hz 排序：ID 1 是 90 Hz，ID 2 是 60 Hz。早期版本将两者读反，导致这两个速率跑在了你没选的那个上。</string>
+在设置顶部的“使用情况访问权限”一行开启，或用 adb：
+adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
 
-    <string name="help_pin_title">投票即锁定</string>
-    <string name="help_pin_body">请求把面板的最小和最大刷新率设为同一数值。只要已武装的应用在屏幕上，面板就没有可移动的范围，所以这是锁定而非上限。</string>
+    <string name="help_battery_title">耗电</string>
+    <string name="help_battery_body">速率越高越耗电、越发热，所以只武装你能感觉到差别的应用。静止画面会自动降频：60、90、120 和 144 Hz 可降到 1 Hz，165 Hz 停在 %1$d Hz。视频被强制高于自身帧率时可能卡顿：把视频应用武装在 60 或不武装。</string>
 
-    <string name="help_floors_title">每个速率能空闲到多少</string>
-    <string name="help_floors_body">每个速率选择的面板模式都有自己的空闲下限。在本系统实测：165 停在 %1$d Hz，144 约 48，60 和 90 为 30，120 则一路降到 1。</string>
+    <string name="help_check_title">确认是否生效</string>
+    <string name="help_check_body">开发者选项 › 显示刷新率可实时显示。设置里的流畅度测试用移动方块显示速率。武装本应用是快速自检：如果它自己的画面到不了该速率，就是没有投票落地。</string>
 
-    <string name="help_watchdog_title">看门狗</string>
-    <string name="help_watchdog_body">游戏引擎在取得焦点时会重新锁定自己的帧率，这会覆盖一次性的请求。看门狗在亮屏期间重发投票，让我们的一方最后落地。它的通知会显示正在保持多少个应用。</string>
-
-    <string name="help_focus_title">为什么前台应用决定顺序</string>
-    <string name="help_focus_body">系统把请求写到其指名的包所拥有的窗口上，面板跟随最后落地的那次写入。因此每一轮都以你正在使用的应用收尾。以后台应用收尾的一轮是在给不存在的窗口投票，会丢掉刚设好的锁定。</string>
-
-
-    <string name="help_usage_title">使用情况访问：武装超过八个应用时需要</string>
-    <string name="help_usage_body">只在你武装超过八个应用时需要。八个以内，每个已武装的应用都会在每一轮被投票，所以你在用的那个始终在其中，它的投票无论有没有东西报告是哪个应用都会落地。单个游戏或少数几个应用直接生效——无需授权，无事可做。\n\n全部武装是需要它的场景。每轮发出数百个投票不可行，轮流投票又会以后台应用收尾——那是给不存在的窗口投票，会丢掉刚设好的锁定。所以超过八个后，看门狗只投票给屏幕上的应用，它必须知道那是哪一个。\n\n没有授权时，它唯一能看到的是已被厂商标记为游戏的那个。其余一切读作无前台，武装集合一大就再也没有能安全投票的东西。\n\n它是只读且狭窄的：一个问题，最近恢复的是哪个包。没有历史，没有时间，不知道你在任何应用里做了什么。\n\n在设置中开启：应用 › 特殊应用权限 › 使用情况访问 › 165 武装器 › 允许使用情况访问。本应用设置顶部的"使用情况访问"一行会为你打开那个页面。\n\n或者用 adb，免菜单做同样的事：\n\nadb shell appops set tf.arm165 GET_USAGE_STATS allow\n\n无论哪种方式，回到应用时那一行的开关就会亮起。</string>
-
-    <string name="help_park_title">让面板空闲</string>
-    <string name="help_park_body">屏幕上没有东西移动时，投票被换成 120——唯一一个模式横跨 1 到 120 的速率。面板由此可以降频，而投票本身仍然保持。需要 120 以上速率的内容会在约 55 毫秒内取回已武装的速率。</string>
-
-    <string name="help_park_rule_title">什么可以驻留</string>
-    <string name="help_park_rule_body">只有 144，而且这是测量结果而非规则。60、90 和 120 在自己的模式里本来就能到 1 Hz，驻留对它们毫无收获，还会抬高你特意选定的上限。165 是唯一无法空闲的模式：静止的 165 屏幕停在 %1$d Hz。驻留它也无济于事，因为它会落在的 120 是一个 120 的锁定，高于那个 %1$d。于是只剩 144——切换到 120 干净利落，面板一路降到 1。</string>
-
-    <string name="help_optin_title">系统界面一行</string>
-    <string name="help_optin_body">通知栏、快捷设置和锁屏属于 SystemUI，而不属于你所在的应用。在此系统上武装它毫无效果：面板以前台应用窗口决定模式，而那些是叠加层。保留此行是为了行为不同的系统，全部武装始终跳过它。</string>
-
-    <string name="help_self_title">武装本应用</string>
-    <string name="help_self_body">这是有效的，还可以当作自检。如果本应用自己的屏幕到不了你武装的速率，那就是根本没有投票落地。流畅度测试也有同样的开关，离开页面时会收回保持。全部武装跳过这两行。</string>
-
-    <string name="help_fps_title">看见速率</string>
-    <string name="help_fps_body">流畅度测试为每个速率画一条移动方块的通道，每条只允许按自己的速率刷新。与面板匹配的通道平滑滑动，慢的则逐格跳动。读数是从面板自身帧时间测得的，标记颜色由你挑选：哪种颜色最能显示移动边缘是屏幕的属性，与测试无关。</string>
-
-    <string name="help_disarm_title">解除武装</string>
-    <string name="help_disarm_body">解除通过请求速率 ID 0——厂商的取消——来撤回投票。重发速率只会把同一个锁定写回去。重启清除一切投票，因为厂商只把它们保存在内存里。</string>
-
-    <string name="help_limits_title">它做不到什么</string>
-    <string name="help_limits_body">永久的按应用覆盖受权限保护，对无 root 应用关闭，因此投票只在应用前台时生效。视频被强制到高于自身节奏时会卡顿：把它们锁在 60 或不武装。耗电和发热随速率和已武装应用的数量上升。</string>
-
-    <string name="help_ota_title">系统更新之后</string>
-    <string name="help_ota_body">OTA 可以随时封掉这个缺口。日志里的 SecurityException 就是它的样子。</string>
-
-    <string name="help_log_title">阅读日志</string>
-    <string name="help_log_body">设置里有实时日志页面。Arm165 行是本应用：投票结果、看门狗看到的前台应用、驻留与恢复。RefreshRate 行是厂商框架。分享即发送缓冲区用于错误报告。</string>
+    <string name="help_trouble_title">如果不再生效</string>
+    <string name="help_trouble_body">设置 › 实时日志显示本应用在做什么，分享日志可随错误报告发送。日志里出现 SecurityException 通常表示系统更新封掉了本应用使用的接口。系统界面一行在当前系统上无效，全部武装会跳过它。</string>
 
 
     <!-- games page -->

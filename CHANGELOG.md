@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- **Help page rewritten.** Six short cards on using the app (getting
+  started, lock screen and camera, usage access, battery, checking it works,
+  troubleshooting) instead of eighteen on its internals. The internals are in
+  the README and `tool/tx-tables.md`. The Usage access rows in Settings now
+  also say it is used for the camera, split view and floating windows.
+
 ## 1.1.3
 
 ### Fixed
