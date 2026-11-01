@@ -1005,6 +1005,7 @@ class ArmWatchService : Service() {
             addAction(Intent.ACTION_USER_PRESENT)
         })
         LockRate.sync(this)
+        LockRate.watch(this)
         Choreographer.getInstance().postFrameCallback(panelFrames)
         startForeground(NOTIFY_ID, buildNotification())
         handler.postDelayed(tick, 3000)

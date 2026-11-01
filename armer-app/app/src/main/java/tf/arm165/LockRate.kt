@@ -3,12 +3,14 @@ package tf.arm165
 import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.os.Binder
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
+import android.view.Display
 import java.util.concurrent.Executors
 
 /**
@@ -36,6 +38,14 @@ import java.util.concurrent.Executors
  * neither reason stands, checked every second while it is held, and the
  * vendor drops it by itself if this process dies, because [token] is linked
  * to its death.
+ *
+ * The screen going off (issue #31) needs the hold sooner than SCREEN_OFF.
+ * That broadcast comes once the panel is already off, so the animation into
+ * the lock screen or the Always-On display played at 60. What does come at
+ * the start of it is the panel changing mode: the vendor drops it to 60 the
+ * moment the phone stops being interactive. [displays] hears that change, and
+ * a phone that is no longer interactive is going to sleep, so the hold starts
+ * there, a frame or two into the animation instead of after it.
  */
 object LockRate {
     private const val TAG = "Arm165"
@@ -72,6 +82,9 @@ object LockRate {
     private var locked = false
     private var camera = false
 
+    /** Whether [displays] is registered. Main thread only. */
+    private var watching = false
+
     /** Always the application context, which lives as long as this object. */
     @SuppressLint("StaticFieldLeak")
     private var app: Context? = null
@@ -107,6 +120,45 @@ object LockRate {
         apply()
     }
 
+    /**
+     * Hears the panel change mode or state. Registered by the watchdog for as
+     * long as it runs; [release] takes it back.
+     */
+    fun watch(context: Context) {
+        app = context.applicationContext
+        if (watching) return
+        val dm = context.getSystemService(DisplayManager::class.java) ?: return
+        dm.registerDisplayListener(displays, handler)
+        // Android 16 sends refresh-rate changes only to an app that has read
+        // the rate at least once; the mode change is the earliest sign of
+        // the screen going off, so read it.
+        dm.getDisplay(Display.DEFAULT_DISPLAY)?.refreshRate
+        watching = true
+    }
+
+    /**
+     * The screen has started going off: the phone is no longer interactive,
+     * but SCREEN_OFF will only come once the animation is over. Hold now, so
+     * the animation runs at 120. A sleep that is cancelled before the lock
+     * comes up is let go by the wake's [sync], or by [check].
+     */
+    private fun onGoingToSleep(c: Context) {
+        if (locked || !enabled(c) || interactive(c)) return
+        Log.i(TAG, "lock120: screen going off")
+        locked = true
+        camera = false
+        apply()
+    }
+
+    private val displays = object : DisplayManager.DisplayListener {
+        override fun onDisplayChanged(displayId: Int) {
+            if (displayId != Display.DEFAULT_DISPLAY) return
+            app?.let(::onGoingToSleep)
+        }
+        override fun onDisplayAdded(displayId: Int) {}
+        override fun onDisplayRemoved(displayId: Int) {}
+    }
+
     /** The camera check takes over from here, if it is on. */
     fun onUnlocked() {
         locked = false
@@ -127,6 +179,10 @@ object LockRate {
         locked = false
         camera = false
         handler.removeCallbacks(check)
+        if (watching) {
+            app?.getSystemService(DisplayManager::class.java)?.unregisterDisplayListener(displays)
+            watching = false
+        }
         apply()
     }
 
