@@ -61,6 +61,7 @@ class SettingsActivity : Activity() {
 
         RateLock.loadRestAbove144(ArmedStore.open(this))
         findViewById<View>(R.id.row_rest165).setOnClickListener { tapRest165() }
+        findViewById<View>(R.id.row_popup).setOnClickListener { tapPopup() }
 
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
@@ -80,6 +81,7 @@ class SettingsActivity : Activity() {
         syncBindingRow()
         syncLock120Row()
         syncRest165Row()
+        syncPopupRow()
     }
 
     /**
@@ -93,6 +95,36 @@ class SettingsActivity : Activity() {
         findViewById<RateSwitch>(R.id.rest165_switch).setChecked(on, animate = false)
         findViewById<TextView>(R.id.rest165_sub)
             .setText(if (on) R.string.rest165_sub_on else R.string.rest165_sub_off)
+    }
+
+    /**
+     * Pop-up notifications at the armed rate. The switch is only truly on
+     * with notification access, which is granted on the phone's own page:
+     * onResume re-reads it, which is how the row follows a grant made there.
+     */
+    private fun syncPopupRow() {
+        val on = PopupRate.enabled(this)
+        val access = PopupRate.hasAccess(this)
+        findViewById<RateSwitch>(R.id.popup_switch).setChecked(on && access, animate = false)
+        findViewById<TextView>(R.id.popup_sub).setText(when {
+            on && access -> R.string.popup_sub_on
+            on -> R.string.popup_sub_no_access
+            else -> R.string.popup_sub_off
+        })
+    }
+
+    private fun tapPopup() {
+        val access = PopupRate.hasAccess(this)
+        // Asked for and not yet granted: the tap means "take me there".
+        PopupRate.setEnabled(this, !(PopupRate.enabled(this) && access))
+        if (PopupRate.enabled(this) && !access) {
+            try {
+                startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            } catch (t: ActivityNotFoundException) {
+                Toast.makeText(this, R.string.popup_no_screen, Toast.LENGTH_LONG).show()
+            }
+        }
+        syncPopupRow()
     }
 
     private fun tapRest165() {

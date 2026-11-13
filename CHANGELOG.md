@@ -27,6 +27,13 @@
   165 Hz comes back when content needs more than 120. Leave it off on the
   OnePlus 15 and 16.
 
+- **Pop-up notifications at the armed rate**, in Settings, off by default.
+  On Standard a notification that pops up at the top of the screen ran at
+  60 Hz. With this on, the screen is held at your highest armed rate while
+  one shows, or at 120 Hz if the phone will not take that, and released
+  about six seconds later. Needs notification access, to know when one
+  appears; what a notification says is never read.
+
 ### Changed
 
 - **An armed app is voted the moment it comes to the front** (issues #39,

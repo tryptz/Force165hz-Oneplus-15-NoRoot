@@ -65,6 +65,17 @@
 
         <receiver android:name=".WidgetRate" android:exported="false"/>
 
+        <!-- Pop-up notifications at the armed rate. Exported because the system
+             binds it, and only the system can: the permission is its own. -->
+        <service android:name=".PopupListener"
+                 android:exported="true"
+                 android:label="@string/popup_title"
+                 android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
         <receiver android:name=".BootReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>

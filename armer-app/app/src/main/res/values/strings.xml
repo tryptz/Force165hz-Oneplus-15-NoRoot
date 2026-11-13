@@ -244,4 +244,10 @@ adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="rest165_title">Idle ramp for 165 Hz</string>
     <string name="rest165_sub_off">Experimental. For screens that stay at 165 Hz when nothing needs it, like the OnePlus 15R and Ace 6T. When the screen goes quiet, the 165 Hz vote is swapped for the 120 Hz one, the way 144 Hz already works. That is the mode in which the phone ramps down by itself: to its idle rate on a still screen (1 Hz on LTPO panels, 60 Hz on the 15R) and to 30 or 60 Hz while video plays. 165 Hz comes back when content needs more than 120. Off by default: on the OnePlus 15 and 16, 165 Hz was measured to idle lower without it.</string>
     <string name="rest165_sub_on">On. When the screen goes quiet, apps armed above 144 Hz get the 120 Hz vote, so the screen can ramp down to its idle rate, or to 30 or 60 Hz for video. 165 Hz comes back when content needs more than 120. If the rate keeps jumping while nothing moves, turn this off: this screen does not ramp down from that vote.</string>
+
+    <string name="popup_title">Pop-up notifications at the armed rate</string>
+    <string name="popup_sub_off">On the phone\'s Standard refresh rate, a notification that pops up at the top of the screen runs at 60 Hz. This holds the screen at your highest armed rate while one is showing, or at 120 Hz if the phone will not take that, and lets go a few seconds later. Needs notification access so the app can tell when one appears; it never reads what a notification says.</string>
+    <string name="popup_sub_on">On. While a notification pops up, the screen is held at your highest armed rate, or 120 Hz, for about six seconds.</string>
+    <string name="popup_sub_no_access">Waiting for notification access. Tap to open the phone\'s settings and allow 165 Armer.</string>
+    <string name="popup_no_screen">No notification-access screen on this build.</string>
 </resources>
