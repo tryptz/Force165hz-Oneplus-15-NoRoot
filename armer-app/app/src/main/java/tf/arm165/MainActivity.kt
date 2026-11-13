@@ -13,6 +13,8 @@ import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -512,6 +514,22 @@ class MainActivity : ShellActivity() {
         if (ArmWatchService.running) return
         val saved = armed.toMap()
         if (saved.isEmpty()) return
+        // The line a "does not start after a reboot" report needs (issue
+        // #41): whether the system delivered the boot broadcast at all. Not
+        // delivered is the phone's own startup manager holding the app back,
+        // which no code here can change; delivered and yet not running is
+        // the watchdog being stopped afterwards.
+        val sinceBootMs = SystemClock.elapsedRealtime()
+        val bootedAtMs = System.currentTimeMillis() - sinceBootMs
+        val seenMs = prefs.getLong(BootReceiver.KEY_BOOT_SEEN_MS, 0L)
+        Log.i(TAG, "opened with ${saved.size} armed and no watchdog running, " +
+            "${sinceBootMs / 1000} s after boot. " +
+            if (seenMs >= bootedAtMs - BOOT_CLOCK_SLACK_MS) {
+                "The boot broadcast did arrive, ${(seenMs - bootedAtMs).coerceAtLeast(0L) / 1000} s " +
+                    "after boot, so the watchdog was started and has been stopped since."
+            } else {
+                "No boot broadcast has arrived since this boot: the system did not start the app."
+            })
         worker.execute {
             synchronized(RateLock) { RateLock.armEach(saved, Oiface.currentGamePackage()) }
         }
@@ -529,6 +547,10 @@ class MainActivity : ShellActivity() {
     }
 
     private companion object {
+        const val TAG = "Arm165"
         const val REQ_NOTIFICATIONS = 165
+
+        /** The wall clock may be set after boot; allow it this much drift. */
+        const val BOOT_CLOCK_SLACK_MS = 60_000L
     }
 }

@@ -872,6 +872,25 @@ class ArmWatchService : Service() {
         }
     }
 
+    /**
+     * Sends every saved vote once, the app on screen last: the catch-up after
+     * a reboot or an update, asked for by [BootReceiver]. On the worker, behind
+     * the bind that [onCreate] queued, so the votes go out at this build's own
+     * transaction code and the receiver that asked has long since returned.
+     */
+    private fun rearmSaved() {
+        worker.execute {
+            synchronized(RateLock) {
+                val armedNow = prefs?.let { ArmedStore.read(it) }.orEmpty()
+                if (armedNow.isEmpty()) return@execute
+                val onScreen = Oiface.currentGamePackage() ?: Foreground.current(this)
+                val done = RateLock.armEach(armedNow, onScreen)
+                lastVoteNs = System.nanoTime()
+                Log.i(TAG, "started with no app open: re-armed ${done.size} of ${armedNow.size}")
+            }
+        }
+    }
+
     /** Runs a widget sweep on the worker, then puts the result on the widget. */
     private fun widgetSweep(action: String) {
         worker.execute {
@@ -1087,6 +1106,7 @@ class ArmWatchService : Service() {
                 widgetSweep(action)
                 return START_STICKY
             }
+            if (action == ACTION_REARM) rearmSaved()
         }
         // Every arm/re-arm/rate change restarts the command. A fresh arm is the
         // user asking for the armed rate NOW, so any park state from the
@@ -1339,8 +1359,18 @@ class ArmWatchService : Service() {
         /** A measured per-app fps at or above this counts as motion. */
         private const val ACTIVE_FPS = 45
 
-        fun start(context: Context) {
-            context.startForegroundService(Intent(context, ArmWatchService::class.java))
+        /**
+         * Start command from [BootReceiver]: send every saved vote once, on
+         * the worker. After a reboot the vendor's map is empty, and with a
+         * large armed set and no usage access the passes vote nothing by
+         * themselves, so this sweep is what puts the saved set back.
+         */
+        const val ACTION_REARM = "tf.arm165.REARM"
+
+        fun start(context: Context, action: String? = null) {
+            context.startForegroundService(
+                Intent(context, ArmWatchService::class.java).setAction(action)
+            )
         }
 
         /**
