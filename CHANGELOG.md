@@ -1,5 +1,40 @@
 # Changelog
 
+## 1.1.5
+
+### Fixed
+
+- **App list refreshes by itself** (issue #36). An app installed or removed
+  while 165 Armer was open did not show up, or go away, until the app was
+  restarted. The list now reloads when that happens.
+- **Starting after a reboot** (issue #41). At boot the app sent every saved
+  vote before it started the watchdog, which with Arm all could take long
+  enough for the phone to kill it first. The watchdog now starts first and
+  sends the votes in the background. It also restarts after an update of the
+  app. If it still does not start, opening the app writes one line to the log
+  saying whether the phone delivered the boot signal at all.
+
+### Added
+
+- **Arm all includes apps you install later** (issue #36). After Arm all, a
+  newly installed app is armed at the same rate. Clear ends that. An
+  uninstalled app is dropped from the armed list.
+- **Still screen at 165 Hz: rest at 120 Hz** (issue #37), in Settings, off by
+  default and experimental. For screens that stay at 165 Hz on a still image,
+  like the OnePlus 15R and Ace 6T: a still screen is voted down to 120 Hz,
+  the way 144 Hz already works, and motion brings 165 Hz back. Leave it off
+  on the OnePlus 15 and 16.
+
+### Changed
+
+- **An armed app is voted the moment it comes to the front** (issues #39,
+  #40). It could wait up to five seconds for its turn, showing the phone's
+  own rate (60 Hz on Standard) until then. This shortens that wait; it does
+  not cover a popup opened inside the same app.
+- **The log says which vendor call the lock-screen hold used** (issue #42),
+  and whether the phone named it or the app assumed it, so a log shared after
+  a system update shows whether the update moved it.
+
 ## 1.1.4
 
 ### Added

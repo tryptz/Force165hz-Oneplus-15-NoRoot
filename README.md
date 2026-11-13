@@ -62,7 +62,10 @@ service. The app finds the right vendor call for each firmware at launch, and
 | 165 Hz | ≈55 Hz on ColorOS 16, ≈33 Hz on ColorOS 17 |
 
 Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
-still screen stays at 60 Hz or above whatever rate is selected.
+still screen stays at 60 Hz or above whatever rate is selected. At 165 Hz it
+stays at 165 Hz unless you turn on **Still screen at 165 Hz: rest at 120 Hz**
+in Settings (off by default, experimental), which lets it drop the way 144 Hz
+does.
 
 ## 165 Hz across the UI, 120 Hz on the lock screen and camera
 

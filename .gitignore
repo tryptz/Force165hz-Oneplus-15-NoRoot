@@ -6,3 +6,7 @@ app/build/
 *.apk
 local.properties
 armer-app/.kotlin/
+# signing keys never belong in the repo
+*.jks
+*.keystore
+keystore.properties
