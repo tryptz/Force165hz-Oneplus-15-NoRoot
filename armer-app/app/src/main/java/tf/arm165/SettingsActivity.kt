@@ -59,6 +59,9 @@ class SettingsActivity : Activity() {
 
         findViewById<View>(R.id.row_lock120).setOnClickListener { tapLock120() }
 
+        RateLock.loadRestAbove144(ArmedStore.open(this))
+        findViewById<View>(R.id.row_rest165).setOnClickListener { tapRest165() }
+
         findViewById<View>(R.id.row_language).setOnClickListener { pickLanguage() }
         findViewById<TextView>(R.id.language_sub).text = AppLanguage.label(this, AppLanguage.current(this))
 
@@ -76,6 +79,29 @@ class SettingsActivity : Activity() {
         syncUsageRow()
         syncBindingRow()
         syncLock120Row()
+        syncRest165Row()
+    }
+
+    /**
+     * Issue #37: lets a still screen armed above 144 Hz park at 120, for
+     * panels that stay at 165 on a still image. Off by default, because on
+     * the OnePlus 15 the same park idles higher than 165 does by itself.
+     */
+    private fun syncRest165Row() {
+        val on = RateLock.restAbove144
+        findViewById<RateSwitch>(R.id.rest165_switch).setChecked(on, animate = false)
+        findViewById<TextView>(R.id.rest165_sub)
+            .setText(if (on) R.string.rest165_sub_on else R.string.rest165_sub_off)
+    }
+
+    private fun tapRest165() {
+        val prefs = ArmedStore.open(this)
+        RateLock.setRestAbove144(prefs, !RateLock.restAbove144)
+        // A start command makes the watchdog drop its park state, so a vote
+        // parked under the old answer is back at its armed rate by the next
+        // hold, and the new answer decides from there.
+        if (ArmedStore.read(prefs).isNotEmpty()) ArmWatchService.start(this)
+        syncRest165Row()
     }
 
     /**

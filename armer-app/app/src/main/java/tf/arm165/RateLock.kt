@@ -1,5 +1,6 @@
 package tf.arm165
 
+import android.content.SharedPreferences
 import android.os.BadParcelableException
 import android.os.Build
 import android.os.Bundle
@@ -155,11 +156,42 @@ object RateLock {
     fun idleFloorHz(rateId: Int): Int = when (onPanel(rateId)) {
         RATE_60, RATE_90, RATE_120 -> 1
         RATE_144 -> 48
-        RATE_165 -> floor165Hz
+        // With [restAbove144] on, the user has said this panel does not idle
+        // in these modes at all: a still screen stays at the pin, so the pin
+        // is the floor.
+        RATE_165 -> if (restAbove144) 165 else floor165Hz
         // Never measured: the OnePlus 16's own floor. The estimate is kept
         // deliberately, like 144's was — guessed low only delays a park.
-        RATE_185 -> 60
+        RATE_185 -> if (restAbove144) 185 else 60
         else -> hz(rateId) / 3
+    }
+
+    private const val KEY_REST_ABOVE_144 = "rest_above_144"
+
+    /**
+     * The Settings switch for panels where a still 165 screen stays at 165
+     * (issue #37: the OnePlus 15R and Ace 6T, whose panel is LTPS). There the
+     * measurement [parkable] rests on runs the other way: 165 has no idle
+     * floor of its own, so swapping it for 120 can only idle lower, exactly as
+     * it does from 144 on the same phone.
+     *
+     * Off unless the user turns it on. On the OnePlus 15 the park from 165
+     * lands on a pinned 120, above the floor 165 reaches unaided, and nothing
+     * here can tell the two panels apart: a panel sitting at the pin is
+     * moving content on one and a still screen on the other.
+     */
+    @Volatile
+    var restAbove144 = false
+        private set
+
+    /** Reads the switch. The watchdog and the Settings page both call this. */
+    fun loadRestAbove144(prefs: SharedPreferences) {
+        restAbove144 = prefs.getBoolean(KEY_REST_ABOVE_144, false)
+    }
+
+    fun setRestAbove144(prefs: SharedPreferences, on: Boolean) {
+        prefs.edit().putBoolean(KEY_REST_ABOVE_144, on).apply()
+        restAbove144 = on
     }
 
     /**
@@ -189,8 +221,12 @@ object RateLock {
      * lands ABOVE the 55 Hz the 165 mode idles to on its own. Parking 165
      * therefore costs idle power instead of saving it, whatever the vote says.
      * A still 165 screen rests at 55 and that is the floor on this build.
+     *
+     * [restAbove144] is the user saying their panel is not that one: every
+     * rate above 120 parks.
      */
-    fun parkable(rateId: Int): Boolean = hz(rateId) in 121..144
+    fun parkable(rateId: Int): Boolean =
+        hz(rateId) in 121..144 || (restAbove144 && hz(rateId) > 144)
 
     /**
      * Packages a bulk sweep must skip while a deliberate row tap may still arm

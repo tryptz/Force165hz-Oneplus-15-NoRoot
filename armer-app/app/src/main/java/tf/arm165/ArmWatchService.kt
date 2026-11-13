@@ -1072,6 +1072,9 @@ class ArmWatchService : Service() {
         // it cannot leave working out this build's numbering to the UI.
         worker.execute { RateLock.bind(packageName) }
         prefs = ArmedStore.open(this)
+        // Started at boot, the watchdog runs with no Settings page ever
+        // opened, so it reads the switch for what may park itself.
+        prefs?.let(RateLock::loadRestAbove144)
         prefs?.getStringSet(KEY_REGISTERED, emptySet())?.let(registered::addAll)
         // An armed set written by a build whose "Arm all" included the
         // framework and SystemUI still names them. Drop those entries and
