@@ -528,7 +528,7 @@ class ArmWatchService : Service() {
                 if (now < (parkBlockedUntilNs[pkg] ?: 0L)) return@forEach
                 val n = (lowTicks[pkg] ?: 0) + 1
                 lowTicks[pkg] = n
-                if (n >= LOW_TICKS && park(pkg, rateId)) {
+                if (n >= LOW_TICKS && RateLock.arm(pkg, RateLock.RATE_120)) {
                     // Re-read the clock: park() sleeps between its two writes,
                     // and a grace measured from before that sleep is short by
                     // exactly the step, which is how a 1 s grace turned into
@@ -674,40 +674,6 @@ class ArmWatchService : Service() {
             } -> PINNED_TICK_MS
             else -> INTERVAL_MS
         }
-    }
-
-    /**
-     * Writes the park vote for [pkg], which is armed at [rateId].
-     *
-     * From 144 that is one write: the 120 vote replaces it and the panel
-     * ramps down inside the 120 mode. From the extreme mode, 165 and up, it
-     * is not. Measured on the OnePlus 15 with issue #37's switch on: a 120
-     * vote written over a 165 one is taken, the mode switches, and the panel
-     * then sits at exactly 120 with nothing rendering, every pair 8.3 ms,
-     * until the ceiling rule gives the park up. That is the pin the staged
-     * park through 144 ended on as well. A 120 vote reached FROM a higher
-     * vote is a pin; a 120 vote written to a package that holds none ramps,
-     * which is all that arming an app at 120 is.
-     *
-     * So from above 144 the armed vote is withdrawn first, the policy gets a
-     * beat to act on that, and only then is the 120 written, to a package
-     * that holds nothing. The park arrives the way an arm does rather than
-     * the way a downgrade does. An experiment until a log shows the panel
-     * leaving 120: it only runs with the switch on.
-     *
-     * The beat is spent inside the pass, on the worker, like the step the
-     * staged park had: a package left with no vote across two ticks is one
-     * the restore path knows nothing about.
-     */
-    private fun park(pkg: String, rateId: Int): Boolean {
-        if (RateLock.hz(RateLock.onPanel(rateId)) > PARK_DIRECT_MAX_HZ) {
-            val withdrawn = RateLock.release(pkg, rateId)
-            Log.i(TAG, "%s leaving the %d Hz mode: vote withdrawn%s, 120 follows in %d ms"
-                .format(pkg, RateLock.hz(RateLock.onPanel(rateId)),
-                    if (withdrawn) "" else " (not taken)", PARK_STEP_MS))
-            try { Thread.sleep(PARK_STEP_MS) } catch (_: InterruptedException) {}
-        }
-        return RateLock.arm(pkg, RateLock.RATE_120)
     }
 
     /**
@@ -1363,16 +1329,6 @@ class ArmWatchService : Service() {
          * letting the LTPO ramp reach its 1 Hz floor.
          */
         private const val PARK_CEILING_HZ = 120
-
-        /** The highest armed rate a park may replace with 120 in one write. */
-        private const val PARK_DIRECT_MAX_HZ = 144
-
-        /**
-         * How long a package is left with no vote between the withdrawal and
-         * the 120, when a park leaves the extreme mode: long enough for the
-         * policy to act on the withdrawal, short enough to be one pass.
-         */
-        private const val PARK_STEP_MS = 200L
 
         /** How long the last oiface focus answer stands after it stops answering. */
         private const val FOCUS_MEMORY_NS = 5_000_000_000L
