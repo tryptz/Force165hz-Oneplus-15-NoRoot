@@ -200,7 +200,8 @@ object LockRate {
         worker.execute {
             if (want) {
                 val ok = synchronized(RateLock) { RateLock.holdDisplayRate(LOCK_RATE, token) }
-                Log.i(TAG, "lock120: $why, holding ${RateLock.hz(LOCK_RATE)} Hz" +
+                Log.i(TAG, "lock120: $why, holding ${RateLock.hz(LOCK_RATE)} Hz at " +
+                    RateLock.displayVoteNote() +
                     if (ok) "" else " (the vendor did not take the vote)")
             } else {
                 synchronized(RateLock) { RateLock.releaseDisplayRate(token) }

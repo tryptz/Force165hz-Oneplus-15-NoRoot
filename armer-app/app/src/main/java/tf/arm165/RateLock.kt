@@ -404,7 +404,8 @@ object RateLock {
                     TAG,
                     "${Build.MODEL} / ${Build.DISPLAY}: vote at transaction $voteCode " +
                         "(${binding.name.lowercase()}), getGameList $gameListCode, " +
-                        "setAppOverrideRefreshRate $appOverrideCode",
+                        "setAppOverrideRefreshRate $appOverrideCode, " +
+                        "display vote at ${displayVoteNote()}",
                 )
             }
         }
@@ -674,6 +675,17 @@ object RateLock {
         read = { it.readInt() != 0 },
         fallback = false,
     )
+
+    /**
+     * The transaction the display-wide vote goes out at, and how that number
+     * was come by, for the log (issue #42). An assumed number is the first
+     * thing to check when a hold is taken and the screen does not follow, or
+     * is not taken at all: a build that declares a method between the two
+     * votes moves this one, and nothing else here would say so.
+     */
+    fun displayVoteNote(): String = displayVoteCode
+        ?.let { "transaction $it, named by this build" }
+        ?: "transaction ${voteCode + 1}, assumed to follow the vote at $voteCode"
 
     /** Withdraws [holdDisplayRate]'s vote and unlinks [token]. */
     fun releaseDisplayRate(token: IBinder): Boolean = transact(

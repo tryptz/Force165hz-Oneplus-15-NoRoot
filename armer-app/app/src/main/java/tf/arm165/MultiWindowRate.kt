@@ -51,7 +51,8 @@ object MultiWindowRate {
         val ok = RateLock.holdDisplayRate(want, token)
         heldRate = want
         Log.i(TAG, "multiwindow165: ${onScreen.size} apps on screen (${onScreen.joinToString()}), " +
-            "holding ${RateLock.hz(want)} Hz" + if (ok) "" else " (the vendor did not take the vote)")
+            "holding ${RateLock.hz(want)} Hz" +
+            if (ok) "" else " (the vendor did not take the vote at ${RateLock.displayVoteNote()})")
     }
 
     /** Screen off, or the watchdog going: nothing is split any more. */
