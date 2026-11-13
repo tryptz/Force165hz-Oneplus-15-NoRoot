@@ -33,6 +33,12 @@
   #40). It could wait up to five seconds for its turn, showing the phone's
   own rate (60 Hz on Standard) until then. This shortens that wait; it does
   not cover a popup opened inside the same app.
+- **Video no longer ends the idle ramp.** Once a quiet screen has the
+  120 Hz vote (144 Hz apps, and 165 Hz with the new switch), the armed rate
+  came back as soon as the app reported 45 fps, which a 60 fps video does. It
+  now comes back when the app fills the 120 Hz vote (112 fps or more), so
+  video settles at 30 or 60 Hz inside it. GPU load, and the screen held at
+  the top of the vote for three seconds, bring the armed rate back as before.
 - **The log says which vendor call the lock-screen hold used** (issue #42),
   and whether the phone named it or the app assumed it, so a log shared after
   a system update shows whether the update moved it.

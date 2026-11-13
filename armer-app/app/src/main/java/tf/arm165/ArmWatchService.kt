@@ -342,6 +342,19 @@ class ArmWatchService : Service() {
         // whose 55 Hz floor then reads as motion, the gate sees quiet, and the
         // vote oscillates — the 'unstable at 165' loop. GPU load and tracked
         // fps stay as conservative backups.
+        //
+        // The fps backup has to obey the same rule while a vote is parked.
+        // It used to end the park at [ACTIVE_FPS], 45, which a 60 fps video
+        // clears: the one thing the 120 vote is for besides a true idle is
+        // the panel settling at 30 or 60 under video, and in any app the
+        // daemon reports fps for, that video put the armed rate straight
+        // back. Under a 120 ceiling an app cannot be measured above 120, so
+        // content that wants more shows as fps AT the ceiling, and that is
+        // what ends a park now. With nothing parked the 45 stands: there it
+        // only decides whether a pass counts as busy, and it still keeps a
+        // playing video from starting a park countdown at the gate below.
+        val fpsEndsPark = focusFps >= PARK_RESTORE_FPS
+        val fpsSaysBusy = if (parked.isEmpty()) fpsBusy else fpsEndsPark
         val graceOver = System.nanoTime() >= parkGraceUntilNs
         val phz = panelHz()
 
@@ -378,7 +391,7 @@ class ArmWatchService : Service() {
         // is saturating it or this park is not going to idle. Both end the
         // park; the backoff below stops it being retried in a loop.
         val ceilingSaturated = ceilingTicks >= CEILING_TICKS
-        val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsBusy
+        val busy = parkIgnored || ceilingSaturated || gpu >= GPU_ACTIVE || fpsSaysBusy
         // The park did not take, and has not been re-asserted yet: write the
         // 120 once more rather than concluding anything. This is the whole
         // difference between "the vendor refuses a lower vote" and "the vote
@@ -1368,8 +1381,20 @@ class ArmWatchService : Service() {
         private const val GPU_IDLE = 0.04f
         private const val GPU_ACTIVE = 0.15f
 
-        /** A measured per-app fps at or above this counts as motion. */
+        /**
+         * A measured per-app fps at or above this counts as motion: it keeps
+         * a park from starting. It does not end one; see [PARK_RESTORE_FPS].
+         */
         private const val ACTIVE_FPS = 45
+
+        /**
+         * A measured per-app fps at or above this ends a park: the app is
+         * filling the 120 ceiling, which is all that content wanting more
+         * than 120 can show under it. Below it, the park serves the content
+         * as it is, 30 and 60 fps video included. The margin is the same one
+         * that allows for a held rate's own wobble.
+         */
+        private const val PARK_RESTORE_FPS = PARK_CEILING_HZ - PIN_MARGIN_HZ
 
         /**
          * Start command from [BootReceiver]: send every saved vote once, on
