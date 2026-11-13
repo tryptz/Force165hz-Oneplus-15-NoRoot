@@ -285,6 +285,15 @@ class ArmWatchService : Service() {
         MultiWindowRate.update(this, armedNow)
 
 
+        // An armed app that was not on screen last pass and is not parked
+        // (issues #39 and #40). Its vote is voted on the spot at the end of
+        // this pass instead of whenever the hold interval next comes round:
+        // a vote lands on the windows its package has when it is written, so
+        // an app that has just come to the front, or opened new windows on
+        // the way, could show the phone's own rate (60 on Standard) for up
+        // to five seconds. The parked case is the block below.
+        val switchedIn = focus != null && focus != lastPassFocus && focus !in parked
+
         // Switching INTO an armed app is the user asking for its rate now: a
         // vote left parked at 120 from the last time it was on screen must not
         // be what greets them. Not park churn — no content undid this one.
@@ -630,7 +639,7 @@ class ArmWatchService : Service() {
         val outvoted = focusIsGame && pinnedHz > 0 &&
             phz >= floorHz + FLOOR_MARGIN_HZ && phz <= pinnedHz - PIN_MARGIN_HZ
         val holdFor = if (focusIsGame) GAME_HOLD_INTERVAL_NS else HOLD_INTERVAL_NS
-        if (outvoted || System.nanoTime() - lastVoteNs >= holdFor) {
+        if (outvoted || switchedIn || System.nanoTime() - lastVoteNs >= holdFor) {
             if (outvoted) {
                 Log.i(TAG, ("%s is on %d Hz, between our %d Hz floor and the %d Hz we vote , " +
                     "its own request outlasted ours. Re-voting now")
