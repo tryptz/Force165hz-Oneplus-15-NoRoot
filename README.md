@@ -63,9 +63,10 @@ service. The app finds the right vendor call for each firmware at launch, and
 
 Measured on the OnePlus 15. The OnePlus 15R has an LTPS panel, not LTPO, so a
 still screen stays at 60 Hz or above whatever rate is selected. At 165 Hz it
-stays at 165 Hz unless you turn on **Still screen at 165 Hz: rest at 120 Hz**
-in Settings (off by default, experimental), which lets it drop the way 144 Hz
-does.
+stays at 165 Hz unless you turn on **Idle ramp for 165 Hz** in Settings (off
+by default, experimental). A quiet screen is then given the 120 Hz vote, as
+144 Hz already is: the mode in which the phone ramps down by itself, to its
+idle rate on a still screen and to 30 or 60 Hz while video plays.
 
 ## 165 Hz across the UI, 120 Hz on the lock screen and camera
 

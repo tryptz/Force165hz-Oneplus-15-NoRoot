@@ -19,11 +19,13 @@
 - **Arm all includes apps you install later** (issue #36). After Arm all, a
   newly installed app is armed at the same rate. Clear ends that. An
   uninstalled app is dropped from the armed list.
-- **Still screen at 165 Hz: rest at 120 Hz** (issue #37), in Settings, off by
-  default and experimental. For screens that stay at 165 Hz on a still image,
-  like the OnePlus 15R and Ace 6T: a still screen is voted down to 120 Hz,
-  the way 144 Hz already works, and motion brings 165 Hz back. Leave it off
-  on the OnePlus 15 and 16.
+- **Idle ramp for 165 Hz** (issue #37), in Settings, off by default and
+  experimental. For screens that stay at 165 Hz when nothing needs it, like
+  the OnePlus 15R and Ace 6T. A quiet screen is given the 120 Hz vote, the
+  way 144 Hz already works: the mode in which the phone ramps down by itself,
+  to its idle rate on a still screen and to 30 or 60 Hz while video plays.
+  165 Hz comes back when content needs more than 120. Leave it off on the
+  OnePlus 15 and 16.
 
 ### Changed
 

@@ -175,6 +175,12 @@ object RateLock {
      * floor of its own, so swapping it for 120 can only idle lower, exactly as
      * it does from 144 on the same phone.
      *
+     * 120 is not where the screen is meant to sit. It is the one vote whose
+     * mode is a range, so the panel ramps down inside it by itself: to its
+     * idle rate on a true idle (1 Hz on LTPO, 60 on this LTPS panel) and to
+     * 30 or 60 while video plays. Only content that needs more than 120
+     * brings the armed rate back.
+     *
      * Off unless the user turns it on. On the OnePlus 15 the park from 165
      * lands on a pinned 120, above the floor 165 reaches unaided, and nothing
      * here can tell the two panels apart: a panel sitting at the pin is

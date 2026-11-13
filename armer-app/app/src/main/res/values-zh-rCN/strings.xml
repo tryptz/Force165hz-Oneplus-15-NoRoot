@@ -238,7 +238,7 @@ adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="lock120_sub_no_usage">锁屏已开启。相机需要使用情况访问权限才能被识别：点按上方的“使用情况访问权限”一行授予。</string>
     <string name="lock120_sub_not_standard">需将手机刷新率设为“标准”（设置 › 显示 › 屏幕刷新率）。设为“高”时锁屏和相机已经是 120 Hz，但下拉栏和切换应用会被限制在 120 Hz。</string>
 
-    <string name="rest165_title">165 Hz 静止画面降至 120 Hz</string>
-    <string name="rest165_sub_off">实验性功能。适用于静止画面仍停留在 165 Hz 的屏幕，例如一加 15R 和 Ace 6T。画面静止两秒后，165 Hz 的投票会换成 120 Hz（144 Hz 已是这样工作的），屏幕便可降到待机刷新率；画面一动就恢复 165 Hz。一加 15 和 16 请保持关闭，它们的 165 Hz 本身就能降得更低。</string>
-    <string name="rest165_sub_on">已开启。高于 144 Hz 的已武装应用在画面静止时会改投 120 Hz，直到画面再次变化。如果画面静止时刷新率来回跳动，请关闭此项：说明这块屏幕无法靠该投票降频。</string>
+    <string name="rest165_title">165 Hz 待机降频</string>
+    <string name="rest165_sub_off">实验性功能。适用于无需高刷新率时仍停留在 165 Hz 的屏幕，例如一加 15R 和 Ace 6T。画面安静下来后，165 Hz 的投票会换成 120 Hz 的投票（144 Hz 已是这样工作的）。在这个模式下手机会自行降频：静止画面降到待机刷新率（LTPO 屏幕为 1 Hz，15R 为 60 Hz），播放视频时降到 30 或 60 Hz。内容需要高于 120 时恢复 165 Hz。默认关闭：一加 15 和 16 实测不开启时 165 Hz 的待机刷新率更低。</string>
+    <string name="rest165_sub_on">已开启。画面安静下来后，高于 144 Hz 的已武装应用会改投 120 Hz，屏幕便可降到待机刷新率，播放视频时降到 30 或 60 Hz。内容需要高于 120 时恢复 165 Hz。如果画面静止时刷新率来回跳动，请关闭此项：说明这块屏幕无法靠该投票降频。</string>
 </resources>

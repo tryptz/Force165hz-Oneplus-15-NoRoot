@@ -83,9 +83,10 @@ class SettingsActivity : Activity() {
     }
 
     /**
-     * Issue #37: lets a still screen armed above 144 Hz park at 120, for
-     * panels that stay at 165 on a still image. Off by default, because on
-     * the OnePlus 15 the same park idles higher than 165 does by itself.
+     * Issue #37: lets a quiet screen armed above 144 Hz take the 120 vote,
+     * the mode in which the panel ramps down by itself, for panels that stay
+     * at 165 when nothing needs it. Off by default, because on the OnePlus 15
+     * the same park idles higher than 165 does by itself.
      */
     private fun syncRest165Row() {
         val on = RateLock.restAbove144
