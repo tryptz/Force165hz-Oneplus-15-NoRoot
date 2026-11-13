@@ -25,6 +25,13 @@ object ArmedStore {
     const val KEY_TOTAL = "sweep_total"
 
     private const val KEY = "armed"
+
+    /**
+     * The rate "Arm all" last swept at, kept for as long as that sweep stands
+     * (issue #36). While it is set, an app installed afterwards is armed at
+     * the same rate, so "all" stays all. Clear takes it away again.
+     */
+    private const val KEY_SWEEP_RATE = "arm_all_rate"
     private const val KEY_SCHEMA = "schema"
     private const val SEP = '|'
 
@@ -108,5 +115,23 @@ object ArmedStore {
     fun write(prefs: SharedPreferences, armed: Map<String, Int>) {
         val encoded = armed.mapTo(HashSet(armed.size)) { "${it.key}$SEP${it.value}" }
         prefs.edit().putStringSet(KEY, encoded).apply()
+    }
+
+    /**
+     * True when [key] is the armed set's own, for a screen listening to the
+     * store: the watchdog and the widget both change the set while the main
+     * screen may be showing a copy of it.
+     */
+    fun isArmedKey(key: String?): Boolean = key == KEY
+
+    /** The rate a standing "Arm all" was swept at, or null when none stands. */
+    fun sweepRate(prefs: SharedPreferences): Int? =
+        prefs.getInt(KEY_SWEEP_RATE, RateLock.RATE_NONE).takeIf { RateLock.isKnown(it) }
+
+    /** Records a standing "Arm all" at [rateId]; null takes it away. */
+    fun setSweepRate(prefs: SharedPreferences, rateId: Int?) {
+        val edit = prefs.edit()
+        if (rateId == null) edit.remove(KEY_SWEEP_RATE) else edit.putInt(KEY_SWEEP_RATE, rateId)
+        edit.apply()
     }
 }

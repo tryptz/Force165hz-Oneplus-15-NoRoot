@@ -3,7 +3,11 @@ package tf.arm165
 import android.Manifest
 import android.app.AlertDialog
 import android.content.ActivityNotFoundException
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.net.Uri
@@ -118,6 +122,28 @@ class MainActivity : ShellActivity() {
         updateState()
 
         reArmSavedQuietly() // covers a reboot the boot receiver missed
+        loadCatalog()
+        // An app installed or removed while this screen is alive (issue #36):
+        // the list was only ever read here, in onCreate, so a new app could
+        // not be found, or armed by Arm all, until the screen was restarted.
+        registerReceiver(packageChanges, IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        })
+        prefs.registerOnSharedPreferenceChangeListener(storeChanges)
+        ArmWatchService.start(this) // watchdog: beat games that pin their own frame rate
+        requestNotificationPermission()
+    }
+
+    override fun onDestroy() {
+        prefs.unregisterOnSharedPreferenceChangeListener(storeChanges)
+        try { unregisterReceiver(packageChanges) } catch (_: Exception) {}
+        super.onDestroy()
+    }
+
+    /** Lists the installed apps, off the main thread, and shows them. */
+    private fun loadCatalog() {
         AppCatalog.loadAsync(packageManager) { entries ->
             if (isFinishing || isDestroyed) return@loadAsync
             all = entries
@@ -128,13 +154,33 @@ class MainActivity : ShellActivity() {
             applyFilter()
             refreshStatus()
         }
-        ArmWatchService.start(this) // watchdog: beat games that pin their own frame rate
-        requestNotificationPermission()
+    }
+
+    private val packageChanges = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) = loadCatalog()
+    }
+
+    /**
+     * The armed set changed in the store. Usually that was this screen, and
+     * [syncArmed] finds nothing to do; otherwise it was the widget's sweep, or
+     * the watchdog arming a new app or dropping an uninstalled one, and the
+     * copy held here would overwrite their change on the next tap.
+     *
+     * A field, not a lambda at the call site: the preferences hold their
+     * listeners weakly.
+     */
+    private val storeChanges = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (ArmedStore.isArmedKey(key)) syncArmed()
     }
 
     override fun onResume() {
         super.onResume()
         // The games page may have changed the armed set — re-read it.
+        syncArmed()
+    }
+
+    /** Takes the stored armed set as the truth when the copy here differs. */
+    private fun syncArmed() {
         val latest = ArmedStore.read(prefs)
         if (latest != armed) {
             armed.clear()
@@ -261,8 +307,12 @@ class MainActivity : ShellActivity() {
     private fun onArmedChanged() {
         ArmedStore.write(prefs, armed)
         // Nothing left to hold: a watchdog that keeps ticking every few seconds
-        // would only spend battery and show a notification about no apps.
-        if (armed.isEmpty()) ArmWatchService.stopIfIdle(this)
+        // would only spend battery and show a notification about no apps. And
+        // with nothing armed no "Arm all" stands, so no new app joins one.
+        if (armed.isEmpty()) {
+            ArmedStore.setSweepRate(prefs, null)
+            ArmWatchService.stopIfIdle(this)
+        }
         if (isFinishing || isDestroyed) return
         refreshStatus()
         if (filter == Filter.ARMED) applyFilter() else { adapter.notifyDataSetChanged(); updateState() }
@@ -418,6 +468,9 @@ class MainActivity : ShellActivity() {
                 main.post {
                     done.forEach { armed[it] = rateId }
                     onArmedChanged()
+                    // The sweep stands until a Clear: the watchdog arms apps
+                    // installed later at the same rate (issue #36).
+                    if (done.isNotEmpty()) ArmedStore.setSweepRate(prefs, rateId)
                     ArmWatchService.start(this)
                     snack(getString(R.string.armed_all, done.size, targets.size, RateLock.hz(rateId)))
                 }

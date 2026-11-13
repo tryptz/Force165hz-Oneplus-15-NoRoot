@@ -984,6 +984,58 @@ class ArmWatchService : Service() {
         }
     }
 
+    /**
+     * Apps coming and going while the watchdog runs (issue #36).
+     *
+     * Installed while an "Arm all" stands ([ArmedStore.sweepRate]): the new
+     * app joins it at the same rate, so "all" stays all without the sweep
+     * being pressed again. Uninstalled: its entry leaves the armed set and
+     * its vote is withdrawn, so the count stops naming an app that is gone.
+     *
+     * An update is neither. It arrives as a removal and an addition of the
+     * same package, both marked as replacing, and changes nothing here.
+     *
+     * The stored set is changed on the main thread, where the app's own
+     * screen changes it too, so the two cannot interleave; only the binder
+     * call goes to the worker.
+     */
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+            val pkg = i?.data?.schemeSpecificPart ?: return
+            if (i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
+            val p = prefs ?: return
+            val armed = ArmedStore.read(p)
+            when (i.action) {
+                Intent.ACTION_PACKAGE_ADDED -> {
+                    val rateId = ArmedStore.sweepRate(p) ?: return
+                    if (pkg in armed || pkg in Sweeps.skip(packageName)) return
+                    armed[pkg] = rateId
+                    ArmedStore.write(p, armed)
+                    // A vote that does not land here is not lost: the entry
+                    // is stored, and the pass votes it when it is on screen.
+                    worker.execute {
+                        val ok = synchronized(RateLock) { RateLock.arm(pkg, rateId) }
+                        Log.i(TAG, "$pkg installed while Arm all stands, armed at " +
+                            "${RateLock.hz(rateId)} Hz" + if (ok) "" else " (vote not taken yet)")
+                    }
+                }
+                Intent.ACTION_PACKAGE_REMOVED -> {
+                    val rateId = armed.remove(pkg) ?: return
+                    ArmedStore.write(p, armed)
+                    worker.execute {
+                        synchronized(RateLock) { RateLock.release(pkg, rateId) }
+                        Log.i(TAG, "$pkg uninstalled, dropped from the armed set")
+                    }
+                }
+                else -> return
+            }
+            getSystemService(android.app.NotificationManager::class.java)
+                ?.notify(NOTIFY_ID, buildNotification())
+            ArmWidget.refresh(this@ArmWatchService)
+            if (armed.isEmpty()) stopIfIdle(this@ArmWatchService)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         running = true
@@ -1010,6 +1062,11 @@ class ArmWatchService : Service() {
         registerReceiver(screenReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
+        })
+        registerReceiver(packageReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
         })
         LockRate.sync(this)
         LockRate.watch(this)
@@ -1074,6 +1131,7 @@ class ArmWatchService : Service() {
         Choreographer.getInstance().removeFrameCallback(panelFrames)
         worker.shutdown()
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(packageReceiver) } catch (_: Exception) {}
         super.onDestroy()
     }
 

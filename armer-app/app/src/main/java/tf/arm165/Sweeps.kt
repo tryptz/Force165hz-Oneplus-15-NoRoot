@@ -50,12 +50,15 @@ object Sweeps {
         val armed = ArmedStore.read(prefs)
         done.forEach { armed[it] = rateId }
         ArmedStore.write(prefs, armed)
+        // The sweep stands until a Clear: apps installed later join it.
+        ArmedStore.setSweepRate(prefs, rateId)
         return done.size to targets.size
     }
 
     /** Releases every armed vote. Returns how many refused to let go. */
     fun clearAll(context: Context): Int {
         val prefs = ArmedStore.open(context)
+        ArmedStore.setSweepRate(prefs, null)
         val saved = ArmedStore.read(prefs)
         if (saved.isEmpty()) return 0
         // Emptied before the vendor is touched, so a watchdog pass landing
