@@ -36,408 +36,425 @@
             android:textStyle="bold" />
     </LinearLayout>
 
-
-    <!-- the grant the watchdog cannot work without -->
-    <LinearLayout
-        android:id="@+id/row_usage"
+    <!-- everything below the header scrolls: the rows outgrew a phone screen -->
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/usage_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/usage_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="@string/usage_off"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <tf.arm165.RateSwitch
-            android:id="@+id/usage_switch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" />
-    </LinearLayout>
-
-    <!-- the phone on Standard, with the lock screen (#26) and camera (#28) at 120 -->
-    <LinearLayout
-        android:id="@+id/row_lock120"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/lock120_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/lock120_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <tf.arm165.RateSwitch
-            android:id="@+id/lock120_switch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" />
-    </LinearLayout>
-
-    <!-- a still screen armed above 144 parks at 120, for panels that stay at 165 (#37) -->
-    <LinearLayout
-        android:id="@+id/row_rest165"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/rest165_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/rest165_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <tf.arm165.RateSwitch
-            android:id="@+id/rest165_switch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" />
-    </LinearLayout>
-
-    <!-- pop-up notifications held at the armed rate, or 120 -->
-    <LinearLayout
-        android:id="@+id/row_popup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/popup_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/popup_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <tf.arm165.RateSwitch
-            android:id="@+id/popup_switch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="10dp" />
-    </LinearLayout>
-
-    <!-- this build's version, and a check against the latest GitHub release -->
-    <LinearLayout
-        android:id="@+id/row_update"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/update_row_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/update_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="10dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:gravity="center"
-            android:background="@drawable/bg_btn_tonal"
-            android:text="@string/update_check"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- the app's language, apart from the phone's -->
-    <LinearLayout
-        android:id="@+id/row_language"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/language_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/language_sub"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="10dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:gravity="center"
-            android:background="@drawable/bg_btn_tonal"
-            android:text="@string/language_change"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- the smoothness test: see the rate rather than read it -->
-    <LinearLayout
-        android:id="@+id/row_fps"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/fps_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="@string/fps_row_sub"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="10dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:gravity="center"
-            android:background="@drawable/bg_btn_tonal"
-            android:text="@string/fps_open"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- the console lives on its own page now; this is the way in -->
-    <LinearLayout
-        android:id="@+id/row_log"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="14dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/log_title"
-                android:textColor="@color/text_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="@string/log_row_sub"
-                android:textColor="@color/text_secondary"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_marginStart="10dp"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:gravity="center"
-            android:background="@drawable/bg_btn_tonal"
-            android:text="@string/log_open"
-            android:textColor="@color/text_primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <!-- what the launch-time check found: which transaction this build takes
-         the vote at, and how that was established -->
-    <LinearLayout
-        android:id="@+id/row_binding"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/screen_pad"
-        android:layout_marginEnd="@dimen/screen_pad"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bg_card"
-        android:orientation="vertical"
-        android:padding="14dp">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/binding_title"
-            android:textColor="@color/text_primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/binding_sub"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="@string/binding_pending"
-            android:textColor="@color/text_secondary"
-            android:textSize="12sp" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:paddingBottom="16dp">
+
+
+            <!-- the grant the watchdog cannot work without -->
+            <LinearLayout
+                android:id="@+id/row_usage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/usage_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/usage_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/usage_off"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <tf.arm165.RateSwitch
+                    android:id="@+id/usage_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp" />
+            </LinearLayout>
+
+            <!-- the phone on Standard, with the lock screen (#26) and camera (#28) at 120 -->
+            <LinearLayout
+                android:id="@+id/row_lock120"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/lock120_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/lock120_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <tf.arm165.RateSwitch
+                    android:id="@+id/lock120_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp" />
+            </LinearLayout>
+
+            <!-- a still screen armed above 144 parks at 120, for panels that stay at 165 (#37) -->
+            <LinearLayout
+                android:id="@+id/row_rest165"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/rest165_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/rest165_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <tf.arm165.RateSwitch
+                    android:id="@+id/rest165_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp" />
+            </LinearLayout>
+
+            <!-- pop-up notifications held at the armed rate, or 120 -->
+            <LinearLayout
+                android:id="@+id/row_popup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/popup_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/popup_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <tf.arm165.RateSwitch
+                    android:id="@+id/popup_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp" />
+            </LinearLayout>
+
+            <!-- this build's version, and a check against the latest GitHub release -->
+            <LinearLayout
+                android:id="@+id/row_update"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/update_row_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/update_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="10dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_tonal"
+                    android:text="@string/update_check"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- the app's language, apart from the phone's -->
+            <LinearLayout
+                android:id="@+id/row_language"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/language_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/language_sub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="10dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_tonal"
+                    android:text="@string/language_change"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- the smoothness test: see the rate rather than read it -->
+            <LinearLayout
+                android:id="@+id/row_fps"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/fps_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/fps_row_sub"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="10dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_tonal"
+                    android:text="@string/fps_open"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- the console lives on its own page now; this is the way in -->
+            <LinearLayout
+                android:id="@+id/row_log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/log_title"
+                        android:textColor="@color/text_primary"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/log_row_sub"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="10dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:gravity="center"
+                    android:background="@drawable/bg_btn_tonal"
+                    android:text="@string/log_open"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <!-- what the launch-time check found: which transaction this build takes
+                 the vote at, and how that was established -->
+            <LinearLayout
+                android:id="@+id/row_binding"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/screen_pad"
+                android:layout_marginEnd="@dimen/screen_pad"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_card"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/binding_title"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/binding_sub"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/binding_pending"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>
