@@ -34,6 +34,12 @@
   about six seconds later. Needs notification access, to know when one
   appears; what a notification says is never read.
 
+- **Smooth volume slider from an idle screen.** With the screen resting at
+  its idle rate (33 Hz under a 165 Hz app), the volume slider animated at
+  that rate, because a volume key is not a touch and wakes nothing. With
+  anything armed above 120 Hz, each volume step now holds the screen at the
+  highest armed rate for a few seconds.
+
 ### Changed
 
 - **An armed app is voted the moment it comes to the front** (issues #39,

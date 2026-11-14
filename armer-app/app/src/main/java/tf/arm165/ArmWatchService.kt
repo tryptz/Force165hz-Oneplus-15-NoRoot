@@ -1077,6 +1077,27 @@ class ArmWatchService : Service() {
         }
     }
 
+    /**
+     * A volume step. The slider is SystemUI's window and a key press wakes
+     * nothing, so from an idling panel it animates at the idle rate. One
+     * display-wide hold per step, for as long as the slider stays up
+     * ([PopupRate.pulse]).
+     *
+     * Only with something armed above 120: with every app at 120 or under
+     * there is no floor to climb out of, and holding a rate nobody armed
+     * would put faster content on a panel the user chose to keep it off.
+     */
+    private val volumeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context?, i: Intent?) {
+            if (!screenOn) return
+            val armed = prefs?.let { ArmedStore.read(it) }.orEmpty()
+            if (armed.values.none { RateLock.hz(it) > PARK_CEILING_HZ }) return
+            val km = getSystemService(android.app.KeyguardManager::class.java)
+            if (km?.isKeyguardLocked == true) return // the lock screen has its own hold
+            PopupRate.pulse(applicationContext, "volume slider", VOLUME_HOLD_MS)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         running = true
@@ -1112,6 +1133,13 @@ class ArmWatchService : Service() {
             addAction(Intent.ACTION_PACKAGE_REMOVED)
             addDataScheme("package")
         })
+        // Sent by the system on every volume step; no permission to hear it.
+        val volume = IntentFilter(VOLUME_CHANGED)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(volumeReceiver, volume, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(volumeReceiver, volume)
+        }
         LockRate.sync(this)
         LockRate.watch(this)
         Choreographer.getInstance().postFrameCallback(panelFrames)
@@ -1177,6 +1205,7 @@ class ArmWatchService : Service() {
         worker.shutdown()
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(packageReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(volumeReceiver) } catch (_: Exception) {}
         super.onDestroy()
     }
 
@@ -1329,6 +1358,12 @@ class ArmWatchService : Service() {
          * letting the LTPO ramp reach its 1 Hz floor.
          */
         private const val PARK_CEILING_HZ = 120
+
+        /** AudioManager.VOLUME_CHANGED_ACTION: hidden as a constant, public as a broadcast. */
+        private const val VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
+
+        /** The volume slider stays up about three seconds after the last step. */
+        private const val VOLUME_HOLD_MS = 3500L
 
         /** How long the last oiface focus answer stands after it stops answering. */
         private const val FOCUS_MEMORY_NS = 5_000_000_000L

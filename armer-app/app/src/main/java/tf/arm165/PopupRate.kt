@@ -8,6 +8,7 @@ import android.os.Binder
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -47,6 +48,9 @@ object PopupRate {
     /** Main thread only. */
     private var held = false
 
+    /** When the hold is due to end, in uptime: a short pulse must not cut a long one. */
+    private var releaseAtMs = 0L
+
     fun enabled(context: Context): Boolean =
         ArmedStore.open(context).getBoolean(KEY_ON, false)
 
@@ -63,10 +67,19 @@ object PopupRate {
         false
     }
 
-    /** A pop-up has just appeared: hold now, and for [HOLD_MS] from now. Main thread. */
-    fun pulse(context: Context) {
+    /**
+     * Something of SystemUI's has just appeared, [why]: hold now, and for
+     * [holdMs] from now. Main thread.
+     *
+     * Also what the volume slider gets. A volume key is not a touch, so on a
+     * panel resting at its idle rate nothing wakes it, and the slider, which
+     * is SystemUI's window like the pop-up, animates at that rate: choppy at
+     * the 165 mode's 33 Hz floor, fine when the panel is already at 165.
+     */
+    fun pulse(context: Context, why: String = "notification pop-up", holdMs: Long = HOLD_MS) {
+        releaseAtMs = maxOf(releaseAtMs, SystemClock.uptimeMillis() + holdMs)
         handler.removeCallbacks(release)
-        handler.postDelayed(release, HOLD_MS)
+        handler.postAtTime(release, releaseAtMs)
         if (held) return
         held = true
         // The highest rate armed, and never under the lock screen's 120.
@@ -81,12 +94,13 @@ object PopupRate {
                 rate = RateLock.RATE_120
                 ok = synchronized(RateLock) { RateLock.holdDisplayRate(rate, token) }
             }
-            Log.i(TAG, "popup: notification pop-up, holding ${RateLock.hz(rate)} Hz" +
+            Log.i(TAG, "popup: $why, holding ${RateLock.hz(rate)} Hz" +
                 if (ok) "" else " (the vendor did not take the vote at ${RateLock.displayVoteNote()})")
         }
     }
 
     private val release = Runnable {
+        releaseAtMs = 0L
         if (!held) return@Runnable
         held = false
         worker.execute {
