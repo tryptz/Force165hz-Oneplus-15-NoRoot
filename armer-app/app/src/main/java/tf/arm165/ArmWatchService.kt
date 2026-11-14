@@ -1115,14 +1115,9 @@ class ArmWatchService : Service() {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
         })
-        registerReceiver(packageReceiver, Sweeps.packageChangeFilter())
+        Sweeps.listenForPackageChanges(this, packageReceiver)
         // Sent by the system on every volume step; no permission to hear it.
-        val volume = IntentFilter(VOLUME_CHANGED)
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(volumeReceiver, volume, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(volumeReceiver, volume)
-        }
+        Sweeps.listenToSystem(this, volumeReceiver, IntentFilter(VOLUME_CHANGED))
         LockRate.sync(this)
         LockRate.watch(this)
         Choreographer.getInstance().postFrameCallback(panelFrames)

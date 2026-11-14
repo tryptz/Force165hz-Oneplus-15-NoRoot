@@ -127,7 +127,7 @@ class MainActivity : ShellActivity() {
         // An app installed or removed while this screen is alive (issue #36):
         // the list was only ever read here, in onCreate, so a new app could
         // not be found, or armed by Arm all, until the screen was restarted.
-        registerReceiver(packageChanges, Sweeps.packageChangeFilter())
+        Sweeps.listenForPackageChanges(this, packageChanges)
         prefs.registerOnSharedPreferenceChangeListener(storeChanges)
         ArmWatchService.start(this) // watchdog: beat games that pin their own frame rate
         requestNotificationPermission()

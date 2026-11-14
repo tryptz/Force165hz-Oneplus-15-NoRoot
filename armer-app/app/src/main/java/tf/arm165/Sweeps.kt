@@ -1,9 +1,11 @@
 package tf.arm165
 
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 
 /**
  * Arm all and Clear, without a screen.
@@ -23,12 +25,26 @@ object Sweeps {
      */
     fun skip(self: String): Set<String> = RateLock.optInOnly(self) + RateLock.NEVER_ARM
 
-    /** Apps installed or removed: what the main screen and the watchdog both listen for. */
-    fun packageChangeFilter(): IntentFilter = IntentFilter().apply {
-        addAction(Intent.ACTION_PACKAGE_ADDED)
-        addAction(Intent.ACTION_PACKAGE_REMOVED)
-        addDataScheme("package")
+    /**
+     * Registers [receiver] for broadcasts only the system sends, saying so
+     * where the platform asks: from Android 13 a receiver states whether
+     * other apps may reach it, and these may not.
+     */
+    fun listenToSystem(context: Context, receiver: BroadcastReceiver, filter: IntentFilter) {
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
     }
+
+    /** Apps installed or removed: what the main screen and the watchdog both listen for. */
+    fun listenForPackageChanges(context: Context, receiver: BroadcastReceiver) =
+        listenToSystem(context, receiver, IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        })
 
     /** Every installable target for a sweep, in no particular order. */
     fun targets(pm: PackageManager, self: String): List<String> {
