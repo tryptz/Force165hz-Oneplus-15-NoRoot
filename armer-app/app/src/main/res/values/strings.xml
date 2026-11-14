@@ -71,7 +71,6 @@
     <string name="idle_note">Idle: a still screen drops by itself and comes back on motion. 60, 90, 120 and 144 all reach 1 Hz. Only 165 stops higher, at the %1$d Hz floor of its own panel mode.</string>
 
     <!-- navigation / support -->
-    <string name="back">Back</string>
     <string name="coffee">Buy me a coffee</string>
     <string name="coffee_url">https://ko-fi.com/tryptz</string>
 
@@ -131,12 +130,6 @@
     <string name="widget_hz_none">— Hz</string>
     <string name="widget_arm_all">Arm all</string>
     <string name="widget_clear">Clear</string>
-    <plurals name="widget_armed">
-        <item quantity="one">%1$d app armed</item>
-        <item quantity="other">%1$d apps armed</item>
-    </plurals>
-    <string name="widget_arming">Arming every app…</string>
-    <string name="widget_clearing">Disarming…</string>
 
     <string name="usage_title">Usage access</string>
     <string name="usage_no_screen">No usage-access screen on this build — grant it over adb: appops set tf.arm165 GET_USAGE_STATS allow</string>
@@ -166,7 +159,6 @@
     <string name="systemui_body">Measured on this build: the shade does NOT follow the vote. It stays at 120. The call is accepted, but the panel takes its mode from the foreground app\'s window, and SystemUI\'s shade, quick settings and lock screen are system overlays with no activity in that stack, so nothing ever reads the override.\n\nThe switch is kept for builds that behave differently. Where such a vote does land it pins the display rather than one app, and holds the lock screen and always-on display there too. Arm all always skips this row.</string>
     <string name="systemui_yes">Arm it</string>
 
-
     <!-- help screen -->
     <string name="help">How it works</string>
     <string name="help_title">How it works</string>
@@ -193,47 +185,6 @@ adb shell appops set tf.arm165 GET_USAGE_STATS allow</string>
     <string name="help_trouble_title">If something stops working</string>
     <string name="help_trouble_body">Settings › Live log shows what the app is doing, and Share log sends it with a bug report. A SecurityException there usually means a system update closed the door this app uses. The System UI row does nothing on current builds; Arm all skips it.</string>
 
-
-    <!-- games page -->
-    <string name="games_title">3D Games</string>
-    <string name="games_tagline">Force 165 Hz rendering per game</string>
-    <string name="games_hero_unit">games boosted</string>
-    <string name="games_hero_of">of %1$d detected</string>
-    <string name="games_hero_loading">Scanning for games…</string>
-    <string name="games_empty_title">No games yet</string>
-    <string name="games_empty_body">No installed app declares itself a game. Switch to All and long-press an app to mark it as a game.</string>
-    <string name="games_empty_armed_body">Flip a switch on any game to force 165 Hz rendering.</string>
-
-    <string name="gfilter_games">Games</string>
-    <string name="gfilter_boosted">Boosted</string>
-    <string name="gfilter_all">All apps</string>
-
-    <string name="mark_game">Mark as game</string>
-    <string name="unmark_game">Remove from games</string>
-    <string name="marked_game">Marked %1$s as a game</string>
-    <string name="unmarked_game">Removed %1$s from games</string>
-
-    <string name="oiface_active">Game engine: active</string>
-    <string name="oiface_unsupported">Game engine: unavailable on this build</string>
-    <string name="oiface_active_sub">Boosted games are registered with OxygenOS so HyperRendering applies.</string>
-    <string name="oiface_unsupported_sub">The vendor game service refused access, so boosting only pins the display rate.</string>
-
-    <!-- game boost / secure-settings card -->
-    <string name="boost_title">Game boost switch</string>
-    <string name="boost_on">On. OxygenOS high-refresh feature enabled</string>
-    <string name="boost_off">Off. Tap to enable the high-refresh feature</string>
-    <string name="boost_locked">Needs a one-time permission, see below</string>
-    <string name="boost_grant_intro">Run this once over adb, then reopen. It survives reboots.</string>
-    <string name="boost_grant_cmd">adb shell pm grant tf.arm165 android.permission.WRITE_SECURE_SETTINGS</string>
-    <string name="copied">Command copied</string>
-
-    <string name="boost_hold">Boosting %1$d games at 165 Hz…</string>
-    <string name="boosted_one">%1$s boosted to 165 Hz</string>
-    <string name="unboosted_one">%1$s back to normal</string>
-    <string name="boost_all">Boost all</string>
-    <string name="boosted_all">Boosted %1$d of %2$d games</string>
-    <string name="games_toggle_desc">Boost %1$s to 165 Hz</string>
-    <string name="nothing_boosted">No games boosted yet</string>
     <!-- lock screen at 120 Hz (issue #26) -->
     <string name="lock120_title">Lock screen and camera at 120 Hz</string>
     <string name="lock120_sub_off">For the phone\'s Standard refresh rate, where the shade and app switching follow the armed rate but the lock screen, the screen-off animation (into the Always-On display) and the camera\'s buttons drop to 60 Hz. This holds them at 120 Hz. No adb needed; the camera needs usage access.</string>
