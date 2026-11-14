@@ -78,6 +78,10 @@ object RateLock {
         if (rateId == RATE_NONE || hz(rateId) <= panelHz()) rateId
         else RATES_FOR_DEVICE.last().first
 
+    /** The fastest of [rateIds], as this panel takes it, or null when there are none. */
+    fun highestOnPanel(rateIds: Collection<Int>): Int? =
+        rateIds.maxByOrNull { hz(it) }?.let(::onPanel)
+
     /** True when [rateId] is one this panel runs at a lower rate than its label. */
     fun fallsBack(rateId: Int): Boolean = onPanel(rateId) != rateId
 
@@ -219,7 +223,8 @@ object RateLock {
 
     /**
      * Whether swapping this rate for 120 can idle LOWER than the rate's own
-     * mode does. Measured on this build, and the answer is 144 alone.
+     * mode does. Measured on this build, and the answer is 144 alone, unless
+     * [restAbove144] says otherwise.
      *
      * From 144 the switch is clean and the panel ramps to 1 Hz. From 165 it is
      * not: the extreme mode has to be left through 144 first, and the 120 that
@@ -712,7 +717,7 @@ object RateLock {
      * handed to the MEMC chip's feedback instead and votes nothing.
      */
     fun holdDisplayRate(rateId: Int, token: IBinder): Boolean = transact(
-        displayVoteCode ?: (voteCode + 1),
+        displayCode,
         write = { it.writeInt(1); it.writeInt(rateId); it.writeStrongBinder(token) },
         read = { it.readInt() != 0 },
         fallback = false,
@@ -725,13 +730,16 @@ object RateLock {
      * is not taken at all: a build that declares a method between the two
      * votes moves this one, and nothing else here would say so.
      */
-    fun displayVoteNote(): String = displayVoteCode
-        ?.let { "transaction $it, named by this build" }
-        ?: "transaction ${voteCode + 1}, assumed to follow the vote at $voteCode"
+    fun displayVoteNote(): String = "transaction $displayCode, " +
+        if (displayVoteCode != null) "named by this build"
+        else "assumed to follow the vote at $voteCode"
+
+    /** The transaction the display-wide vote is sent at: named, or the one after the vote. */
+    private val displayCode: Int get() = displayVoteCode ?: (voteCode + 1)
 
     /** Withdraws [holdDisplayRate]'s vote and unlinks [token]. */
     fun releaseDisplayRate(token: IBinder): Boolean = transact(
-        displayVoteCode ?: (voteCode + 1),
+        displayCode,
         write = { it.writeInt(0); it.writeInt(RATE_NONE); it.writeStrongBinder(token) },
         read = { it.readInt() != 0 },
         fallback = false,

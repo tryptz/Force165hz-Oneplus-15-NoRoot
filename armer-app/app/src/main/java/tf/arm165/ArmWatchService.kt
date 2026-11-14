@@ -292,12 +292,13 @@ class ArmWatchService : Service() {
         // an app that has just come to the front, or opened new windows on
         // the way, could show the phone's own rate (60 on Standard) for up
         // to five seconds. The parked case is the block below.
-        val switchedIn = focus != null && focus != lastPassFocus && focus !in parked
+        val cameToFront = focus != null && focus != lastPassFocus
+        val switchedIn = cameToFront && focus !in parked
 
         // Switching INTO an armed app is the user asking for its rate now: a
         // vote left parked at 120 from the last time it was on screen must not
         // be what greets them. Not park churn — no content undid this one.
-        if (focus != null && focus != lastPassFocus && focus in parked) {
+        if (focus != null && cameToFront && focus in parked) {
             armedNow[focus]?.let { rateId ->
                 if (RateLock.arm(focus, rateId)) {
                     parked -= focus
@@ -343,18 +344,15 @@ class ArmWatchService : Service() {
         // vote oscillates — the 'unstable at 165' loop. GPU load and tracked
         // fps stay as conservative backups.
         //
-        // The fps backup has to obey the same rule while a vote is parked.
-        // It used to end the park at [ACTIVE_FPS], 45, which a 60 fps video
-        // clears: the one thing the 120 vote is for besides a true idle is
-        // the panel settling at 30 or 60 under video, and in any app the
-        // daemon reports fps for, that video put the armed rate straight
-        // back. Under a 120 ceiling an app cannot be measured above 120, so
-        // content that wants more shows as fps AT the ceiling, and that is
-        // what ends a park now. With nothing parked the 45 stands: there it
-        // only decides whether a pass counts as busy, and it still keeps a
-        // playing video from starting a park countdown at the gate below.
-        val fpsEndsPark = focusFps >= PARK_RESTORE_FPS
-        val fpsSaysBusy = if (parked.isEmpty()) fpsBusy else fpsEndsPark
+        // The fps backup obeys the same rule while a vote is parked. The 120
+        // vote is for a true idle and for the panel settling at 30 or 60
+        // under video, and a 60 fps video clears [ACTIVE_FPS]. Under a 120
+        // ceiling an app cannot be measured above 120, so content that wants
+        // more shows as fps AT the ceiling, and only that ends a park. With
+        // nothing parked [ACTIVE_FPS] stands: there it only decides whether
+        // a pass counts as busy, and it still keeps a playing video from
+        // starting a park countdown at the gate below.
+        val fpsSaysBusy = focusFps >= if (parked.isEmpty()) ACTIVE_FPS else PARK_RESTORE_FPS
         val graceOver = System.nanoTime() >= parkGraceUntilNs
         val phz = panelHz()
 
@@ -507,7 +505,8 @@ class ArmWatchService : Service() {
                 // What may park is a measurement, not a rule: see
                 // RateLock.parkable. 144 gains a ramp to 1 Hz. 165 would land
                 // on a pinned 120, above the 55 it idles to unaided, so it
-                // rests at 55 instead. 120 already is the park, and 60 and 90
+                // rests at 55 instead (unless RateLock.restAbove144 says this
+                // panel does not idle there at all). 120 already is the park, and 60 and 90
                 // reach 1 Hz in their own modes, so there is nothing for a park
                 // to win there — they are ceilings the user picked to keep
                 // faster content OFF the panel (judder), and raising one to 120
@@ -929,8 +928,7 @@ class ArmWatchService : Service() {
             // A sweep changes the armed set, which both of these read.
             ArmWidget.refresh(this)
             handler.post {
-                getSystemService(android.app.NotificationManager::class.java)
-                    ?.notify(NOTIFY_ID, buildNotification())
+                repostNotification()
                 // Nothing armed and nothing to hold: the watchdog the sweep
                 // just started has no reason to stay running.
                 if (action == ArmWidget.ACTION_CLEAR) stopIfIdle(this)
@@ -1045,10 +1043,14 @@ class ArmWatchService : Service() {
             val pkg = i?.data?.schemeSpecificPart ?: return
             if (i.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
             val p = prefs ?: return
+            // No Arm all standing is the usual case for an install, and it
+            // is answered without parsing the armed set.
+            val rateId = if (i.action == Intent.ACTION_PACKAGE_ADDED) {
+                ArmedStore.sweepRate(p) ?: return
+            } else RateLock.RATE_NONE
             val armed = ArmedStore.read(p)
             when (i.action) {
                 Intent.ACTION_PACKAGE_ADDED -> {
-                    val rateId = ArmedStore.sweepRate(p) ?: return
                     if (pkg in armed || pkg in Sweeps.skip(packageName)) return
                     armed[pkg] = rateId
                     ArmedStore.write(p, armed)
@@ -1061,40 +1063,25 @@ class ArmWatchService : Service() {
                     }
                 }
                 Intent.ACTION_PACKAGE_REMOVED -> {
-                    val rateId = armed.remove(pkg) ?: return
+                    val was = armed.remove(pkg) ?: return
                     ArmedStore.write(p, armed)
                     worker.execute {
-                        synchronized(RateLock) { RateLock.release(pkg, rateId) }
+                        synchronized(RateLock) { RateLock.release(pkg, was) }
                         Log.i(TAG, "$pkg uninstalled, dropped from the armed set")
                     }
                 }
                 else -> return
             }
-            getSystemService(android.app.NotificationManager::class.java)
-                ?.notify(NOTIFY_ID, buildNotification())
+            repostNotification()
             ArmWidget.refresh(this@ArmWatchService)
             if (armed.isEmpty()) stopIfIdle(this@ArmWatchService)
         }
     }
 
-    /**
-     * A volume step. The slider is SystemUI's window and a key press wakes
-     * nothing, so from an idling panel it animates at the idle rate. One
-     * display-wide hold per step, for as long as the slider stays up
-     * ([PopupRate.pulse]).
-     *
-     * Only with something armed above 120: with every app at 120 or under
-     * there is no floor to climb out of, and holding a rate nobody armed
-     * would put faster content on a panel the user chose to keep it off.
-     */
+    /** A volume step: the slider gets the hold [PopupRate.volumeStep] describes. */
     private val volumeReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
-            if (!screenOn) return
-            val armed = prefs?.let { ArmedStore.read(it) }.orEmpty()
-            if (armed.values.none { RateLock.hz(it) > PARK_CEILING_HZ }) return
-            val km = getSystemService(android.app.KeyguardManager::class.java)
-            if (km?.isKeyguardLocked == true) return // the lock screen has its own hold
-            PopupRate.pulse(applicationContext, "volume slider", VOLUME_HOLD_MS)
+            if (screenOn) prefs?.let { PopupRate.volumeStep(applicationContext, it) }
         }
     }
 
@@ -1128,11 +1115,7 @@ class ArmWatchService : Service() {
             addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
         })
-        registerReceiver(packageReceiver, IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addDataScheme("package")
-        })
+        registerReceiver(packageReceiver, Sweeps.packageChangeFilter())
         // Sent by the system on every volume step; no permission to hear it.
         val volume = IntentFilter(VOLUME_CHANGED)
         if (android.os.Build.VERSION.SDK_INT >= 33) {
@@ -1174,8 +1157,7 @@ class ArmWatchService : Service() {
         regChecked.clear()
         // The armed count is baked into the notification text, so re-post it:
         // the service is re-started on every change to the armed set.
-        getSystemService(android.app.NotificationManager::class.java)
-            ?.notify(NOTIFY_ID, buildNotification())
+        repostNotification()
         return START_STICKY
     }
 
@@ -1210,6 +1192,12 @@ class ArmWatchService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /** The armed count is baked into the notification text, so it is posted again. */
+    private fun repostNotification() {
+        getSystemService(android.app.NotificationManager::class.java)
+            ?.notify(NOTIFY_ID, buildNotification())
+    }
 
     private fun buildNotification(): Notification {
         val pi = android.app.PendingIntent.getActivity(
@@ -1361,9 +1349,6 @@ class ArmWatchService : Service() {
 
         /** AudioManager.VOLUME_CHANGED_ACTION: hidden as a constant, public as a broadcast. */
         private const val VOLUME_CHANGED = "android.media.VOLUME_CHANGED_ACTION"
-
-        /** The volume slider stays up about three seconds after the last step. */
-        private const val VOLUME_HOLD_MS = 3500L
 
         /** How long the last oiface focus answer stands after it stops answering. */
         private const val FOCUS_MEMORY_NS = 5_000_000_000L

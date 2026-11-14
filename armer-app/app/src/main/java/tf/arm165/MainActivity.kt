@@ -6,7 +6,6 @@ import android.content.ActivityNotFoundException
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -128,11 +127,7 @@ class MainActivity : ShellActivity() {
         // An app installed or removed while this screen is alive (issue #36):
         // the list was only ever read here, in onCreate, so a new app could
         // not be found, or armed by Arm all, until the screen was restarted.
-        registerReceiver(packageChanges, IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addDataScheme("package")
-        })
+        registerReceiver(packageChanges, Sweeps.packageChangeFilter())
         prefs.registerOnSharedPreferenceChangeListener(storeChanges)
         ArmWatchService.start(this) // watchdog: beat games that pin their own frame rate
         requestNotificationPermission()
@@ -158,8 +153,18 @@ class MainActivity : ShellActivity() {
         }
     }
 
+    /**
+     * One reload per burst. An update sends a removal and an addition, and a
+     * batch of store updates sends a pair per app; each reload lists every
+     * installed app and reads its label.
+     */
+    private val reloadCatalog = Runnable { loadCatalog() }
+
     private val packageChanges = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) = loadCatalog()
+        override fun onReceive(context: Context?, intent: Intent?) {
+            main.removeCallbacks(reloadCatalog)
+            main.postDelayed(reloadCatalog, CATALOG_RELOAD_MS)
+        }
     }
 
     /**
@@ -549,6 +554,9 @@ class MainActivity : ShellActivity() {
     private companion object {
         const val TAG = "Arm165"
         const val REQ_NOTIFICATIONS = 165
+
+        /** How long package broadcasts are left to settle before the list reloads. */
+        const val CATALOG_RELOAD_MS = 500L
 
         /** The wall clock may be set after boot; allow it this much drift. */
         const val BOOT_CLOCK_SLACK_MS = 60_000L

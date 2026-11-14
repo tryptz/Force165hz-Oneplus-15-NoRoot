@@ -1,6 +1,8 @@
 package tf.arm165
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 
 /**
@@ -20,6 +22,13 @@ object Sweeps {
      * tap away in the list.
      */
     fun skip(self: String): Set<String> = RateLock.optInOnly(self) + RateLock.NEVER_ARM
+
+    /** Apps installed or removed: what the main screen and the watchdog both listen for. */
+    fun packageChangeFilter(): IntentFilter = IntentFilter().apply {
+        addAction(Intent.ACTION_PACKAGE_ADDED)
+        addAction(Intent.ACTION_PACKAGE_REMOVED)
+        addDataScheme("package")
+    }
 
     /** Every installable target for a sweep, in no particular order. */
     fun targets(pm: PackageManager, self: String): List<String> {

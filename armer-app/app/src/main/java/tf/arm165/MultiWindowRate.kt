@@ -40,9 +40,7 @@ object MultiWindowRate {
     fun update(context: Context, armed: Map<String, Int>) {
         val onScreen = Foreground.resumedPackages(context)
         val want = if (onScreen.size < 2) RateLock.RATE_NONE
-        else onScreen.mapNotNull { armed[it] }
-            .maxByOrNull { RateLock.hz(it) }
-            ?.let(RateLock::onPanel) ?: RateLock.RATE_NONE
+        else RateLock.highestOnPanel(onScreen.mapNotNull { armed[it] }) ?: RateLock.RATE_NONE
         if (want == heldRate) return
         if (want == RateLock.RATE_NONE) {
             release()
